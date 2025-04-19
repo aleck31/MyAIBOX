@@ -8,6 +8,7 @@ openai
 # Utilities
 uvicorn[standard]
 python-dotenv
+itsdangerous
 cachetools
 aiohttp
 wikipedia

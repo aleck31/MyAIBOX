@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
+import json
+from fastapi import APIRouter, Request, HTTPException, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from core.auth import cognito_auth
 from core.logger import logger
-import json
-from datetime import datetime
 
 
 # Create router
@@ -34,9 +33,9 @@ def log_unauth_access(request: Request, details: str = None):
 
 # Dependency to get the current user or raises exception
 def get_auth_user(request: Request):
-    """Get current authorized user"""
+    """Get current authorized user with token verification"""
     # Log full session data at DEBUG level
-    # logger.debug(f"Full request session data: {dict(request.session)}")
+    # logger.debug(f"Full request session: {dict(request.session)}")
 
     user = request.session.get('user')
 
@@ -50,11 +49,24 @@ def get_auth_user(request: Request):
         #ToDo: Redirect users to the homepage instead of showing a 401 error, improving user experience.
 
     username = user.get('username')
-    # Log access token for debugging
-    access_token = user.get('access_token')
-    logger.debug(f"Access token for [{username}] verified: {bool(access_token)}")
+    if access_token := user.get('access_token'):
+        # Verify token with Cognito (refresh if expired)
+        if validated_token := cognito_auth.verify_token(access_token):
+            request.session['user']['access_token'] = validated_token
+            return username
+        else:
+            log_unauth_access(
+                request=request,
+                details=f'Invalid or expired token for user: {username}'
+            )
+            # Clear invalid session
+            request.session.clear()
+            raise HTTPException(status_code=401, detail="Authentication token expired or invalid")
 
-    return username
+    else:
+        # Log token verification issues for debugging
+        logger.warning(f"Missing access token for user [{username}]")
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
 
 
 @router.get('/login')

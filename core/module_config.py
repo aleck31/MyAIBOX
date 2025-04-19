@@ -89,20 +89,17 @@ class ModuleConfig:
                 }
             )
             logger.debug(f"[ModuleConfig] Raw response from DB: {response}")
+
             if 'Item' in response:
                 config = self._decimal_to_numeric(response['Item'])
-                # Simplify module configuration by removing submodule configurations
-                # if sub_module and 'sub_modules' in config:
-                #     sub_config = config['sub_modules'].get(sub_module)
-                #     if sub_config:
-                #         self._config_cache[cache_key] = sub_config
-                #         return sub_config
                 self._config_cache[cache_key] = config
                 return config
-            logger.debug(f"[ModuleConfig] No config found for {module_name}, initializing default")
-            if config := self.init_module_config(module_name):
-                self._config_cache[cache_key] = config
-            return config
+            else:
+                logger.debug(f"[ModuleConfig] No config found for {module_name}, initializing default")
+                if config := self.init_module_config(module_name):
+                    self._config_cache[cache_key] = config
+                return config
+
         except ClientError as e:
             logger.error(f"[ModuleConfig] Error getting module config: {str(e)}")
             return None
