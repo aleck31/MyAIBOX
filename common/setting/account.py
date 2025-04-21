@@ -22,8 +22,8 @@ class AccountHandlers:
     def get_display_username(cls, request: gr.Request=None) -> str:
         """Get current logged in username for display in settings UI"""
         try:              
-            user = request.session.get('user')
-            username = user.get('username')
+            auth_user = request.session.get('auth_user')
+            username = auth_user.get('username') if auth_user else None
             logger.debug(f"Current username from session: {username}")
             return username or "Not authenticated"
             
@@ -54,7 +54,7 @@ class AccountHandlers:
             ]
         except Exception as e:
             logger.error(f"[AccountHandlers] Failed to list sessions: {str(e)}")
-            gr.Error(f"Failed to list sessions: {str(e)}")
+            gr.Error(f"Failed to list sessions: {str(e)}", duration=9)
             return []
 
     @classmethod
@@ -63,14 +63,14 @@ class AccountHandlers:
         try:
             # Delete session
             await cls._get_session_store().delete_session_by_id(session_id)
-            gr.Info(f"Deleted session {session_id}")
+            gr.Info(f"Deleted session {session_id}", duration=3)
             
             # Return updated sessions list
             return await cls.list_active_sessions(username)
             
         except Exception as e:
             logger.error(f"[AccountHandlers] Failed to delete session: {str(e)}")
-            gr.Error(f"Failed to delete session: {str(e)}")
+            gr.Error(f"Failed to delete session: {str(e)}", duration=9)
             return []
 
     @classmethod
@@ -85,12 +85,12 @@ class AccountHandlers:
             
             # Update session
             await cls._get_session_store().save_session(session)
-            gr.Info(f"Cleared history for session {session.session_name}")
+            gr.Info(f"Cleared history for session {session.session_name}", duration=3)
 
             # Return updated sessions list
             return await cls.list_active_sessions(username)
 
         except Exception as e:
             logger.error(f"[AccountHandlers] Failed to clear session history: {str(e)}")
-            gr.Error(f"Failed to clear session history: {str(e)}")
+            gr.Error(f"Failed to clear session history: {str(e)}", duration=9)
             return []

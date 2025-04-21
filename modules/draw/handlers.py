@@ -205,5 +205,5 @@ class DrawHandlers(BaseHandler):
 
         except Exception as e:
             logger.error(f"[DrawHandlers] Failed to generate image: {str(e)}", exc_info=True)
-            gr.Info(f"{str(e)}", duration=3)
+            gr.Error(f"{str(e)}", duration=9)
             return None, used_seed

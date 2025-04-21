@@ -43,7 +43,7 @@ class TestAuth(unittest.TestCase):
             
             auth_result = cognito_auth.authenticate(username, password)
             if auth_result['success']:
-                request.session['user'] = {
+                request.session['auth_user'] = {
                     'username': username,
                     'access_token': auth_result['tokens']['AccessToken']
                 }
@@ -63,7 +63,7 @@ class TestAuth(unittest.TestCase):
         @self.app.get("/test-logout")
         async def test_logout(request: Request):
             """Test logout endpoint"""
-            user = request.session.get('user')
+            user = request.session.get('auth_user')
             if user and user.get('access_token'):
                 result = cognito_auth.logout(user['access_token'])
                 request.session.clear()

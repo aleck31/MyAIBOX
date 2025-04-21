@@ -108,12 +108,15 @@ class TextHandlers(BaseHandler):
                 session=session,
                 content=content
             )
-            
+
             if not response:
                 raise ValueError("Empty response from service")
-                
-            # GenService returns the content string directly
-            return response
+
+            if isinstance(response, dict):
+                return response.get('text')
+            else:
+                # returns the content string directly
+                return response
 
         except Exception as e:
             logger.error(f"[TextHandlers] Failed to generate text: {str(e)}")

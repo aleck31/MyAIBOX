@@ -17,7 +17,7 @@ def log_unauth_access(request: Request, details: str = None):
     """Log unauthorized access attempts with detailed information"""
     # Get client IP - check for proxy headers first
     client_ip = request.headers.get('x-forwarded-for') or request.headers.get('x-real-ip') or request.client.host
-    
+
     # Build security log entry
     security_log = {
         'client_ip': client_ip,
@@ -26,7 +26,7 @@ def log_unauth_access(request: Request, details: str = None):
         'user_agent': request.headers.get('user-agent'),
         'details': details,
     }
-    
+
     # Log as JSON for better parsing
     logger.warning(f"SECURITY_ALERT: Unauthorized access - {json.dumps(security_log, indent=2)}")
 
@@ -46,16 +46,16 @@ def handle_auth_failure(request: Request, error_detail: str, log_message: str = 
     else:
         # For UI requests, redirect to the login page
         if log_message:
-            logger.debug(log_message)
+            logger.debug(f"[Auth] {log_message}")
         raise HTTPException(status_code=302, headers={"Location": "/login"}, detail="Redirecting to login page")
 
 
 # Dependency to get the current user or redirects to login page
 def get_auth_user(request: Request):
-    """Get current authorized user with token verification"""
-    user = request.session.get('user')
+    """Get current authorized username with token verification"""
+    auth_user = request.session.get('auth_user')
 
-    if not user:
+    if not auth_user:
         # Log unauthorized access attempt
         log_unauth_access(
             request=request,
@@ -69,11 +69,11 @@ def get_auth_user(request: Request):
             f"Redirecting unauthenticated user to login page, from: {redirect_url}"
         )
 
-    username = user.get('username')
-    if access_token := user.get('access_token'):
+    username = auth_user.get('username')
+    if access_token := auth_user.get('access_token'):
         # Verify token with Cognito (refresh if expired)
         if validated_token := cognito_auth.verify_token(access_token):
-            request.session['user']['access_token'] = validated_token
+            request.session['auth_user']['access_token'] = validated_token
             return username
         else:
             log_unauth_access(
@@ -107,17 +107,18 @@ async def login_page(request: Request, error: str = None):
         {"request": request, "error": error}
     )
 
+
 @router.post('/auth')
 async def auth(request: Request, username: str = Form(...), password: str = Form(...)):
     """Handle authentication"""
     auth_result = cognito_auth.authenticate(username, password)
     if auth_result['success']:
         # Store user info and token in session
-        request.session['user'] = {
+        request.session['auth_user'] = {
             'username': username,
             'access_token': auth_result['tokens']['AccessToken']
         }
-        logger.debug(f"Authentication successful. Session data: {dict(request.session)}")
+        logger.debug(f"[Auth] Authentication successful for {username}")
         
         # Create response with redirect
         response = RedirectResponse(url='/main', status_code=303)
@@ -135,20 +136,21 @@ async def auth(request: Request, username: str = Form(...), password: str = Form
         status_code=303
     )
 
+
 @router.get('/logout')
 async def logout(request: Request):
     """Handle logout request"""
     try:
-        user = request.session.get('user')
-        if user and user.get('access_token'):
-            cognito_auth.logout(user['access_token'])
-        logger.debug(f"Session data before clear: {dict(request.session)}")
+        auth_user = request.session.get('auth_user')
+        if auth_user and auth_user.get('access_token'):
+            cognito_auth.logout(auth_user['access_token'])
+        # logger.debug(f"[Auth] Session data before clear: {dict(request.session)}")
         request.session.clear()
-        logger.debug("Session cleared during logout")
+        logger.debug(f"[Auth] Session cleared for {auth_user.get('username')}")
 
-        # Create response with redirect
-        response = RedirectResponse(url='/login')
-        return response
+        # response with redirect
+        return RedirectResponse(url='/login')
+
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")
         raise HTTPException(status_code=500, detail="Logout failed")

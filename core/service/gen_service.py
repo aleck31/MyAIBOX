@@ -109,9 +109,9 @@ class GenService(BaseService):
         session: Session,
         content: Dict[str, str],
         option_params: Optional[Dict[str, float]] = None
-    ) -> str:
+    ) -> Dict:
         """Generate text using the configured LLM with session context
-        
+
         Args:
             session: Session for context management
             content: Dictionary containing text and optional files
@@ -139,37 +139,39 @@ class GenService(BaseService):
                 **(option_params or {})
             )
 
-            if not response.content:
-                raise ValueError("Empty response from LLM Provider")
+            if response.content:
+                # Add interactions to session
+                session.add_interaction({
+                    "role": "user",
+                    "content": content
+                })
                 
-            # Add interactions to session
-            session.add_interaction({
-                "role": "user",
-                "content": content
-            })
-            
-            session.add_interaction({
-                "role": "assistant",
-                "content": response.content,
-                "metadata": getattr(response, 'metadata', None)
-            })
-            
-            # Update session
-            await self.session_store.save_session(session)
+                session.add_interaction({
+                    "role": "assistant",
+                    "content": response.content,
+                    "metadata": getattr(response, 'metadata', None)
+                })
+                
+                # Update session
+                await self.session_store.save_session(session)
 
-            return response.content.get('text', '')
+                return response.content
+
+            else:
+                raise ValueError("Empty response from LLM Provider")
 
         except LLMProviderError as e:
             logger.error(f"[GenService] Failed to generate text in session {session.session_id}: {e.error_code}")
             # Return user-friendly message from provider
-            return f"I apologize, {e.message}"
+            return {'error': True, 'text': f"I apologize, {e.message}"}
+
 
     async def gen_text_stream(
         self,
         session: Session,
         content: Dict[str, str],
         option_params: Optional[Dict[str, float]] = None
-    ) -> AsyncIterator[str]:
+    ) -> AsyncIterator[Dict]:
         """Generate text with streaming response and session context
         
         Args:
@@ -238,9 +240,10 @@ class GenService(BaseService):
 
             except LLMProviderError as e:
                 logger.error(f"[GenService] Failed to get response from LLM Provider: {e.error_code}")
-                # Yield user-friendly message from provider
-                yield f"I apologize, {e.message}"
+                # Yield user-friendly message from provider as a dictionary
+                yield {'error': True, 'text': f"I apologize, {e.message}"}
 
         except Exception as e:
             logger.error(f"[GenService] Failed to generate text stream in session {session.session_id}: {str(e)}")
-            yield "I apologize, but I encountered an error. Please try again."
+            # Yield error as a dictionary
+            yield {'error': True, 'text': "I apologize, but I encountered an error. Please try again."}

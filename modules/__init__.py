@@ -53,7 +53,7 @@ class BaseHandler:
         """
         service = await cls._get_service()
         # Get authenticated user from FastAPI session
-        if user_name := request.session.get('user', {}).get('username'):
+        if user_name := request.session.get('auth_user', {}).get('username'):
             session = await service.get_or_create_session(
                 user_name=user_name,
                 module_name=cls._module_name

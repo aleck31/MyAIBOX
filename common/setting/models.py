@@ -36,7 +36,7 @@ class ModelHandlers:
             ] for m in models]
         except Exception as e:
             logger.error(f"[ModelHandlers] Error refreshing models: {str(e)}")
-            gr.Error(f"Failed to refresh models: {str(e)}")
+            gr.Error(f"Failed to refresh models: {str(e)}", duration=9)
             return []
 
     @classmethod
@@ -81,7 +81,7 @@ class ModelHandlers:
             return cls.refresh_models()
         except Exception as e:
             logger.error(f"[ModelHandlers] Error adding model: {str(e)}")
-            gr.Error(str(e))
+            gr.Error(str(e), duration=9)
             return None
 
     @classmethod
@@ -98,7 +98,7 @@ class ModelHandlers:
             return cls.refresh_models()
         except Exception as e:
             logger.error(f"[ModelHandlers] Error updating model: {str(e)}")
-            gr.Error(str(e))
+            gr.Error(str(e), duration=9)
             return None
 
     @classmethod
@@ -113,5 +113,5 @@ class ModelHandlers:
             return cls.refresh_models()
         except Exception as e:
             logger.error(f"[ModelHandlers] Error deleting model: {str(e)}")
-            gr.Error(str(e))
+            gr.Error(str(e), duration=9)
             return None

@@ -103,5 +103,7 @@ class AskingHandlers(BaseHandler):
                 await asyncio.sleep(0)  # Add sleep for Gradio UI streaming
 
         except Exception as e:
-            logger.error(f"[AskingHandlers] Failed to Generate with think]: {str(e)}", exc_info=True)
-            yield {"text": "An unexpected error occurred. Please try again."}
+            error_type = type(e).__name__
+            error_message = str(e)
+            logger.error(f"[AskingHandlers] Failed to Generate with think: {error_type} - {error_message}", exc_info=True)
+            gr.Error(title=error_type, message=error_message, duration=9)

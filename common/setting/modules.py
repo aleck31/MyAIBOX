@@ -61,8 +61,7 @@ class ModuleHandlers:
 
         except Exception as e:
             logger.error(f"[ModuleHandlers] Failed to update module settings: {str(e)}")
-            gr.Error(f"Failed to update module settings: {str(e)}")
-            raise
+            gr.Error(f"Failed to update module settings: {str(e)}", duration=9)
 
     @classmethod
     def refresh_module_configs(cls) -> List[Any]:
@@ -88,5 +87,5 @@ class ModuleHandlers:
 
         except Exception as e:
             logger.error(f"[ModuleHandlers] Error refreshing module configs: {str(e)}")
-            gr.Error(f"Failed to refresh module configurations: {str(e)}")
+            gr.Error(f"Failed to refresh module configurations: {str(e)}", duration=9)
             return ['' for _ in range(len(MODULE_LIST) * 3)]  # Return empty values

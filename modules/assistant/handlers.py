@@ -22,7 +22,7 @@ class AssistantHandlers(BaseHandler):
     @classmethod
     def get_user_name(cls, request: gr.Request) -> Optional[str]:
         """Get authenticated user from FastAPI request."""
-        if user_name := request.session.get('user', {}).get('username'):
+        if user_name := request.session.get('auth_user', {}).get('username'):
             return user_name
         else:
             logger.warning("[AssistantHandlers] No authenticated user found")

@@ -92,7 +92,7 @@ class ChatbotHandlers(BaseHandler):
 
             # Clear history in session
             await service.clear_history(session)
-            logger.debug(f"[ChatbotHandlers] Cleared history for user: {user_name}")
+            logger.debug(f"[ChatbotHandlers] Cleared history for user: {session.user_name}")
             gr.Info(f"Cleared history for session {session.session_name}", duration=3)
             # Return empty state and chatbot
             return [], []

@@ -24,7 +24,7 @@ def create_interface() -> gr.Blocks:
             line_breaks=True,
             render=False
         )
-        
+
         output_response = gr.Markdown(
             value="",
             label='Final Response',
@@ -34,7 +34,7 @@ def create_interface() -> gr.Blocks:
             min_height=120,
             render=False
         )
-        
+
         # Main layout row
         with gr.Row():
             # Left column: Input and Options
@@ -50,7 +50,7 @@ def create_interface() -> gr.Blocks:
                     submit_btn=None,
                     max_plain_text_length=2500
                 )
-                
+
                 # Options accordion
                 with gr.Accordion(label="Options", open=False):
                     # Model selection dropdown
@@ -61,7 +61,7 @@ def create_interface() -> gr.Blocks:
                         interactive=True,
                         min_width=120
                     )
-                
+
                 # Control buttons at the bottom of left column
                 with gr.Row():
                     btn_clear = gr.ClearButton(
@@ -69,7 +69,7 @@ def create_interface() -> gr.Blocks:
                         components=[input_box, output_thinking, output_response, history]
                     )
                     btn_submit = gr.Button("✨ Go", variant="primary")
-            
+
             # Right column: Output
             with gr.Column(scale=7, min_width=500):
                 # Thinking output
@@ -122,7 +122,7 @@ def create_interface() -> gr.Blocks:
             lambda: ("✨ Go"),
             outputs=[btn_submit]
         )
-        
+
         # Add model selection change handler
         input_model.change(
             fn=AskingHandlers.update_model_id,
@@ -141,7 +141,7 @@ def create_interface() -> gr.Blocks:
             inputs=[],
             outputs=[input_model]  # Update selected model
         )
-        
+
     return interface
 
 # Create interface
