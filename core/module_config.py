@@ -34,7 +34,7 @@ class AppConf:
 
 class ModuleConfig:
     def __init__(self):
-        session = get_aws_session(region_name=env_config.default_region)
+        session = get_aws_session(region_name=env_config.aws_region)
         self.dynamodb = session.resource('dynamodb')
         self.table = self.dynamodb.Table(env_config.database_config['setting_table'])
         self._config_cache = {}  # Cache for module configurations

@@ -17,7 +17,7 @@ class CognitoAuth:
         # Validate configuration
         self._validate_config()
 
-        self.client = boto3.client('cognito-idp', region_name=env_config.default_region)
+        self.client = boto3.client('cognito-idp', region_name=env_config.aws_region)
         self.user_pool_id = env_config.cognito_config['user_pool_id']
         self.client_id = env_config.cognito_config['client_id']
 

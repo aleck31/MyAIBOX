@@ -29,6 +29,7 @@ def create_interface() -> gr.Blocks:
         min_height='60vh',
         max_height='80vh',
         avatar_images=(None, "modules/chatbot/avata_bot.png"),
+        allow_tags=True,
         render=False
     )
 
@@ -97,11 +98,11 @@ def create_interface() -> gr.Blocks:
         )
 
         # Add clear history handler for the clear button
-        chat.chatbot.clear(
-            fn=ChatbotHandlers.clear_chat_history,
-            inputs=[chat.chatbot_state],
-            outputs=[chat.chatbot_state, chat.chatbot]  # Update both state and chatbot
-        )
+        chat.chatbot.clear(ChatbotHandlers.clear_chat_history)
+
+        # Add undo handler for the undo and retry button
+        chat.chatbot.undo(ChatbotHandlers.undo_last_message)
+        chat.chatbot.retry(ChatbotHandlers.undo_last_message)
 
     return chat_interface
 

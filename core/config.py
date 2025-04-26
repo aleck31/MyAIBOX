@@ -18,9 +18,9 @@ class ENVConfig:
     """Environment-specific configuration for deployment settings"""
     
     @property
-    def default_region(self) -> str:
+    def aws_region(self) -> str:
         """Get default AWS region"""
-        return os.getenv('DEFAULT_REGION', 'ap-southeast-1')
+        return os.getenv('AWS_REGION', 'ap-southeast-1')
 
     @property
     def cognito_config(self) -> dict:
@@ -43,7 +43,7 @@ class ENVConfig:
     def bedrock_config(self) -> Dict[str, str]:
         """Get AWS Bedrock configuration"""
         return {
-            'default_region': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to default_region
+            'default_region': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to aws_region
             'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', None)
         }
 

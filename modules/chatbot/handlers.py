@@ -74,17 +74,13 @@ class ChatbotHandlers(BaseHandler):
 
     @classmethod
     async def clear_chat_history(
-        cls, chatbot_state: List, request: gr.Request
-    ) -> Tuple[List, List]:
+        cls, request: gr.Request
+    ) -> None:
         """
         Clear chat history when clear button is clicked.
 
         Args:
-            chatbot_state: Current chatbot state from ChatInterface
             request: Gradio request with session data
-
-        Returns:
-            Tuple of (updated chatbot state, empty list for UI)
         """
         try:
             # Initialize session
@@ -94,13 +90,37 @@ class ChatbotHandlers(BaseHandler):
             await service.clear_history(session)
             logger.debug(f"[ChatbotHandlers] Cleared history for user: {session.user_name}")
             gr.Info(f"Cleared history for session {session.session_name}", duration=3)
-            # Return empty state and chatbot
-            return [], []
-            
+
         except Exception as e:
             logger.error(f"[ChatbotHandlers] Failed to clear history: {e}", exc_info=True)
-            # Return current state and empty chatbot on error
-            return chatbot_state, []
+            
+    @classmethod
+    async def undo_last_message(
+        cls, request: gr.Request
+    ) -> None:
+        """
+        Remove the last pair of messages (user and assistant) from chat history when undo button is clicked.
+
+        Args:
+            request: Gradio request with session data
+        """
+        try:
+            # Initialize session
+            service, session = await cls._init_session(request)
+
+            # Check if there are messages to remove
+            if len(session.history) >= 2:
+                # Remove the last two messages (assistant and user)
+                session.history = session.history[:-2]
+                # Update session in database
+                await service.session_store.save_session(session)
+                logger.debug(f"[ChatbotHandlers] Removed last message pair for user: {session.user_name}")
+            else:
+                # No messages to remove
+                gr.Info(f"No messages to undo for this session.", duration=3)
+            
+        except Exception as e:
+            logger.error(f"[ChatbotHandlers] Failed to undo last message: {e}", exc_info=True)
 
     @classmethod
     def _normalize_input(cls, ui_input: Union[str, Dict]) -> Dict[str, Union[str, List]]:
