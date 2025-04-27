@@ -54,12 +54,21 @@ def create_interface() -> gr.Blocks:
                 # Options accordion
                 with gr.Accordion(label="Options", open=False):
                     # Model selection dropdown
-                    input_model = gr.Dropdown(
+                    option_model = gr.Dropdown(
                         info="Select model",
                         show_label=False,
                         choices=AskingHandlers.get_available_models(),
                         interactive=True,
                         min_width=120
+                    )
+
+                    # Custom prompt template
+                    option_prompt = gr.Textbox(
+                        info="Custom prompt template (leave empty to use default)",
+                        show_label=False,
+                        placeholder="Enter custom prompt template...",
+                        lines=3,
+                        max_lines=10
                     )
 
                 # Control buttons at the bottom of left column
@@ -104,7 +113,7 @@ def create_interface() -> gr.Blocks:
             outputs=btn_submit
         ).then(
             fn=AskingHandlers.gen_with_think,  # Then generate response
-            inputs=[input_box, history],
+            inputs=[input_box, history, option_prompt],
             outputs=[output_thinking, output_response],
             api_name="Asking"
         ).then(
@@ -124,9 +133,9 @@ def create_interface() -> gr.Blocks:
         )
 
         # Add model selection change handler
-        input_model.change(
+        option_model.change(
             fn=AskingHandlers.update_model_id,
-            inputs=[input_model],
+            inputs=[option_model],
             outputs=None,
             api_name=False
         )
@@ -135,11 +144,11 @@ def create_interface() -> gr.Blocks:
         interface.load(
             fn=lambda: gr.Dropdown(choices=AskingHandlers.get_available_models()),
             inputs=[],
-            outputs=[input_model]
+            outputs=[option_model]
         ).then(  # set selected model 
             fn=AskingHandlers.get_model_id,
             inputs=[],
-            outputs=[input_model]  # Update selected model
+            outputs=[option_model]  # Update selected model
         )
 
     return interface

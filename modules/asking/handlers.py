@@ -48,7 +48,8 @@ class AskingHandlers(BaseHandler):
         cls,
         input: Dict,
         history: List[Dict],
-        request: gr.Request
+        prompt_template: str = "",
+        request: gr.Request = None
     ) -> AsyncIterator[tuple[str, str]]:
         """Generate a response based on text description and optional files
         
@@ -57,6 +58,7 @@ class AskingHandlers(BaseHandler):
                 text: User's text input
                 files: Optional list of file paths
             history: raw data from gr.State, which stores the history of questions and answers
+            prompt_template: Optional custom prompt template to use instead of default SYSTEM_PROMPT
             request: FastAPI request object containing session data
             
         Yields:
@@ -68,8 +70,13 @@ class AskingHandlers(BaseHandler):
             # Initialize session
             service, session = await cls._init_session(request)
 
-            # Update session with system prompt
-            session.context['system_prompt'] = SYSTEM_PROMPT
+            # Update session with system prompt (use custom template if provided, otherwise use default)
+            if prompt_template and prompt_template.strip():
+                session.context['system_prompt'] = prompt_template.strip()
+            else:
+                session.context['system_prompt'] = SYSTEM_PROMPT
+
+            logger.debug(f"+++++++{session.context['system_prompt']}+++++++")
 
             # Build content with option history
             text = input.get('text', '')
