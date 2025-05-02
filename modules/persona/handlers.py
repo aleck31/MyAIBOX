@@ -4,7 +4,7 @@ from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
 from core.logger import logger
 from llm.model_manager import model_manager
 from modules import BaseHandler
-from .prompts import CHATBOT_STYLES
+from .prompts import PERSONA_ROLES
 
 
 class ChatbotHandlers(BaseHandler):
@@ -182,7 +182,7 @@ class ChatbotHandlers(BaseHandler):
             service, session = await cls._init_session(request)
 
             # Configure chat style
-            style_config = CHATBOT_STYLES.get(chat_style) or CHATBOT_STYLES['default']
+            style_config = PERSONA_ROLES.get(chat_style) or PERSONA_ROLES['default']
             session.context['system_prompt'] = style_config["prompt"]
             style_params = {k: v for k, v in style_config["options"].items() if v is not None}
 

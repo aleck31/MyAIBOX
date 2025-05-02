@@ -1,6 +1,6 @@
 import gradio as gr
 from .handlers import ChatbotHandlers
-from .prompts import CHATBOT_STYLES
+from .prompts import PERSONA_ROLES
 
 
 def create_interface() -> gr.Blocks:
@@ -28,12 +28,12 @@ def create_interface() -> gr.Blocks:
         show_copy_button=True,
         min_height='60vh',
         max_height='80vh',
-        avatar_images=(None, "modules/chatbot/avata_bot.png"),
+        avatar_images=(None, "modules/persona/avata_bot.png"),
         allow_tags=True,
         render=False
     )
 
-    input_model = gr.Dropdown(
+    option_model = gr.Dropdown(
         label="Chat Model:", 
         show_label=False,
         info="Select chat model",
@@ -42,18 +42,18 @@ def create_interface() -> gr.Blocks:
         render=False
     )
 
-    # input_style = gr.Dropdown(
+    # option_role = gr.Dropdown(
     #     label="Chat Style:", 
     #     show_label=False,
     #     info="Select conversation style",
-    #     choices={k: v["name"] for k, v in CHATBOT_STYLES.items()},
+    #     choices={k: v["name"] for k, v in PERSONA_ROLES.items()},
     #     value="default",
     #     render=False
     # )
-    input_style = gr.Radio(
-        label="Chat Style:", 
+    option_role = gr.Radio(
+        label="Chat Role:", 
         show_label=False,
-        choices=[(v['display_name'], k) for k, v in CHATBOT_STYLES.items()],
+        choices=[(v['display_name'], k) for k, v in PERSONA_ROLES.items()],
         value="default",
         info="Select conversation style",
         render=False
@@ -75,24 +75,24 @@ def create_interface() -> gr.Blocks:
                 open=False,
                 render=False
             ),
-            additional_inputs=[input_style, input_model]
+            additional_inputs=[option_role, option_model]
         )
 
         # Load chat history and configuration on startup
         chat.load(
             fn=lambda: gr.Dropdown(choices=ChatbotHandlers.get_available_models()),  # Return new Dropdown with updated choices
             inputs=[],
-            outputs=[input_model]
+            outputs=[option_model]
         ).then(  # Load chat history and selected model
             fn=ChatbotHandlers.load_history_confs,
             inputs=[],
-            outputs=[chat.chatbot, chat.chatbot_state, input_model]  # Update history and selected model
+            outputs=[chat.chatbot, chat.chatbot_state, option_model]  # Update history and selected model
         )
 
         # Add model selection change handler
-        input_model.change(
+        option_model.change(
             fn=ChatbotHandlers.update_model_id,
-            inputs=[input_model],
+            inputs=[option_model],
             outputs=None,
             api_name=False
         )
@@ -107,4 +107,4 @@ def create_interface() -> gr.Blocks:
     return chat_interface
 
 # Create interface
-tab_chatbot = create_interface()
+tab_persona = create_interface()

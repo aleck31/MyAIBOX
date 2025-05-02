@@ -21,12 +21,13 @@ Its user-friendly Gradio-based web interface provides an intuitive experience.
 
 ## Features
 
-* **Multimodal Assistant** 🤖
+* **Multimodal Chatbot** 🤖
   - Bedrock-powered agentic AI assistant with streaming responses
-  - Support for text, images, and document inputs
+  - AI Chatbot with different personality profiles
   - Context-aware conversations
   - Tool use (function calling) integration
   - Seamless handling of generated content
+  - Support for text, images, and document inputs
   - Supported formats:
     * Images: jpg/jpeg, png, gif, webp
     * Documents: pdf, csv, doc, docx, xls, xlsx, txt, md
@@ -125,8 +126,8 @@ my-aibox/
 │   └── main_ui.py        # UI settings
 ├── modules/           # Feature modules
 │   ├── init.py           # Base handler class 
-│   ├── assistant/        # Smart Assistant powered by Bedrock 
-│   ├── chatbot/          # Basic chatbot implementation
+│   ├── assistant/        # AI Assistant with tools 
+│   ├── persona/          # Chatbot with personality profiles
 │   ├── text/             # Text processing
 │   ├── summary/          # Text summarization
 │   ├── vision/           # Image analysis

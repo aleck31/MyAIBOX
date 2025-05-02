@@ -1,7 +1,7 @@
 # UI module for Gradio components
 import gradio as gr
 from modules.assistant.ui import tab_assistant
-from modules.chatbot.ui import tab_chatbot
+from modules.persona.ui import tab_persona
 from modules.text.ui import tab_text
 from modules.summary.ui import tab_summary
 from modules.vision.ui import tab_vision
@@ -68,13 +68,13 @@ def create_main_interface():
     
     interface = gr.TabbedInterface(
         [
-            tab_assistant, tab_chatbot, tab_text,
+            tab_assistant, tab_persona, tab_text,
             tab_summary, tab_vision, tab_asking,
             tab_coding, tab_draw, 
             tab_setting
         ],
         tab_names=[
-            "Assistant 🤖", "Chatbot 💬", "Text 📝", 
+            "Assistant 🤖", "Persona 🎭", "Text 📝", 
             "Summary 📰", "Vision 👀", "Asking 🤔",
             "Coding 💻", "Draw 🎨", 
             "Setting ⚙️"

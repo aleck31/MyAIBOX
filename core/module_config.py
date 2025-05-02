@@ -215,10 +215,10 @@ class ModuleConfig:
                     'search_internet'
                 ]
             },
-            'chatbot': {
-                'setting_name': 'chatbot',
+            'persona': {
+                'setting_name': 'persona',
                 'type': 'module',
-                'description': 'Chatbot Module Settings',
+                'description': 'Persona Module Settings',
                 'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
                 'parameters': {
                     'temperature': Decimal('0.7'),
