@@ -67,7 +67,7 @@ class LLMAPIProvider(ABC):
             - {"metadata": dict} for response metadata        
         """        
         pass
-    
+
     @abstractmethod
     async def generate_stream(
         self,
@@ -80,7 +80,7 @@ class LLMAPIProvider(ABC):
             messages: user messages
             system_prompt: Optional system instructions
             **kwargs: Additional parameters for inference
-            
+
         Yields:
             Dict containing either:
             - {"content": dict} for content chunks
@@ -102,7 +102,7 @@ class LLMAPIProvider(ABC):
             history: Optional chat history
             system_prompt: Optional system instructions
             **kwargs: Additional parameters for inference
-            
+
         Yields:
             Dict containing either:
             - {"content": dict} for content chunks
@@ -113,16 +113,16 @@ class LLMAPIProvider(ABC):
 
 def create_provider(provider_name: str, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools: Optional[List[str]] = None) -> LLMAPIProvider:
     """Factory function to create appropriate provider instance
-    
+
     Args:
         provider_name: Name of provider (e.g. 'Bedrock', 'Gemini', 'OpenAI')
         model_id: Model identifier
         llm_params: LLM inference parameters (either LLMParameters for text or GenImageParameters for images)
         tools: Optional list of tool module names to enable
-        
+
     Returns:
         LLMAPIProvider: Provider instance with tools configured
-        
+
     Raises:
         ValueError: If provider_type is not supported
     """
@@ -130,7 +130,7 @@ def create_provider(provider_name: str, model_id: str, llm_params: Union[LLMPara
     from llm.api_providers.bedrock_invoke import BedrockInvoke
     from llm.api_providers.google_gemini import GeminiProvider
     from llm.api_providers.openai import OpenAIProvider
-    
+
     # Map provider types to their implementations
     providers = {
         'BEDROCK': BedrockConverse,
@@ -139,7 +139,7 @@ def create_provider(provider_name: str, model_id: str, llm_params: Union[LLMPara
         'GEMINI': GeminiProvider, 
         'OPENAI': OpenAIProvider
     }
-    
+
     # Get provider class
     provider_class = providers.get(provider_name.upper())
     if not provider_class:

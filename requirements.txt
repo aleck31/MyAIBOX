@@ -2,7 +2,7 @@ fastapi
 gradio
 gradio_pdf
 boto3
-google-generativeai
+google-genai
 openai
 
 # Utilities

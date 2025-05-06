@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Iterator, AsyncIterator
-import google.generativeai as genai
-from google.generativeai.types import content_types
+from google import genai
+from google.genai import types
 from google.api_core import exceptions
 from core.logger import logger
 from core.config import env_config
@@ -10,17 +10,17 @@ from . import LLMAPIProvider, LLMParameters, LLMMessage, LLMResponse, LLMProvide
 
 class GeminiProvider(LLMAPIProvider):
     """Google Gemini LLM provider implementation"""
-    
+
     def __init__(self, model_id: str, llm_params: LLMParameters, tools=None):
         """Initialize provider with model ID, parameters and tools
-        
+
         Args:
             model_id: Model identifier
             llm_params: LLM inference parameters
             tools: Optional list of tool specifications
         """
         super().__init__(model_id, llm_params, tools)
-    
+
     def _validate_config(self) -> None:
         """Validate Gemini-specific configuration"""
         logger.debug(f"[GeminiProvider] Model Configurations: {self.model_id}, {self.llm_params}")
@@ -35,30 +35,17 @@ class GeminiProvider(LLMAPIProvider):
             gemini_secret_key = env_config.gemini_config['secret_id']
             api_key = get_secret(gemini_secret_key).get('api_key')
             if not api_key:
-                raise ValueError("Gemini API key not configured")            
-            genai.configure(api_key=api_key)
-            
-            # Initialize model with default system_instruction
-            model_args = {
-                "model_name": self.model_id,
-                "generation_config": self._get_generation_config()
-            }
-            
-            # Set a simple default system instruction
-            DEFAULT_SYSTEM_PROMPT = """
-            You are a helpful AI assistant. 
-            Be direct, accurate, and professional in your responses.
-            Acknowledge your limitations and ask for clarification when needed.
-            """
-            model_args["system_instruction"] = self._format_system_prompt(DEFAULT_SYSTEM_PROMPT)
-            
-            self.model = genai.GenerativeModel(**model_args)
+                raise ValueError("Gemini API key not configured")
+
+            # Initialize client with API key
+            self.client = genai.Client(api_key=api_key)
+
         except Exception as e:
             raise exceptions.FailedPrecondition(f"Failed to initialize Gemini client: {str(e)}")
 
-    def _get_generation_config(self) -> genai.GenerationConfig:
+    def _get_generation_config(self, system_prompt: Optional[str] = None) -> types.GenerateContentConfig:
         """Get Gemini-specific generation configuration"""
-        return genai.GenerationConfig(
+        config = types.GenerateContentConfig(
             max_output_tokens=self.llm_params.max_tokens,
             temperature=self.llm_params.temperature,
             top_p=self.llm_params.top_p,
@@ -66,20 +53,26 @@ class GeminiProvider(LLMAPIProvider):
             candidate_count=1
         )
 
+        # Add system instruction if provided
+        if system_prompt:
+            config.system_instruction = system_prompt
+
+        return config
+
     def _handle_gemini_error(self, error: Exception):
         """Handle Gemini-specific errors by raising LLMProviderError
-        
+
         Args:
             error: Gemini API exception
-            
+
         Raises:
             LLMProviderError with error code, user-friendly message, and technical details
         """
         error_code = type(error).__name__
         error_detail = str(error)
-        
+
         logger.error(f"[GeminiProvider] {error_code} - {error_detail}")
-        
+
         # Format user-friendly message based on exception type
         if isinstance(error, exceptions.ResourceExhausted):
             message = "The service is currently experiencing high load. Please try again in a moment."
@@ -97,59 +90,39 @@ class GeminiProvider(LLMAPIProvider):
         # Raise LLMProviderError with error code, user-friendly message, and technical details
         raise LLMProviderError(error_code, message, error_detail)
 
-    def _format_system_prompt(self, system_prompt: str) -> List[str]:
-        """Format system prompt into list of instructions"""
+    def _format_system_prompt(self, system_prompt: str) -> str:
+        """Format system prompt"""
         if system_prompt:
-            return [
+            # Clean up the system prompt by removing empty lines and extra whitespace
+            return "\n".join([
                 instruction.strip() 
                 for instruction in system_prompt.split('\n') 
                 if instruction.strip()
-            ]
+            ])
         else:
-            return []
+            return ""
 
     def _convert_messages(
         self,
-        messages: List[LLMMessage],
-        system_prompt: Optional[str] = ''
-    ) -> List[content_types.ContentType]:
-        """Convert messages to Gemini-specific format with system prompt handling
-        
+        messages: List[LLMMessage]
+    ) -> List:
+        """Convert messages to Gemini-specific format
+
         Args:
             messages: List of messages to format
-            system_prompt: Optional system prompt to set
-            
+
         Returns:
             List of Converted messages for Gemini API
         """
-        # Update model with system prompt if provided
-        if system_prompt.strip():
-            # Get current safety settings if model exists
-            safety_settings = getattr(self.model, '_safety_settings', None)
-            system_instruction = self._format_system_prompt(system_prompt)
-            
-            model_args = {
-                "model_name": self.model_id,
-                "generation_config": self._get_generation_config(),
-                "system_instruction": system_instruction
-            }
-            
-            # Only set safety settings if they exist
-            if safety_settings:
-                model_args["safety_settings"] = safety_settings
-                
-            self.model = genai.GenerativeModel(**model_args)
-            logger.debug(f"Updated Provider's model with new system_instruction: {system_instruction}")
-
         # Convert each message using _convert_message
         return [self._convert_message(msg) for msg in messages]
 
-    def _convert_message(self, message: LLMMessage) -> Dict:
+    def _convert_message(self, message: LLMMessage):
         """Convert a single message into Gemini-specific format
-        
+
         Args:
             message: Message to format
-            
+
         Returns:
             Dict with role and parts formatted for Gemini API
         """
@@ -166,37 +139,40 @@ class GeminiProvider(LLMAPIProvider):
                     context_items.append(f"{readable_key}: {value}")
             if context_items:
                 # Add formatted context with clear labeling
-                content_parts.append({
-                    "text": f"Context Information:\n{' | '.join(context_items)}\n"
-                })
+                content_parts.append(
+                    types.Part(text=f"Context Information:\n{' | '.join(context_items)}\n")
+                )
 
         # Handle message content
         if isinstance(message.content, str):
             if message.content.strip():  # Skip empty strings
-                content_parts.append({"text": message.content})
+                content_parts.append(types.Part(text=message.content))
         # Handle multimodal content from Gradio chatbox
         elif isinstance(message.content, dict):
             # Add text if present
             if text := message.content.get("text", "").strip():
-                content_parts.append({"text": text})
+                content_parts.append(types.Part(text=text))
 
             # Add files if present
             if files := message.content.get("files", []):
                 for file_path in files:
                     try:
-                        # Handle files using genai.upload_file
-                        file_ref = genai.upload_file(path=file_path)
-                        content_parts.append(file_ref)
+                        # Handle files using client.files.upload
+                        file_ref = self.client.files.upload(file=file_path)
+                        content_parts.append(types.Part(file_data=types.FileData(
+                            file_uri=file_ref.uri,
+                            mime_type=file_ref.mime_type
+                        )))
                     except Exception as e:
                         logger.error(f"Error uploading file {file_path}: {str(e)}")
                         continue
 
-        # Special handling for flash-thinking model which expects 'model' instead of 'assistant'
         role = message.role
-        if 'gemini-2.0-flash-thinking' in self.model_id and role == 'assistant':
+        # Convert 'assistant' role to 'model' as required by the new SDK
+        if role == 'assistant':
             role = 'model'
 
-        return {"role": role, "parts": content_parts}
+        return types.Content(role=role, parts=content_parts)
 
     def _process_resp_chunk(self, chunk) -> Optional[Dict]:
         """Process a response chunk and return content dict
@@ -214,19 +190,30 @@ class GeminiProvider(LLMAPIProvider):
         except (AttributeError, IndexError):
             return None
 
-    def _extract_metadata(self, chunk) -> Optional[Dict]:
-        """Extract metadata from chunk if available"""
-        if hasattr(chunk, 'usage_metadata'):
-            return {
+    def _extract_metadata(self, response) -> Optional[Dict]:
+        """Extract metadata from response if available"""
+        if hasattr(response, 'usage_metadata'):
+            metadata = {
                 'metadata': {
                     'model': self.model_id,
                     'usage': {
-                        'prompt_tokens': chunk.usage_metadata.prompt_token_count,
-                        'completion_tokens': chunk.usage_metadata.candidates_token_count,
-                        'total_tokens': chunk.usage_metadata.total_token_count
+                        'prompt_tokens': response.usage_metadata.prompt_token_count,
+                        'completion_tokens': response.usage_metadata.candidates_token_count,
+                        'total_tokens': response.usage_metadata.total_token_count
                     }
                 }
             }
+            
+            # Add safety ratings if available
+            if (hasattr(response, 'candidates') and response.candidates and 
+                hasattr(response.candidates[0], 'safety_ratings') and 
+                response.candidates[0].safety_ratings):
+                metadata['metadata']['safety_ratings'] = [
+                    {r.category: r.probability}
+                    for r in response.candidates[0].safety_ratings
+                ]
+                
+            return metadata
         return None
 
     def _generate_content_sync(
@@ -237,31 +224,25 @@ class GeminiProvider(LLMAPIProvider):
     ) -> LLMResponse:
         """Synchronous implementation of content generation"""
         try:
-            llm_messages = self._convert_messages(messages, system_prompt)
+            llm_messages = self._convert_messages(messages)
             logger.debug(f"Converted messages: {llm_messages}")
             
-            # Update model args if new system prompt provided
-            model_args = {
-                "generation_config": self._get_generation_config()
-            }
+            # Get generation config with system prompt if provided
+            config = self._get_generation_config(
+                self._format_system_prompt(system_prompt) if system_prompt else None
+            )
             
             # Generate response using generate_content
-            response = self.model.generate_content(
+            response = self.client.models.generate_content(
+                model=self.model_id,
                 contents=llm_messages,
-                **model_args
+                config=config
             )
 
             logger.debug(f"Raw Gemini response: {response}")
             
-            # Extract metadata using the same method as streaming
+            # Extract metadata (already includes safety ratings if available)
             metadata = self._extract_metadata(response)
-            
-            # Add safety ratings if available
-            if hasattr(response, 'safety_ratings'):
-                metadata['metadata']['safety_ratings'] = [
-                    {r.category: r.probability}
-                    for r in response.safety_ratings
-                ]
             
             return LLMResponse(
                 content=response.text,
@@ -279,19 +260,19 @@ class GeminiProvider(LLMAPIProvider):
     ) -> Iterator[Dict]:
         """Synchronous implementation of streaming generation"""
         try:
-            llm_messages = self._convert_messages(messages, system_prompt)
+            llm_messages = self._convert_messages(messages)
             logger.debug(f"Converted messages: {llm_messages}")
             
-            # Update model args if new system prompt provided
-            model_args = {
-                "generation_config": self._get_generation_config()
-            }
+            # Get generation config with system prompt if provided
+            config = self._get_generation_config(
+                self._format_system_prompt(system_prompt) if system_prompt else None
+            )
 
-            # Generate streaming using generate_content
-            for chunk in self.model.generate_content(
+            # Generate streaming using generate_content_stream
+            for chunk in self.client.models.generate_content_stream(
+                model=self.model_id,
                 contents=llm_messages,
-                stream=True,
-                **model_args
+                config=config
             ):
                 # Stream response content chunks
                 if content_dict := self._process_resp_chunk(chunk):
@@ -343,8 +324,8 @@ class GeminiProvider(LLMAPIProvider):
             - {"metadata": dict} for response metadata
         """
         try:
-            # Format history message
-            history_messages = self._convert_messages(history, system_prompt) if history else []
+            # Format history messages
+            history_messages = self._convert_messages(history) if history else []
             logger.debug(f"[GeminiProvider] Converted history messages: {history_messages}")
 
             # Format current user message
@@ -352,19 +333,30 @@ class GeminiProvider(LLMAPIProvider):
             logger.debug(f"[GeminiProvider] Converted Current message: {current_message}")
 
             # Create chat session with history
-            chat = self.model.start_chat(history=history_messages)
-            logger.info(f"[GeminiProvider] Processing multi-turn chat with {len(history_messages)+1} messages")
+            formatted_system_prompt = self._format_system_prompt(system_prompt) if system_prompt else None
 
-            # Update model args if new system prompt provided
-            model_args = {
-                "generation_config": self._get_generation_config()
+            # Create chat with history and system prompt if provided
+            chat_args = {
+                'model': self.model_id,
+                'history': history_messages
             }
+
+            # Add system instruction if provided
+            if formatted_system_prompt:
+                chat_args['config'] = {
+                    'system_instruction': formatted_system_prompt
+                }
+
+            chat = self.client.chats.create(**chat_args)
+
+            logger.info(f"[GeminiProvider] Processing multi-turn chat with {len(history_messages)+1} messages")
             
             # Generate streaming using send_message
-            for chunk in chat.send_message(
-                current_message['parts'],
-                stream=True,
-                **model_args
+            # Extract parts from the Content object as send_message_stream expects parts, not Content
+            message_parts = current_message.parts
+
+            for chunk in chat.send_message_stream(
+                message=message_parts
             ):
                 # Stream response chunks
                 if content_dict := self._process_resp_chunk(chunk):
