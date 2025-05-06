@@ -30,6 +30,8 @@ class ChatService(BaseService):
         ('.mp4', '.mov', '.webm'): ('video', '[User shared a video]', '[Generated a video in response]'),
         ('.pdf', '.doc', '.docx'): ('document', '[User shared a document]', '[Generated a document in response]')
     }
+    # Maximum number of context messages to include by default
+    _max_context_messages: int = 24
 
     def _prepare_chat_message(
         self, 
@@ -64,16 +66,26 @@ class ChatService(BaseService):
             metadata=metadata
         )
 
-    def _prepare_history(self, ui_history: List[Dict]) -> List[LLMMessage]:
-        """Process history messages to chat Message format.
+    def _prepare_history(self, ui_history: List[Dict], max_messages: Optional[int] = None) -> List[LLMMessage]:
+        """Format and process history messages for LLM consumption.
  
+        Args:
+            ui_history: List of message dictionaries from UI state
+            max_messages: Maximum number of messages to include (defaults to self._max_context_messages)
+            
+        Returns:
+            List of processed and truncated LLMMessage objects that starts with a user message
+            
         Note:
-            Messages are grouped by role and their content is combined with newlines.
-            File content is converted to descriptive text using _get_file_desc.
+            1. Messages are grouped by role and their content is combined with newlines
+            2. File content is converted to descriptive text using _get_file_desc
+            3. History is truncated to respect max_messages limit
+            4. Ensures the first message is from a user (required by some LLM providers)
         """
         if not ui_history:
             return []
 
+        # Step 1: Convert UI history to LLMMessage objects
         history_messages = []
         for role, group in groupby(ui_history, key=lambda x: x["role"]):
             texts = []
@@ -97,8 +109,25 @@ class ChatService(BaseService):
                     role=role,
                     content={"text": "\n".join(texts)}
                 ))
-                
-        return history_messages
+        
+        # Step 2: Apply truncation if needed
+        # Use class default if max_messages not specified
+        if max_messages is None:
+            max_messages = self._max_context_messages
+
+        # If we have more messages than the limit, truncate
+        if len(history_messages) > max_messages:
+            # Take the last max_messages
+            truncated_msgs = history_messages[-max_messages:]
+
+            # Step 3: Ensure the truncated history starts with a user message
+            if truncated_msgs and truncated_msgs[0].role != "user":
+                truncated_msgs.pop(0)
+
+            return truncated_msgs
+
+        else:
+            return history_messages
 
     def _get_file_desc(self, file_path: str, role: str) -> str:
         """Get standardized file description based on type and role.
@@ -144,7 +173,7 @@ class ChatService(BaseService):
             ui_input: Dict with text and/or files
             ui_history: List of message dictionaries with role and content fields from UI state
             style_params: LLM generation parameters
-            
+
         Yields:
             Message chunks for handler
         """
@@ -164,9 +193,10 @@ class ChatService(BaseService):
             )
             logger.debug(f"[ChatService] User message sent to LLM Provider: {user_message}")
 
-            # Convert history messages to chat Message format
+            # Convert history messages to chat Message format with truncation
             history_messages = self._prepare_history(ui_history)
-            logger.debug(f"[ChatService] History messages sent to LLM Provider: {history_messages}")
+                
+            logger.debug(f"[ChatService] History messages sent to LLM Provider: {len(history_messages)} messages")
 
             # Get LLM provider
             provider = self._get_llm_provider(model_id)

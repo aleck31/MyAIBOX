@@ -7,7 +7,7 @@ from core.module_config import module_config
 
 
 # List of available modules
-MODULE_LIST = ['assistant', 'chatbot', 'text', 'summary', 'vision', 'asking', 'coding', 'draw']
+MODULE_LIST = ['assistant', 'persona', 'text', 'summary', 'vision', 'asking', 'coding', 'draw']
 
 
 class ModuleHandlers:

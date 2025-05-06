@@ -11,13 +11,13 @@ class ChatbotHandlers(BaseHandler):
     """Handlers for chat functionality with session management."""
 
     # Module name for the handler
-    _module_name: str = "chatbot"
+    _module_name: str = "persona"
     
     # Service type
     _service_type: str = "chat"
-    
-    MAX_DISPLAY_MSG: int = 30  # Number of messages to show in UI
-    MAX_CONTEXT_MSG: int = 12  # Number of messages to send to LLM
+
+    # Maximum number of messages to show in UI
+    _max_display_messages: int = 24
 
     @classmethod
     def get_available_models(cls) -> List[Tuple[str, str]]:
@@ -57,7 +57,7 @@ class ChatbotHandlers(BaseHandler):
 
             history_future = service.load_session_history(
                 session=session,
-                max_messages=cls.MAX_DISPLAY_MSG
+                max_messages=cls._max_display_messages
             )
             model_future = service.get_session_model(session)
             
@@ -196,7 +196,7 @@ class ChatbotHandlers(BaseHandler):
             async for chunk in service.streaming_reply(
                 session=session,
                 ui_input=unified_input,
-                ui_history=ui_history[-cls.MAX_CONTEXT_MSG:],
+                ui_history=ui_history,
                 style_params=style_params
             ):
                 # Handle streaming chunks for immediate UI updates

@@ -76,8 +76,6 @@ class AskingHandlers(BaseHandler):
             else:
                 session.context['system_prompt'] = SYSTEM_PROMPT
 
-            logger.debug(f"+++++++{session.context['system_prompt']}+++++++")
-
             # Build content with option history
             text = input.get('text', '')
             if history:
