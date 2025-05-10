@@ -36,9 +36,9 @@ class ChatbotHandlers(BaseHandler):
             return []
 
     @classmethod
-    async def load_history_confs(
+    async def load_history_options(
         cls, request: gr.Request
-    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Optional[str]]:
+    ) -> Tuple[List[Dict[str, str]], Optional[str], Optional[str]]:
         """
         Load chat history and configuration for current user.
 
@@ -47,9 +47,9 @@ class ChatbotHandlers(BaseHandler):
 
         Returns:
             Tuple containing:
-            - List of message dictionaries for UI display
-            - List of message dictionaries for chat state
+            - List of message dictionaries for gr.Chatbot UI
             - Selected model_id for the dropdown
+            - Selected persona role for the radio button
         """
         try:
             # Initialize session
@@ -60,17 +60,20 @@ class ChatbotHandlers(BaseHandler):
                 max_messages=cls._max_display_messages
             )
             model_future = service.get_session_model(session)
-            
-            latest_history, session_model_id = await asyncio.gather(
-                history_future, model_future
+
+            # Get persona role from session context if available
+            role_future = service.get_session_role(session)
+
+            latest_history, model_id, persona_role = await asyncio.gather(
+                history_future, model_future, role_future
             )
 
-            # Return same history for both UI and state to maintain consistency
-            return latest_history, latest_history, session_model_id
+            # Return history, model_id and persona_role
+            return latest_history, model_id, persona_role
 
         except Exception as e:
             logger.error(f"[ChatbotHandlers] Failed to load history: {e}", exc_info=True)
-            return [], [], None
+            return [], None, None
 
     @classmethod
     async def clear_chat_history(
@@ -123,26 +126,18 @@ class ChatbotHandlers(BaseHandler):
             logger.error(f"[ChatbotHandlers] Failed to undo last message: {e}", exc_info=True)
 
     @classmethod
-    def _normalize_input(cls, ui_input: Union[str, Dict]) -> Dict[str, Union[str, List]]:
-        """
-        Normalize different input formats into unified dictionary.
+    async def update_persona_role(cls, chat_style: str, request: gr.Request = None):
+        """Update session persona role when option selection changes"""
+        try:
+            # Initialize service and session
+            service, session = await cls._init_session(request)
 
-        Args:
-            ui_input: Raw input from Gradio UI (string or dict)
+            # Update persona role using service method
+            await service.update_session_role(session, chat_style)
+            logger.debug(f"[{cls.__name__}] Updated session persona role to: {chat_style}")
 
-        Returns:
-            Normalized dictionary with text and optional files
-        """
-        # for Text-only input
-        if isinstance(ui_input, str):
-            return {"text": ui_input.strip()}
-        # for Dict input with potential files
-        return {
-            k: v for k, v in {
-                "text": ui_input.get("text", "").strip(),
-                "files": ui_input.get("files", [])
-            }.items() if v  # Remove empty values
-        }
+        except Exception as e:
+            logger.error(f"[{cls.__name__}] Failed updating session persona role: {str(e)}", exc_info=True)
     
     @classmethod
     async def send_message(

@@ -36,16 +36,16 @@ def create_interface() -> gr.Blocks:
     option_model = gr.Dropdown(
         label="Chat Model:", 
         show_label=False,
-        info="Select chat model",
+        info="Select foundation model",
         choices=ChatbotHandlers.get_available_models(),
         interactive=True,
         render=False
     )
 
     # option_role = gr.Dropdown(
-    #     label="Chat Style:", 
+    #     label="Persona Role:", 
     #     show_label=False,
-    #     info="Select conversation style",
+    #     info="Select persona role",
     #     choices={k: v["name"] for k, v in PERSONA_ROLES.items()},
     #     value="default",
     #     render=False
@@ -55,7 +55,7 @@ def create_interface() -> gr.Blocks:
         show_label=False,
         choices=[(v['display_name'], k) for k, v in PERSONA_ROLES.items()],
         value="default",
-        info="Select conversation style",
+        info="Select persona role",
         render=False
     )
 
@@ -71,22 +71,24 @@ def create_interface() -> gr.Blocks:
             textbox=mtextbox,
             stop_btn='🟥',
             additional_inputs_accordion=gr.Accordion(
-                label='Chat Options', 
+                label='Options', 
                 open=False,
                 render=False
             ),
-            additional_inputs=[option_role, option_model]
+            additional_inputs=[option_role, option_model],
+            # save_history=True,
+            api_name=False
         )
 
-        # Load chat history and configuration on startup
+        # Load chat history and session options on startup
         chat.load(
             fn=lambda: gr.Dropdown(choices=ChatbotHandlers.get_available_models()),  # Return new Dropdown with updated choices
             inputs=[],
             outputs=[option_model]
-        ).then(  # Load chat history and selected model
-            fn=ChatbotHandlers.load_history_confs,
+        ).then(
+            fn=ChatbotHandlers.load_history_options,
             inputs=[],
-            outputs=[chat.chatbot, chat.chatbot_state, option_model]  # Update history and selected model
+            outputs=[chat.chatbot_value, option_model, option_role]  # Update chatbot_value and selected options
         )
 
         # Add model selection change handler
@@ -94,15 +96,24 @@ def create_interface() -> gr.Blocks:
             fn=ChatbotHandlers.update_model_id,
             inputs=[option_model],
             outputs=None,
-            api_name=False
+            api_name=False,
+            queue=False
+        )
+
+        # Add persona role change handler
+        option_role.change(
+            fn=ChatbotHandlers.update_persona_role,
+            inputs=[option_role],
+            outputs=None,
+            api_name=False,
+            queue=False
         )
 
         # Add clear history handler for the clear button
-        chat.chatbot.clear(ChatbotHandlers.clear_chat_history)
-
+        chat.chatbot.clear(ChatbotHandlers.clear_chat_history, queue=False)
         # Add undo handler for the undo and retry button
-        chat.chatbot.undo(ChatbotHandlers.undo_last_message)
-        chat.chatbot.retry(ChatbotHandlers.undo_last_message)
+        chat.chatbot.undo(ChatbotHandlers.undo_last_message, queue=False)
+        chat.chatbot.retry(ChatbotHandlers.undo_last_message, queue=False)
 
     return chat_interface
 

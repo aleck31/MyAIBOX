@@ -142,6 +142,43 @@ class ChatService(BaseService):
             return user_desc if role == 'user' else assistant_desc
         return ''
 
+    async def get_session_role(self, session: Session) -> str:
+        """Get persona role from session context
+        
+        Args:
+            session: Session to get persona role for
+            
+        Returns:
+            str: persona role if found, 'default' otherwise
+        """
+        try:
+            # Get persona role from session context
+            if style := session.context.get('persona_role'):
+                logger.debug(f"[ChatService] Get session persona role: {style}")
+                return style
+            else:
+                logger.debug(f"[ChatService] No persona role found, using default")
+                return 'default'
+
+        except Exception as e:
+            logger.error(f"[ChatService] Failed to get persona role for session {session.session_id}: {str(e)}")
+            return 'default'
+            
+    async def update_session_role(self, session: Session, style: str) -> None:
+        """Update persona role in session context
+        
+        Args:
+            session: Session to update
+            style: New persona role to set
+        """
+        try:
+            session.context['persona_role'] = style
+            await self.session_store.save_session(session)
+            logger.debug(f"[ChatService] Updated persona role to {style} in session {session.session_id}")
+        except Exception as e:
+            logger.error(f"[ChatService] Failed to update session style: {str(e)}")
+            raise
+            
     async def clear_history(self, session: Session) -> None:
         """Clear chat history for a session
         

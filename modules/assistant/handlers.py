@@ -45,9 +45,9 @@ class AssistantHandlers(BaseHandler):
             return []
 
     @classmethod
-    async def load_history_confs(
+    async def load_history_options(
         cls, request: gr.Request
-    ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]], Optional[str]]:
+    ) -> Tuple[List[Dict[str, str]], Optional[str]]:
         """
         Load chat history and configuration for current user.
 
@@ -56,8 +56,7 @@ class AssistantHandlers(BaseHandler):
 
         Returns:
             Tuple containing:
-            - List of message dictionaries for UI display
-            - List of message dictionaries for chat state
+            - List of message dictionaries for gr.Chatbot UI
             - Selected model_id for the dropdown
         """
         try:
@@ -70,12 +69,12 @@ class AssistantHandlers(BaseHandler):
             )
             model_future = service.get_session_model(session)
             
-            latest_history, session_model_id = await asyncio.gather(
+            latest_history, model_id = await asyncio.gather(
                 history_future, model_future
             )
 
             # Return same history for both UI and state to maintain consistency
-            return latest_history, latest_history, session_model_id
+            return latest_history, model_id
 
         except Exception as e:
             logger.error(f"[AssistantHandlers] Failed to load history: {e}", exc_info=True)
@@ -130,28 +129,6 @@ class AssistantHandlers(BaseHandler):
             
         except Exception as e:
             logger.error(f"[ChatbotHandlers] Failed to undo last message: {e}", exc_info=True)
-
-    @classmethod
-    def _normalize_input(cls, ui_input: Union[str, Dict]) -> Dict[str, Union[str, List]]:
-        """
-        Normalize different input formats into unified dictionary.
-
-        Args:
-            ui_input: Raw input from Gradio UI (string or dict)
-
-        Returns:
-            Normalized dictionary with text and optional files
-        """
-        # for Text-only input
-        if isinstance(ui_input, str):
-            return {"text": ui_input.strip()}
-        # for Dict input with potential files
-        return {
-            k: v for k, v in {
-                "text": ui_input.get("text", "").strip(),
-                "files": ui_input.get("files", [])
-            }.items() if v  # Remove empty values
-        }
 
     @classmethod
     async def send_message(

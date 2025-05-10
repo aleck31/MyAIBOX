@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import gradio as gr
-from typing import Optional, Any, Union
+from typing import Optional, Union, Dict, List
 from core.logger import logger
 from core.service.service_factory import ServiceFactory
 from core.service.chat_service import ChatService
@@ -62,6 +62,28 @@ class BaseHandler:
         else:
             logger.warning(f"[{cls.__name__}] No authenticated user for loading model")
             return service, None
+
+    @classmethod
+    def _normalize_input(cls, ui_input: Union[str, Dict]) -> Dict[str, Union[str, List]]:
+        """
+        Normalize different input formats into unified dictionary.
+
+        Args:
+            ui_input: Raw input from Gradio UI (string or dict)
+
+        Returns:
+            Normalized dictionary with text and optional files
+        """
+        # for Text-only input
+        if isinstance(ui_input, str):
+            return {"text": ui_input.strip()}
+        # for Dict input with potential files
+        return {
+            k: v for k, v in {
+                "text": ui_input.get("text", "").strip(),
+                "files": ui_input.get("files", [])
+            }.items() if v  # Remove empty values
+        }
 
     @classmethod
     async def update_model_id(cls, model_id: str, request: gr.Request = None):

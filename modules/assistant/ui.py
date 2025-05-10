@@ -59,18 +59,18 @@ def create_interface() -> gr.Blocks:
                 open=False,
                 render=False
             ),
-            fill_width=True,
-            additional_inputs=[input_model]
+            additional_inputs=[input_model],
+            api_name=False
         )
 
         chat.load(
             fn=lambda: gr.Dropdown(choices=AssistantHandlers.get_available_models()),  # Return new Dropdown with updated choices
             inputs=[],
             outputs=[input_model]
-        ).then(  # Load chat history and selected model
-            fn=AssistantHandlers.load_history_confs,
+        ).then(
+            fn=AssistantHandlers.load_history_options,  # Load chat history and selected model
             inputs=[],
-            outputs=[chat.chatbot, chat.chatbot_state, input_model] # The return value of load_history_confs does not match the outputs
+            outputs=[chat.chatbot_value, input_model]
         )
 
         # Add model selection change handler

@@ -88,7 +88,8 @@ app = gr.mount_gradio_app(
     app, 
     main_ui, 
     path="/main",
-    auth_dependency=get_auth_user
+    auth_dependency=get_auth_user,
+    show_api=False
 )
 
 if __name__ == "__main__":
