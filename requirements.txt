@@ -1,9 +1,13 @@
+# Fundamental
 fastapi
 gradio
 gradio_pdf
 boto3
 google-genai
 openai
+
+# MCP Tools
+strands-agents>=0.1.0
 
 # Utilities
 uvicorn[standard]

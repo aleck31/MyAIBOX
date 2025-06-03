@@ -3,8 +3,8 @@ from itertools import groupby
 from typing import Dict, List, Optional, AsyncIterator
 from core.logger import logger
 from core.session import Session
-from llm.api_providers import LLMMessage, LLMProviderError
-from llm.model_manager import model_manager
+from genai.models.api_providers import LLMMessage, LLMProviderError
+from genai.models.model_manager import model_manager
 from . import BaseService
 
 

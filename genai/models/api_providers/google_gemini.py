@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional, Iterator, AsyncIterator
 from google import genai
 from google.genai import types
-from google.api_core import exceptions
 from core.logger import logger
 from core.config import env_config
 from utils.aws import get_secret
@@ -25,7 +24,7 @@ class GeminiProvider(LLMAPIProvider):
         """Validate Gemini-specific configuration"""
         logger.debug(f"[GeminiProvider] Model Configurations: {self.model_id}, {self.llm_params}")
         if not self.model_id:
-            raise exceptions.InvalidArgument(
+            raise ValueError(
                 "Model ID must be specified for Gemini"
             )
 
@@ -41,7 +40,7 @@ class GeminiProvider(LLMAPIProvider):
             self.client = genai.Client(api_key=api_key)
 
         except Exception as e:
-            raise exceptions.FailedPrecondition(f"Failed to initialize Gemini client: {str(e)}")
+            raise RuntimeError(f"Failed to initialize Gemini client: {str(e)}")
 
     def _get_generation_config(self, system_prompt: Optional[str] = None) -> types.GenerateContentConfig:
         """Get Gemini-specific generation configuration"""
@@ -74,15 +73,15 @@ class GeminiProvider(LLMAPIProvider):
         logger.error(f"[GeminiProvider] {error_code} - {error_detail}")
 
         # Format user-friendly message based on exception type
-        if isinstance(error, exceptions.ResourceExhausted):
+        if "quota exceeded" in error_detail.lower() or "resource exhausted" in error_detail.lower():
             message = "The service is currently experiencing high load. Please try again in a moment."
-        elif isinstance(error, exceptions.Unauthenticated):
+        elif "unauthenticated" in error_detail.lower() or "invalid api key" in error_detail.lower():
             message = "There was an authentication error. Please try again."
-        elif isinstance(error, exceptions.InvalidArgument):
+        elif "invalid argument" in error_detail.lower():
             message = "There was an issue with the request format. Please try again with different input."
-        elif isinstance(error, exceptions.FailedPrecondition):
+        elif "failed precondition" in error_detail.lower() or "blocked" in error_detail.lower():
             message = "The request was blocked by safety filters. Please try again with different input."
-        elif isinstance(error, exceptions.DeadlineExceeded):
+        elif "deadline exceeded" in error_detail.lower() or "timeout" in error_detail.lower():
             message = "The request took too long to process. Please try with a shorter message."
         else:
             message = "An unexpected error occurred. Please try again."

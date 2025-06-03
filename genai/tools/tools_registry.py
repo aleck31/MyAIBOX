@@ -5,7 +5,7 @@ from core.logger import logger
 
 
 class BedrockToolRegistry:
-    """Registry for managing available tools"""
+    """Registry for managing tools available to models on Bedrock"""
     
     def __init__(self):
         self.tools = {}
@@ -15,7 +15,7 @@ class BedrockToolRegistry:
         """Load a specific tool from a package"""
         try:
             # Import the module
-            tool_module = importlib.import_module(f"llm.tools.{package_name}")
+            tool_module = importlib.import_module(f"genai.tools.bedrock.{package_name}")
             
             # Verify tool function exists and is callable
             if not hasattr(tool_module, tool_name):

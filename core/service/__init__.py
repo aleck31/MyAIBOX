@@ -3,9 +3,9 @@ from datetime import datetime
 from core.logger import logger
 from core.session import Session, SessionStore
 from core.module_config import module_config
-from llm.model_manager import model_manager
-from llm import LLMParameters, GenImageParameters
-from llm.api_providers import LLMAPIProvider, LLMProviderError, create_provider
+from genai.models.model_manager import model_manager
+from genai.models import LLMParameters, GenImageParameters
+from genai.models.api_providers import LLMAPIProvider, LLMProviderError, create_provider
 
 
 class BaseService:

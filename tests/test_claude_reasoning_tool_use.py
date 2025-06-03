@@ -15,10 +15,10 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from core.logger import logger
-from llm.model_manager import model_manager
-from llm.api_providers import LLMMessage
-from llm.api_providers.bedrock_converse import BedrockConverse
-from llm import LLMParameters
+from genai.models.model_manager import model_manager
+from genai.models.api_providers import LLMMessage
+from genai.models.api_providers.bedrock_converse import BedrockConverse
+from genai.models import LLMParameters
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)

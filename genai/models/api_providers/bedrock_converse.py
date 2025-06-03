@@ -6,9 +6,9 @@ from core.logger import logger
 from core.config import env_config
 from utils.aws import get_aws_client
 from utils.file import FileProcessor
-from llm.model_manager import model_manager
-from llm.tools.tool_registry import br_registry
-from llm import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
+from genai.models.model_manager import model_manager
+from genai.tools.tools_registry import br_registry
+from genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
 from . import LLMAPIProvider, LLMProviderError
 
 

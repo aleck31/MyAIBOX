@@ -4,7 +4,7 @@ import asyncio
 import gradio as gr
 from typing import AsyncIterator
 from core.logger import logger
-from llm.model_manager import model_manager
+from genai.models.model_manager import model_manager
 from modules import BaseHandler
 from .prompts import SYSTEM_PROMPT, build_user_prompt
 

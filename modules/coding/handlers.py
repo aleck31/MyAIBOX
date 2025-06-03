@@ -4,7 +4,7 @@ import asyncio
 import gradio as gr
 from typing import Dict, Optional, AsyncIterator, Union
 from core.logger import logger
-from llm.model_manager import model_manager
+from genai.models.model_manager import model_manager
 from modules import BaseHandler
 from .prompts import ARCHITECT_PROMPT, CODER_PROMPT
 

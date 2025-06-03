@@ -101,7 +101,6 @@ my-aibox/
 │   ├── logger.py      # Logging configuration
 │   ├── module_config.py    # Module configuration
 │   ├── service/         # Service integration
-│   │   ├── init.py           # Base service with common functionality
 │   │   ├── gen_service.py      # General content generation service
 │   │   ├── chat_service.py     # Chat service implementation
 │   │   ├── draw_service.py     # Image generation service
@@ -109,17 +108,14 @@ my-aibox/
 │   └── session/        # Session management
 │       ├── models.py         # Data models for Session
 │       └── store.py          # DynamoDB-based session storage
-├── llm/               # LLM implementations
-│   ├── init.py               # Base LLM interfaces
-│   ├── model_manager.py      # Model management
-│   ├── api_providers/        # LLM tools implementations
-│   │   ├── init.py             # Abstract interface for LLM providers
-│   │   ├── bredrock_converse.py    # Bedrock Converse integration
-│   │   ├── bedrock_invoke.py      # Bedrock invoke integration
-│   │   ├── openai.py           # OpenAI integration
-│   │   └── google_gemini.py    # Google Gemini integration
-│   └── tools/         # LLM tools implementations
-│       └── tool_registry.py  # Tool registry for Bedrock
+├── genai/               # Genai integration
+│   ├── models               # Models implementations
+│   │   ├── init.py               # Base LLM interfaces
+│   │   ├── model_manager.py      # Model management
+│   │   └── api_providers/        # Model provider integration
+│   └── tools/              # tools implementations
+│       ├── bedrock         # Tools for models on Bedrock
+│       └── tool_registry.py      # Tool registry
 ├── common/            # Common modules
 │   ├── login/            # Authentication UI
 │   ├── setting/          # Module settings

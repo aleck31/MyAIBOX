@@ -50,7 +50,7 @@ class DrawHandlers(BaseHandler):
         """Get list of available models with id and names"""
         try:
             # Filter for models with image output capability
-            from llm.model_manager import model_manager
+            from genai.models.model_manager import model_manager
             if models := model_manager.get_models(filter={'category': 'image'}):
                 logger.debug(f"[DrawHandlers] Get {len(models)} available image models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]

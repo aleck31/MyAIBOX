@@ -1,5 +1,5 @@
 import gradio as gr
-from llm.tools.tool_registry import br_registry
+from genai.tools.tools_registry import br_registry
 from .modules import ModuleHandlers, MODULE_LIST
 
 def set_tools_visible(model_id):

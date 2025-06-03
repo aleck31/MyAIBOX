@@ -8,8 +8,8 @@ import tempfile
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from llm.api_providers.google_gemini import GeminiProvider
-from llm.api_providers import LLMParameters, LLMMessage, LLMResponse
+from genai.models.api_providers.google_gemini import GeminiProvider
+from genai.models.api_providers import LLMParameters, LLMMessage, LLMResponse
 
 
 class TestGeminiProviderReal(unittest.TestCase):

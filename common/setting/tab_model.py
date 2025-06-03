@@ -1,6 +1,6 @@
 import gradio as gr
 from .models import ModelHandlers
-from llm import VAILD_CATEGORY, VALID_MODALITY
+from genai.models import VAILD_CATEGORY, VALID_MODALITY
 
 
 # API Provider choices
