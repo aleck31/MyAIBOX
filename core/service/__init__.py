@@ -5,7 +5,7 @@ from core.session import Session, SessionStore
 from core.module_config import module_config
 from genai.models.model_manager import model_manager
 from genai.models import LLMParameters, GenImageParameters
-from genai.models.api_providers import LLMAPIProvider, LLMProviderError, create_provider
+from genai.models.api_providers import LLMAPIProvider, LLMProviderError, create_model_provider
 
 
 class BaseService:
@@ -16,7 +16,7 @@ class BaseService:
         module_name: str,
         cache_ttl: int = 600  # 10 minutes default TTL
     ):
-        """Initialize base service without LLM params
+        """Initialize base service without Foundation Model params
 
         Args:
             module_name: Name of the module using this service
@@ -24,7 +24,7 @@ class BaseService:
         """
         self.module_name = module_name
         self.session_store = SessionStore.get_instance()
-        self._llm_providers: Dict[str, LLMAPIProvider] = {}
+        self._model_providers: Dict[str, LLMAPIProvider] = {}
         self._session_cache: Dict[str, tuple[Session, float]] = {}
         self.cache_ttl = cache_ttl
         self.model_id = None
@@ -139,12 +139,12 @@ class BaseService:
             logger.error(f"[BaseService] Failed to update session model: {str(e)}")
             raise
 
-    def _get_llm_provider(self, model_id: Optional[str], llm_params: Optional[LLMParameters] = None) -> LLMAPIProvider:
-        """Get or create LLM API provider for given model
+    def _get_model_provider(self, model_id: Optional[str], llm_params: Optional[LLMParameters] = None) -> LLMAPIProvider:
+        """Get or create Foundation Model provider for given model
         
         Args:
             model_id: ID of the model to get provider for
-            llm_params: Optional LLM inference parameters to override defaults
+            llm_params: Optional Foundation Model inference parameters to override defaults
             
         Returns:
             LLMAPIProvider: Cached or newly created provider
@@ -154,9 +154,9 @@ class BaseService:
         """
         try:
             # Use cached provider if available and no custom params
-            if model_id in self._llm_providers and not llm_params:
+            if model_id in self._model_providers and not llm_params:
                 logger.debug(f"[BaseService] Using cached provider for model {model_id}")
-                return self._llm_providers[model_id]
+                return self._model_providers[model_id]
 
             # Get model info
             if model := model_manager.get_model_by_id(model_id):
@@ -200,7 +200,7 @@ class BaseService:
             enabled_tools = module_config.get_enabled_tools(self.module_name)
 
             # Create provider with module configuration
-            provider = create_provider(
+            provider = create_model_provider(
                 model.api_provider,
                 model_id,
                 llm_params,
@@ -209,7 +209,7 @@ class BaseService:
 
             # Cache provider if no custom params
             if not llm_params:
-                self._llm_providers[model_id] = provider
+                self._model_providers[model_id] = provider
 
             return provider
 

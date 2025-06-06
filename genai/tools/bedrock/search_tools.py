@@ -1,6 +1,7 @@
 import time
 import asyncio
 import wikipedia
+from strands import tool
 from googlesearch import search as google_search
 from cachetools import TTLCache
 from core.logger import logger
@@ -48,6 +49,7 @@ def _get_wikipedia_page_and_summary(title, sentences=6):
         logger.error(f"Error getting Wikipedia page: {e}")
         return None, None
 
+@tool
 def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
     """Search Wikipedia and return relevant information
     
@@ -144,6 +146,7 @@ def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
             "error": f"Failed to search Wikipedia: {str(e)}"
         }
 
+@tool
 async def search_internet(query: str, num_results: int = 6, language: str = "en"):
     """Search the internet via Google and return relevant search results
     

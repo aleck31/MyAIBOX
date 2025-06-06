@@ -2,6 +2,7 @@ from core.logger import logger
 from .chat_service import ChatService
 from .gen_service import GenService
 from .draw_service import DrawService
+from .agent_service import AgentService
 
 
 class ServiceFactory:
@@ -56,4 +57,21 @@ class ServiceFactory:
             return DrawService(module_name=module_name)
         except Exception as e:
             logger.error(f"[ServiceFactory] Failed to create DrawService: {str(e)}")
+            raise
+
+    @classmethod
+    def create_agent_service(cls, module_name: str = 'deepsearch') -> AgentService:
+        """Create Strands agent service
+        
+        Args:
+            module_name: Name of the module requesting service (defaults to 'deepsearch')
+            
+        Returns:
+            AgentService: Configured service instance
+        """
+        try:
+            logger.debug(f"[ServiceFactory] Creating AgentService for {module_name}")
+            return AgentService(module_name=module_name)
+        except Exception as e:
+            logger.error(f"[ServiceFactory] Failed to create AgentService: {str(e)}")
             raise

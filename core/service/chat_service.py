@@ -236,7 +236,7 @@ class ChatService(BaseService):
             logger.debug(f"[ChatService] History messages sent to LLM Provider: {len(history_messages)} messages")
 
             # Get LLM provider
-            provider = self._get_llm_provider(model_id)
+            provider = self._get_model_provider(model_id)
             logger.debug(f"[ChatService] Using LLM provider: {provider.__class__.__name__}")
 
             # Track response state

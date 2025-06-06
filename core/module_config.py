@@ -204,13 +204,13 @@ class ModuleConfig:
                 'parameters': {
                     'max_tokens': 4096,
                     'temperature': Decimal('0.7'),
-                    'top_p': 0.9,
+                    'top_p': Decimal('0.9'),
                     'top_k': 100
                 },
                 'enabled_tools': [
                     'get_weather',         # Weather information
                     'get_text_from_url',   # Get text content from webpage URL
-                    'generate_image'       # AI image generation
+                    'generate_image',      # AI image generation
                     'search_wikipedia',
                     'search_internet'
                 ]
@@ -273,6 +273,26 @@ class ModuleConfig:
                     'top_k': 100
                 }
             },
+            'deepsearch': {
+                'setting_name': 'deepsearch',
+                'type': 'module',
+                'description': 'Deep Search Module',
+                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'parameters': {
+                    'temperature': Decimal('0.7'),
+                    'max_tokens': 4096,
+                    'top_p': Decimal('0.9'),
+                    'top_k': 100
+                },
+                'enabled_tools': [
+                    'search_wikipedia',
+                    'search_internet'
+                ],
+                'thinking': {
+                    'type': 'enabled',
+                    'budget_tokens': 2048
+                }
+            },
             'asking': {
                 'setting_name': 'asking',
                 'type': 'module',
@@ -284,7 +304,11 @@ class ModuleConfig:
                 },
                 'enabled_tools': [
                     'get_text_from_url'     # Get text content from webpage URL
-                ]
+                ],
+                'thinking': {
+                    'type': 'enabled',
+                    'budget_tokens': 4096
+                }
             },
             'draw': {
                 'setting_name': 'draw',

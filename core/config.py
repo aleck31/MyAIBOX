@@ -43,7 +43,7 @@ class ENVConfig:
     def bedrock_config(self) -> Dict[str, str]:
         """Get AWS Bedrock configuration"""
         return {
-            'default_region': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to aws_region
+            'region_name': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to aws_region
             'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', None)
         }
 

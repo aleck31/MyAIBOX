@@ -37,7 +37,7 @@ class AssistantHandlers(BaseHandler):
                 logger.debug(f"[AssistantHandlers] Get {len(models)} available models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[AssistantHandlers] No Bedrock models available")
+                logger.warning("[AssistantHandlers] No matching models found.")
                 return []
 
         except Exception as e:

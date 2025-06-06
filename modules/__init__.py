@@ -31,6 +31,8 @@ class BaseHandler:
                 cls._service = ServiceFactory.create_chat_service(cls._module_name)
             elif cls._service_type == "draw":
                 cls._service = ServiceFactory.create_draw_service(cls._module_name)
+            elif cls._service_type == "agent":
+                cls._service = ServiceFactory.create_agent_service(cls._module_name)
             else:  # Default to general service
                 cls._service = ServiceFactory.create_gen_service(cls._module_name)
 

@@ -111,7 +111,7 @@ class LLMAPIProvider(ABC):
         pass
 
 
-def create_provider(provider_name: str, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools: Optional[List[str]] = None) -> LLMAPIProvider:
+def create_model_provider(provider_name: str, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools: Optional[List[str]] = None) -> LLMAPIProvider:
     """Factory function to create appropriate provider instance
 
     Args:

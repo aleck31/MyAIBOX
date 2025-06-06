@@ -24,7 +24,7 @@ class BedrockConverse(LLMAPIProvider):
     
     def __init__(self, model_id: str, llm_params: LLMParameters, tools: Optional[List[str]] = None):
         """Initialize provider with configuration and tools
-        
+
         Args:
             model_id: Model identifier
             llm_params: LLM inference parameters
@@ -75,7 +75,7 @@ class BedrockConverse(LLMAPIProvider):
     def _initialize_client(self) -> None:
         try:
             # Get region from env_config
-            region = env_config.bedrock_config['default_region']
+            region = env_config.bedrock_config['region_name']
             if not region:
                 raise ParamValidationError(
                     report="AWS region must be configured for Bedrock"

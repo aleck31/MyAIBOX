@@ -69,7 +69,7 @@ class DrawService(BaseService):
             self._validate_model(model_id)
             
             # Get provider with module's default configuration
-            provider = self._get_llm_provider(model_id)
+            provider = self._get_model_provider(model_id)
             
             # Prepare request body
             request_body = {
@@ -145,7 +145,7 @@ class DrawService(BaseService):
             self._validate_model(model_id)
 
             # Get LLM provider
-            provider = self._get_llm_provider(model_id)
+            provider = self._get_model_provider(model_id)
             
             # Prepare request body
             request_body = {

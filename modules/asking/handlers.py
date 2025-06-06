@@ -110,5 +110,5 @@ class AskingHandlers(BaseHandler):
         except Exception as e:
             error_type = type(e).__name__
             error_message = str(e)
-            logger.error(f"[AskingHandlers] Failed to Generate with think: {error_type} - {error_message}", exc_info=True)
+            logger.error(f"[{cls.__name__}] Failed to Generate with think: {error_type} - {error_message}", exc_info=True)
             gr.Error(title=error_type, message=error_message, duration=9)

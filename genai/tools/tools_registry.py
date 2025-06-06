@@ -11,32 +11,31 @@ class BedrockToolRegistry:
         self.tools = {}
         self.tool_specs = {}
         
-    def load_tool(self, package_name: str, tool_name: str) -> None:
-        """Load a specific tool from a package"""
+    def load_local_tool(self, package_name: str, tool_name: str) -> None:
+        """Load a specific tool from a local package"""
         try:
-            # Import the module
+            # Import tool module
             tool_module = importlib.import_module(f"genai.tools.bedrock.{package_name}")
-            
+
             # Verify tool function exists and is callable
-            if not hasattr(tool_module, tool_name):
+            if hasattr(tool_module, tool_name):
+                func = getattr(tool_module, tool_name)
+                if inspect.isfunction(func):
+                    # Register the tool function
+                    self.tools[tool_name] = func
+                else:
+                    logger.warning(f"{tool_name} in {package_name} is not a function")
+                    return
+            else:
                 logger.warning(f"Tool function {tool_name} not found in module {package_name}")
                 return
-                
-            func = getattr(tool_module, tool_name)
-            if not inspect.isfunction(func):
-                logger.warning(f"{tool_name} in {package_name} is not a function")
-                return
-                
-            # Register the tool function
-            self.tools[tool_name] = func
-            logger.info(f"Registered tool function: {tool_name}")
-            
-            # Get and register tool specification
+
+            # Register tool specification
             if hasattr(tool_module, 'list_of_tools_specs'):
                 for spec in tool_module.list_of_tools_specs:
                     if spec.get('toolSpec', {}).get('name') == tool_name:
                         self.tool_specs[tool_name] = spec
-                        logger.info(f"Registered tool specification: {tool_name}")
+                        logger.debug(f"[Tools] Registered local tool: {tool_name}")
                         break
                 else:
                     logger.warning(f"No tool specification found for {tool_name} in {package_name}")
@@ -45,17 +44,13 @@ class BedrockToolRegistry:
             logger.error(f"Failed to import tool_module {package_name}: {str(e)}")
         except Exception as e:
             logger.error(f"Error loading tool {tool_name} from {package_name}: {str(e)}")
-
-    def get_tool_specs(self) -> List[Dict]:
-        """Get list of all loaded tool specifications"""
-        return list(self.tool_specs.values())
         
     def get_tool_spec(self, tool_name: str) -> Dict:
         """Get specification for a specific tool"""
         if tool_name not in self.tool_specs:
             # Try to load the tool if it's in the package map
             if tool_name in Tool_Packages:
-                self.load_tool(Tool_Packages[tool_name], tool_name)
+                self.load_local_tool(Tool_Packages[tool_name], tool_name)
                 
         return self.tool_specs.get(tool_name)
         
@@ -90,4 +85,4 @@ br_registry = BedrockToolRegistry()
 
 # Initialize default tools
 for tool_name, package in Tool_Packages.items():
-    br_registry.load_tool(package, tool_name)
+    br_registry.load_local_tool(package, tool_name)

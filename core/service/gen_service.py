@@ -10,18 +10,14 @@ from . import BaseService
 class GenService(BaseService):
     """General content generation service"""
     
-    def __init__(
-        self,
-        module_name: str,
-        cache_ttl: int = 600  # 10 minutes default TTL
-    ):
+    def __init__(self, module_name: str):
         """Initialize GenService
         
         Args:
             module_name: Name of the module using this service
             cache_ttl: Cache time-to-live in seconds
         """
-        super().__init__(module_name=module_name, cache_ttl=cache_ttl)
+        super().__init__(module_name=module_name)
 
     def _prepare_message(
         self,
@@ -80,7 +76,7 @@ class GenService(BaseService):
                 raise ValueError(f"No default model configured for {self.module_name}")
             
             # Get provider with module's default configuration
-            provider = self._get_llm_provider(model_id)
+            provider = self._get_model_provider(model_id)
             
             logger.debug(f"[GenService] Content for stateless generation: {content}")
             
@@ -125,7 +121,7 @@ class GenService(BaseService):
             model_id = await self.get_session_model(session)
 
             # Get LLM provider
-            provider = self._get_llm_provider(model_id)
+            provider = self._get_model_provider(model_id)
             
             logger.debug(f"[GenService] Content for session {session.session_id}: {content}")
             
@@ -187,7 +183,7 @@ class GenService(BaseService):
             model_id = await self.get_session_model(session)
 
             # Get LLM provider
-            provider = self._get_llm_provider(model_id)
+            provider = self._get_model_provider(model_id)
 
             logger.debug(f"[GenService] Content for session {session.session_name}: {content}")
 

@@ -9,66 +9,51 @@ from botocore.config import Config
 from core.config import env_config
 from core.logger import logger
 
-# Global session cache
-_AWS_SESSION = None
+# Global session cache - dictionary to store sessions by region and role
+_AWS_SESSION = {}
 
-def get_aws_session(region_name: Optional[str] = None, assume_role_arn: Optional[str] = None) -> boto3.Session:
+def get_aws_session(region_name: Optional[str] = None) -> boto3.Session:
     """Get configured AWS session with optional role assumption
 
     Parameters
     ----------
     region_name :
         AWS Region name. If not specified, uses the default region_name from env_config
-    assume_role_arn :
-        Optional ARN of an AWS IAM role to assume. If not specified, uses the current credentials
     """
     global _AWS_SESSION
 
     # Use provided region_name or default from config
     region_name = region_name or env_config.aws_region
+
+    # Create a cache key based on region and role ARN
+    cache_key = f"{region_name}"
     
+    # Return cached session if it exists
+    if cache_key in _AWS_SESSION:
+        return _AWS_SESSION[cache_key]
+
     # Initialize session kwargs
     session_kwargs: Dict[str, Any] = {"region_name": region_name}
     
     # Add profile if specified in environment
-    profile_name = os.environ.get("AWS_PROFILE")
-    if profile_name:
+    if profile_name := os.environ.get("AWS_PROFILE"):
         logger.info(f"Using AWS profile: {profile_name}")
         session_kwargs["profile_name"] = profile_name
 
     try:
-        # Create new session if none exists
-        if _AWS_SESSION is None:
-            session = boto3.Session(**session_kwargs)
-            
-            # Handle role assumption if specified
-            if assume_role_arn:
-                logger.info(f"Assuming role: {assume_role_arn}")
-                sts = session.client("sts")
-                response = sts.assume_role(
-                    RoleArn=str(assume_role_arn),
-                    RoleSessionName="aws-session"
-                )
-                temp_credentials = response["Credentials"]
-                logger.info("Got temporary credentials successfully!")
-                
-                # Create new session with temporary credentials
-                session = boto3.Session(
-                    aws_access_key_id=temp_credentials["AccessKeyId"],
-                    aws_secret_access_key=temp_credentials["SecretAccessKey"],
-                    aws_session_token=temp_credentials["SessionToken"],
-                    region_name=region_name
-                )
-            
-            _AWS_SESSION = session
-            
-        return _AWS_SESSION
+        # Create new session since none exists in cache
+        session = boto3.Session(**session_kwargs)
+        
+        # Cache the session
+        _AWS_SESSION[cache_key] = session
+        
+        return session
         
     except Exception as e:
         logger.error(f"Failed to create AWS session: {str(e)}")
         raise
 
-def get_aws_client(service_name: str, region_name: Optional[str] = None, assume_role_arn: Optional[str] = None) -> boto3.client:
+def get_aws_client(service_name: str, region_name: Optional[str] = None) -> boto3.client:
     """Get configured AWS client for a specific service
 
     Parameters
@@ -77,11 +62,9 @@ def get_aws_client(service_name: str, region_name: Optional[str] = None, assume_
         Name of the AWS service (e.g., 's3', 'dynamodb', etc.)
     region_name :
         Optional region_name override. If not specified, uses the default region
-    assume_role_arn :
-        Optional role to assume. If not specified, uses the current credentials
     """
     try:
-        session = get_aws_session(region_name=region_name, assume_role_arn=assume_role_arn)
+        session = get_aws_session(region_name=region_name)
         
         # Configure retry settings
         config = Config(
@@ -97,7 +80,7 @@ def get_aws_client(service_name: str, region_name: Optional[str] = None, assume_
         logger.error(f"Error creating AWS client for {service_name}: {e}")
         raise
 
-def get_aws_resource(service_name: str, region_name: Optional[str] = None, assume_role_arn: Optional[str] = None) -> boto3.resource:
+def get_aws_resource(service_name: str, region_name: Optional[str] = None) -> boto3.resource:
     """Get configured AWS resource for a specific service
 
     Parameters
@@ -106,11 +89,9 @@ def get_aws_resource(service_name: str, region_name: Optional[str] = None, assum
         Name of the AWS service (e.g., 's3', 'dynamodb', etc.)
     region_name :
         Optional region_name override. If not specified, uses the default region
-    assume_role_arn :
-        Optional role to assume. If not specified, uses the current credentials
     """
     try:
-        session = get_aws_session(region_name=region_name, assume_role_arn=assume_role_arn)
+        session = get_aws_session(region_name=region_name)
         return session.resource(service_name=service_name)
     except Exception as e:
         logger.error(f"Error creating AWS resource for {service_name}: {e}")
