@@ -4,17 +4,17 @@ import asyncio
 import gradio as gr
 from typing import Optional, AsyncIterator
 from core.logger import logger
+from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from modules import BaseHandler
 from .prompts import VISION_SYSTEM_PROMPT
 
 
-class VisionHandlers(BaseHandler):
+class VisionHandlers(BaseHandler[GenService]):
     """Handlers for vision analysis with streaming support"""
     
     # Module configuration
     _module_name = "vision"
-    _service_type = "gen"
     
     @classmethod
     def get_available_models(cls):

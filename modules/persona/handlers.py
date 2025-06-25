@@ -2,19 +2,17 @@ import asyncio
 import gradio as gr
 from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
 from core.logger import logger
+from core.service.chat_service import ChatService
 from genai.models.model_manager import model_manager
 from modules import BaseHandler
 from .prompts import PERSONA_ROLES
 
 
-class ChatbotHandlers(BaseHandler):
+class ChatbotHandlers(BaseHandler[ChatService]):
     """Handlers for chat functionality with session management."""
 
     # Module name for the handler
     _module_name: str = "persona"
-    
-    # Service type
-    _service_type: str = "chat"
 
     # Maximum number of messages to show in UI
     _max_display_messages: int = 24

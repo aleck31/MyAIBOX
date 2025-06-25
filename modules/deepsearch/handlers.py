@@ -2,22 +2,19 @@
 # SPDX-License-Identifier: MIT-0
 import asyncio
 import gradio as gr
-from typing import Dict, Union, AsyncIterator 
+from typing import Dict, Union, AsyncIterator, Type
 from core.logger import logger
+from core.service.agent_service import AgentService
 from modules import BaseHandler
-from core.service.service_factory import ServiceFactory
 from genai.models.model_manager import model_manager
 from .prompts import SYSTEM_PROMPT
 
 
-class DeepSearchHandlers(BaseHandler):
+class DeepSearchHandlers(BaseHandler[AgentService]):
     """Handlers for Deep Search module using Strands Agents SDK"""
     
     # Module name for the handler
     _module_name: str = "deepsearch"
-    
-    # Service type
-    _service_type: str = "agent"
     
     @classmethod
     def get_available_models(cls):
@@ -33,14 +30,6 @@ class DeepSearchHandlers(BaseHandler):
         except Exception as e:
             logger.error(f"[{cls.__name__}] Failed to fetch models: {str(e)}", exc_info=True)
             return []
-    
-    @classmethod
-    async def _get_service(cls):
-        """Get or initialize service for Deep Search module"""
-        if cls._service is None:
-            logger.info(f"[{cls.__name__}] Initializing DeepSearch service")
-            cls._service = ServiceFactory.create_agent_service(cls._module_name)
-        return cls._service
 
     @classmethod
     async def search(cls, query: Union[str, Dict], request: gr.Request) -> AsyncIterator[str]:
@@ -56,9 +45,10 @@ class DeepSearchHandlers(BaseHandler):
         """
         if not query:
             yield "Please provide a search query."
+            return
 
         try:
-            # Initialize service and session
+            # Initialize service and session - now service is typed as AgentService
             service, session = await cls._init_session(request)
 
             # Extract text from query if it's a dict (from MultimodalTextbox)
@@ -67,7 +57,12 @@ class DeepSearchHandlers(BaseHandler):
             # Generate response with streaming
             response_buffer = ""
 
-            # Perform search using the service
+            # Ensure session is not None
+            if session is None:
+                yield "Error: Could not initialize session."
+                return
+
+            # Perform search using the service - now properly typed
             async for chunk in service.gen_text_stream(
                 session=session,
                 prompt=query_text,

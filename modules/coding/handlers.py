@@ -4,6 +4,7 @@ import asyncio
 import gradio as gr
 from typing import Dict, Optional, AsyncIterator, Union
 from core.logger import logger
+from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from modules import BaseHandler
 from .prompts import ARCHITECT_PROMPT, CODER_PROMPT
@@ -11,12 +12,11 @@ from .prompts import ARCHITECT_PROMPT, CODER_PROMPT
 
 DEV_LANGS = ["Python", "GoLang", "Rust", "Ruby", "Java", "Javascript", "Typescript", "HTML", "SQL", "Shell"]
 
-class CodingHandlers(BaseHandler):
+class CodingHandlers(BaseHandler[GenService]):
     """Handlers for code generation with streaming support"""
     
     # Module configuration
     _module_name = "coding"
-    _service_type = "gen"
     
     @classmethod
     def get_available_models(cls):

@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, List, Optional, Union, Any
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 
 
 # Model category and capabilities
@@ -12,21 +12,12 @@ VALID_MODALITY = ['text', 'document', 'image', 'video', 'audio']
 @dataclass
 class LLM_CAPABILITIES:
     """Model capabilities configuration"""
-    input_modality: List[str] = None  # Support input modalities
-    output_modality: List[str] = None # Support output modalities
-    context_window: Optional[int] = None  # Maximum tokens(context window) size
-    streaming: Optional[bool] = None  # Support for streaming responses
-    tool_use: Optional[bool] = None  # Support for tool use / function calling
-    reasoning: Optional[bool] = None  # Support for reasoning (extended thinking)
-
-    def __post_init__(self):
-        """Initialize default values if not provided"""
-        self.input_modality = self.input_modality or ['text']
-        self.output_modality = self.output_modality or ['text']
-        self.context_window = self.context_window or 128*1024
-        self.streaming = True if self.streaming is None else self.streaming
-        self.tool_use = False if self.tool_use is None else self.tool_use
-        self.reasoning = False if self.reasoning is None else self.reasoning
+    input_modality: List[str] = field(default_factory=lambda: ['text']) # Support input modalities
+    output_modality: List[str] = field(default_factory=lambda: ['text'])  # Support output modalities
+    context_window: Optional[int] = 128 * 1024  # Maximum tokens(context window) size
+    streaming: Optional[bool] = True  # Support for streaming responses
+    tool_use: Optional[bool] = False  # Support for tool use / function calling
+    reasoning: Optional[bool] = False  # Support for reasoning (extended thinking)
 
 
 @dataclass
@@ -58,14 +49,20 @@ class LLMModel:
 
     def supports_input(self, modality: str) -> bool:
         """Check if model supports a specific input modality"""
+        if self.capabilities is None:
+            return False
         return modality in self.capabilities.input_modality
 
     def supports_output(self, modality: str) -> bool:
         """Check if model supports a specific output modality"""
+        if self.capabilities is None:
+            return False
         return modality in self.capabilities.output_modality
 
     def get_capability(self, name: str) -> Any:
         """Get a capability value by name"""
+        if self.capabilities is None:
+            raise ValueError("Capabilities are not initialized")
         if not hasattr(self.capabilities, name):
             raise ValueError(f"Invalid capability name: {name}")
         return getattr(self.capabilities, name)

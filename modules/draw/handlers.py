@@ -4,10 +4,11 @@ import json
 import random
 import gradio as gr
 from PIL import Image
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Type
 from core.logger import logger
 from core.service.service_factory import ServiceFactory
 from core.service.gen_service import GenService
+from core.service.draw_service import DrawService
 from modules import BaseHandler
 from .prompts import PROMPT_OPTIMIZER_TEMPLATE, NEGATIVE_PROMPTS
 
@@ -23,14 +24,11 @@ IMAGE_STYLES = [
 IMAGE_RATIOS = ['16:9', '5:4', '3:2', '21:9', '1:1', '2:3', '4:5', '9:16', '9:21']
 
 
-class DrawHandlers(BaseHandler):
+class DrawHandlers(BaseHandler[DrawService]):
     """Handlers for image generation functionality"""
 
     # Module name for the handler
     _module_name: str = "draw"
-    
-    # Service type
-    _service_type: str = "draw"
     
     # Additional service for prompt optimization
     _gen_service: Optional[GenService] = None

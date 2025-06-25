@@ -7,7 +7,7 @@ from core.config import env_config
 from utils.aws import get_aws_client
 from utils.file import FileProcessor
 from genai.models.model_manager import model_manager
-from genai.tools.tools_registry import br_registry
+from genai.tools.legacy.tool_registry import br_registry
 from genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
 from . import LLMAPIProvider, LLMProviderError
 

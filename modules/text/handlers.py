@@ -3,13 +3,14 @@
 import gradio as gr
 from typing import Dict, Optional
 from core.logger import logger
+from core.service.gen_service import GenService
 from modules import BaseHandler
 from .prompts import SYSTEM_PROMPTS, STYLES
 
 
 # Language options
 LANGS = ["en_US", "zh_CN", "zh_TW", "ja_JP", "de_DE", "fr_FR"]
-# Text operation definitions with handlers
+# Text operation definitions with handlers - defined after class
 TEXT_OPERATIONS = {
     "Proofreading ✍️": {
         "description": "Check spelling, grammar, and improve clarity",
@@ -38,14 +39,11 @@ TEXT_OPERATIONS = {
     }
 }
 
-class TextHandlers(BaseHandler):
+class TextHandlers(BaseHandler[GenService]):
     """Handlers for text processing with style support"""
     
     # Module name for the handler
     _module_name: str = "text"
-    
-    # Service type
-    _service_type: str = "gen"
 
     @classmethod
     async def _build_content(cls, text: str, operation: str, options: Dict) -> Dict[str, str]:

@@ -4,17 +4,15 @@ from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
 from core.logger import logger
 from genai.models.model_manager import model_manager
 from modules import BaseHandler
+from core.service.chat_service import ChatService
 from .prompts import ASSISTANT_PROMPT
 
 
-class AssistantHandlers(BaseHandler):
+class AssistantHandlers(BaseHandler[ChatService]):
     """Handlers for chat functionality with style support and session management."""
     
     # Module name for the handler
     _module_name: str = "assistant"
-    
-    # Service type
-    _service_type: str = "chat"
 
     # Maximum number of messages to show in UI    
     _max_display_messages: int = 24
