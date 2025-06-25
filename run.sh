@@ -12,9 +12,8 @@ show_usage() {
 
 # Function: Start the application
 start_app() {
-    echo "Activating python environment..."
-    source .venv/bin/activate
-
+    echo "Preparing environment with uv..."
+    
     # Create logs directory if it doesn't exist
     mkdir -p logs
 
@@ -30,8 +29,8 @@ start_app() {
     fi
 
     echo "Starting aibox app..."
-    # Use nohup to run in background, use application logger
-    nohup python app.py >/dev/null 2>&1 &
+    # Use nohup to run in background with uv, use application logger
+    nohup uv run python app.py >/dev/null 2>&1 &
 
     # Save PID
     echo $! > .pid

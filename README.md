@@ -141,7 +141,11 @@ my-aibox/
 
 1. Install dependencies:
 ```bash
-pip install -r requirements.txt
+# Install uv if you don't have it already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies using uv
+uv sync
 ```
 
 2. Configure AWS credentials:
@@ -166,8 +170,8 @@ cp .env.example .env
 # Run in background
 ./run.sh start
 
-# or run for local test
-uvicorn app:app --host 127.0.0.1 --port 8080 --reload 
+# or run for local test using uv
+uv run uvicorn app:app --host 127.0.0.1 --port 8080 --reload 
 ```
 
 The server will start on http://localhost:8080 .
