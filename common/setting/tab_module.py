@@ -1,6 +1,6 @@
 import gradio as gr
-from genai.tools.tools_registry import br_registry
-from .modules import ModuleHandlers, MODULE_LIST
+from genai.tools.legacy.tool_registry import br_registry
+from .handler_modules import ModuleHandlers, MODULE_LIST
 
 def set_tools_visible(model_id):
     """Update tools interactivity based on model selection"""

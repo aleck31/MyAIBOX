@@ -1,5 +1,5 @@
 import gradio as gr
-from .account import AccountHandlers
+from .handler_account import AccountHandlers
 
 def create_account_tab():
     """Create account management tab UI components"""

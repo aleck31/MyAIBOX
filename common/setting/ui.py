@@ -2,9 +2,11 @@ import gradio as gr
 from .tab_account import create_account_tab
 from .tab_module import create_module_tab
 from .tab_model import create_model_tab
-from .modules import ModuleHandlers
-from .account import AccountHandlers
-from .models import ModelHandlers
+from .tab_tools import create_tools_tab
+from .handler_modules import ModuleHandlers
+from .handler_account import AccountHandlers
+from .handler_models import ModelHandlers
+from .handler_tools import ToolHandlers
 
 with gr.Blocks() as tab_setting:
     # State to store current model choices
@@ -14,6 +16,7 @@ with gr.Blocks() as tab_setting:
     user_name, sessions_list = create_account_tab()
     module_components = create_module_tab()
     models_list, _ = create_model_tab(model_choices_state)  # Properly unpack tuple
+    tools_components = create_tools_tab()
 
     # Initial load with request context
     tab_setting.load(
@@ -45,6 +48,15 @@ with gr.Blocks() as tab_setting:
             *module_components['params'].values(),
             *module_components['tools'].values()
         ]
+    ).success(
+        # Initialize MCP servers list with tool counts
+        fn=ToolHandlers.refresh_mcp_servers_with_tools,
+        inputs=[],
+        outputs=[tools_components['mcp_servers_list'], tools_components['status_message']]
+    ).success(
+        # Show status message
+        fn=lambda: gr.update(visible=True),
+        outputs=[tools_components['status_message']]
     ).then(
         # Then refresh models list
         fn=ModelHandlers.refresh_models,
@@ -61,4 +73,59 @@ with gr.Blocks() as tab_setting:
         fn=lambda choices: [gr.update(choices=choices) for _ in module_components['models'].values()],
         inputs=[model_choices_state],
         outputs=[*module_components['models'].values()]
+    )
+
+    # Tool Management Event Handlers
+    
+    # Refresh MCP servers with tool counts
+    tools_components['buttons']['refresh_servers'].click(
+        fn=ToolHandlers.refresh_mcp_servers_with_tools,
+        inputs=[],
+        outputs=[tools_components['mcp_servers_list'], tools_components['status_message']]
+    )
+    
+    # Enable server
+    tools_components['buttons']['enable_server'].click(
+        fn=ToolHandlers.enable_server,
+        inputs=[tools_components['selected_server']],
+        outputs=[tools_components['mcp_servers_list'], tools_components['status_message']]
+    )
+    
+    # Disable server
+    tools_components['buttons']['disable_server'].click(
+        fn=ToolHandlers.disable_server,
+        inputs=[tools_components['selected_server']],
+        outputs=[tools_components['mcp_servers_list'], tools_components['status_message']]
+    )
+    
+    # Test connection
+    tools_components['buttons']['test_connection'].click(
+        fn=ToolHandlers.test_server_connection,
+        inputs=[tools_components['selected_server']],
+        outputs=[tools_components['connection_test_results'], tools_components['status_message']]
+    ).success(
+        # Show test results
+        fn=lambda: gr.update(visible=True),
+        outputs=[tools_components['connection_test_results']]
+    )
+    
+    # Add new server
+    tools_components['buttons']['add_server'].click(
+        fn=ToolHandlers.add_mcp_server,
+        inputs=[
+            tools_components['new_server_name'],
+            tools_components['new_server_type'],
+            tools_components['new_server_url'],
+            tools_components['new_server_args']
+        ],
+        outputs=[tools_components['mcp_servers_list'], tools_components['status_message']]
+    ).success(
+        # Clear form after successful addition
+        fn=lambda: ("", "http", "", ""),
+        outputs=[
+            tools_components['new_server_name'],
+            tools_components['new_server_type'],
+            tools_components['new_server_url'],
+            tools_components['new_server_args']
+        ]
     )

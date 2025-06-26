@@ -1,5 +1,5 @@
 import gradio as gr
-from .models import ModelHandlers
+from .handler_models import ModelHandlers
 from genai.models import VAILD_CATEGORY, VALID_MODALITY
 
 
