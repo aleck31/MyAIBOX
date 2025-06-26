@@ -1,5 +1,4 @@
 import time
-import asyncio
 import wikipedia
 from strands import tool
 from googlesearch import search as google_search
@@ -147,7 +146,7 @@ def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
         }
 
 @tool
-async def search_internet(query: str, num_results: int = 6, language: str = "en"):
+def search_internet(query: str, num_results: int = 6, language: str = "en"):
     """Search the internet via Google and return relevant search results
     
     Args:
@@ -169,26 +168,32 @@ async def search_internet(query: str, num_results: int = 6, language: str = "en"
     num_results = min(num_results, MAX_SEARCH_RESULTS)
     
     try:
-        # Run the search in a separate thread to avoid blocking
-        loop = asyncio.get_event_loop()
-        search_results = await loop.run_in_executor(
-            None,
-            lambda: list(google_search(
-                query, 
-                num_results=num_results, 
-                lang=language,
-                advanced=True
-            ))
-        )
+        # Perform the search synchronously
+        search_results = list(google_search(
+            query, 
+            num_results=num_results, 
+            lang=language,
+            advanced=True
+        ))
         
         # Format results
         formatted_results = []
         for result in search_results:
-            formatted_results.append({
-                "title": result.title if hasattr(result, 'title') and result.title else result.url,
-                "url": result.url,
-                "description": result.description if hasattr(result, 'description') else ""
-            })
+            # Handle different result types from google_search
+            if isinstance(result, str):
+                # If result is just a URL string
+                formatted_results.append({
+                    "title": result,
+                    "url": result,
+                    "description": ""
+                })
+            else:
+                # If result is an object with attributes
+                formatted_results.append({
+                    "title": getattr(result, 'title', None) or getattr(result, 'url', str(result)),
+                    "url": getattr(result, 'url', str(result)),
+                    "description": getattr(result, 'description', "")
+                })
         
         # Create response
         result = {

@@ -1,16 +1,24 @@
-import asyncio
 import sys
 import os
 import time
+from typing import Any, Dict, Optional
 
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from genai.tools.bedrock.search_tools import search_wikipedia
+from genai.tools.legacy.search_tools import search_wikipedia
 
-def test_search_wikipedia(query, language="en"):
+def test_search_wikipedia_func(query: str, language: str = "en") -> Optional[Dict[str, Any]]:
     """Test Wikipedia search with specified language"""
-    result = search_wikipedia(query, language=language)
+    # Access the original function directly from the module
+    # Use type: ignore to suppress Pylance warnings about the decorated function
+    try:
+        # Call with positional arguments to avoid parameter name issues
+        result = search_wikipedia(query, 3, language) # type: ignore
+    except TypeError as e:
+        print(f"Error calling search_wikipedia: {e}")
+        return None
+        
     print(f"Result for query '{query}' (language: {language}):")
     print(f"Title: {result.get('title', 'N/A')}")
     print(f"URL: {result.get('url', 'N/A')}")
@@ -19,44 +27,46 @@ def test_search_wikipedia(query, language="en"):
     print("\n")
     return result
 
-def test_caching():
+def test_caching() -> None:
     """Test that caching works correctly"""
     query = "Python programming language"
     
     # First call should not be cached
     start_time = time.time()
-    result1 = search_wikipedia(query)
+    result1 = search_wikipedia(query)  # type: ignore
     first_call_time = time.time() - start_time
     print(f"First call took {first_call_time:.4f} seconds")
     print(f"Cached: {result1.get('cached', False)}")
     
     # Second call should be cached and faster
     start_time = time.time()
-    result2 = search_wikipedia(query)
+    result2 = search_wikipedia(query)  # type: ignore
     second_call_time = time.time() - start_time
     print(f"Second call took {second_call_time:.4f} seconds")
     print(f"Cached: {result2.get('cached', False)}")
-    print(f"Speed improvement: {first_call_time / second_call_time:.2f}x faster")
+    
+    if second_call_time > 0:
+        print(f"Speed improvement: {first_call_time / second_call_time:.2f}x faster")
     print("\n")
 
-def test_multilingual():
+def test_multilingual() -> None:
     """Test Wikipedia search in multiple languages"""
     print("=== TESTING MULTILINGUAL SEARCH ===")
     
     # Test English
-    test_search_wikipedia("Machine Learning", "en")
+    test_search_wikipedia_func("Machine Learning", "en")
     
     # Test Chinese
-    test_search_wikipedia("机器学习", "zh")
+    test_search_wikipedia_func("机器学习", "zh")
     
     # Test Spanish
-    test_search_wikipedia("Aprendizaje automático", "es")
+    test_search_wikipedia_func("Aprendizaje automático", "es")
     
     # Test French
-    test_search_wikipedia("Apprentissage automatique", "fr")
+    test_search_wikipedia_func("Apprentissage automatique", "fr")
     
     # Test German
-    test_search_wikipedia("Maschinelles Lernen", "de")
+    test_search_wikipedia_func("Maschinelles Lernen", "de")
     
     print("=== MULTILINGUAL TESTING COMPLETE ===\n")
 
@@ -65,13 +75,16 @@ if __name__ == "__main__":
     print("=== TESTING ENGLISH QUERIES ===")
     english_queries = [
         "Python programming language",
-        "Artificial Intelligence",
+        "Artificial Intelligence", 
         "Machine Learning",
         "Natural Language Processing"
     ]
     
     for query in english_queries:
-        test_search_wikipedia(query)
+        result = test_search_wikipedia_func(query)
+        if result is None:
+            print(f"Failed to test query: {query}")
+            break
     
     # Test multilingual search
     test_multilingual()

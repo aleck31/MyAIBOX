@@ -1,7 +1,7 @@
 """
-MCP tools management and configuration
+MCP server management and configuration
 """
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from decimal import Decimal
 from botocore.exceptions import ClientError
 from core.config import env_config
@@ -9,15 +9,15 @@ from core.logger import logger
 from utils.aws import get_aws_resource
 
 
-class ToolManager:
-    """Manager for MCP servers and tools"""
+class MCPServerManager:
+    """Manager for MCP servers and configuration"""
     
     def __init__(self):
         try:
             self.dynamodb = get_aws_resource('dynamodb')
             self.table_name = env_config.database_config['setting_table']
             self.table = self.dynamodb.Table(self.table_name)
-            logger.debug(f"Initialized ToolManager with table: {self.table_name}")
+            logger.debug(f"Initialized MCPServerManager with table: {self.table_name}")
             # Cache for MCP server configurations
             self._mcp_servers_cache = None
         except Exception as e:
@@ -45,7 +45,7 @@ class ToolManager:
             return {key: self._numeric_to_decimal(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self._numeric_to_decimal(item) for item in obj]
-        elif isinstance(obj, (float, int)):
+        elif isinstance(obj, (float, int)) and not isinstance(obj, bool):
             return Decimal(str(obj))
         return obj
 
@@ -54,7 +54,7 @@ class ToolManager:
         logger.debug("Flushing MCP servers cache")
         self._mcp_servers_cache = None
 
-    def _load_mcp_servers_from_db(self) -> Dict:
+    def _load_mcp_servers_from_db(self) -> Dict[str, Any]:
         """Load MCP server configurations from database and update cache"""
         try:
             # Get MCP server configurations from DynamoDB
@@ -71,6 +71,9 @@ class ToolManager:
 
             # Convert stored data and update cache
             servers_data = self._decimal_to_numeric(response['Item'].get('servers', {}))
+            # Ensure we're returning a Dict[str, Any] as specified in the return type
+            if not isinstance(servers_data, dict):
+                servers_data = {}
             self._mcp_servers_cache = servers_data
             return servers_data
         except Exception as e:
@@ -113,6 +116,66 @@ class ToolManager:
             logger.error(f"Error getting MCP server configuration: {str(e)}")
             return None
 
+    def validate_mcp_server_config(self, server_config: Dict) -> bool:
+        """Validate MCP server configuration
+        
+        Args:
+            server_config: Server configuration to validate
+            
+        Returns:
+            bool: True if configuration is valid
+            
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        if not isinstance(server_config, dict):
+            raise ValueError("Server configuration must be a dictionary")
+        
+        # Get server type (default to 'http' for backward compatibility)
+        server_type = server_config.get('type', 'http')
+        
+        if server_type not in ['stdio', 'http', 'sse']:
+            raise ValueError(f"Unsupported server type: {server_type}")
+        
+        # Validate based on server type
+        if server_type == 'stdio':
+            if 'command' not in server_config:
+                raise ValueError("stdio server requires 'command' field")
+            if not isinstance(server_config.get('args', []), list):
+                raise ValueError("stdio server 'args' must be a list")
+            if 'env' in server_config and not isinstance(server_config['env'], dict):
+                raise ValueError("stdio server 'env' must be a dictionary")
+                
+        elif server_type in ['http', 'sse']:
+            if 'url' not in server_config:
+                raise ValueError(f"{server_type} server requires 'url' field")
+            url = server_config['url']
+            if not isinstance(url, str) or not (url.startswith('http://') or url.startswith('https://')):
+                raise ValueError(f"{server_type} server 'url' must be a valid HTTP/HTTPS URL")
+        
+        return True
+
+    def get_mcp_server_type(self, server_config: Dict) -> str:
+        """Get MCP server type from configuration
+        
+        Args:
+            server_config: Server configuration
+            
+        Returns:
+            str: Server type ('stdio', 'http', or 'sse')
+        """
+        # Explicit type field takes precedence
+        if 'type' in server_config:
+            return server_config['type']
+        
+        # Backward compatibility: infer type from configuration
+        if 'command' in server_config:
+            return 'stdio'
+        elif 'url' in server_config:
+            return 'http'  # Default HTTP for URL-based servers
+        else:
+            return 'http'  # Default fallback
+
     def add_mcp_server(self, mcp_server: str, server_config: Dict) -> bool:
         """Add a new MCP server configuration
         
@@ -124,6 +187,9 @@ class ToolManager:
             bool: True if successful
         """
         try:
+            # Validate configuration
+            self.validate_mcp_server_config(server_config)
+            
             # Get current MCP server configurations
             servers = self.get_mcp_servers()
             
@@ -143,7 +209,9 @@ class ToolManager:
                 }
             )
             self.flush_cache()
-            logger.info(f"Added new MCP server: {mcp_server}")
+            
+            server_type = self.get_mcp_server_type(server_config)
+            logger.info(f"Added new MCP server: {mcp_server} (type: {server_type})")
             return True
         except Exception as e:
             logger.error(f"Error adding MCP server: {str(e)}")
@@ -160,6 +228,9 @@ class ToolManager:
             bool: True if successful
         """
         try:
+            # Validate configuration
+            self.validate_mcp_server_config(server_config)
+            
             # Get current MCP server configurations
             servers = self.get_mcp_servers()
             
@@ -179,7 +250,9 @@ class ToolManager:
                 }
             )
             self.flush_cache()
-            logger.info(f"Updated MCP server: {mcp_server}")
+            
+            server_type = self.get_mcp_server_type(server_config)
+            logger.info(f"Updated MCP server: {mcp_server} (type: {server_type})")
             return True
         except Exception as e:
             logger.error(f"Error updating MCP server: {str(e)}")
@@ -231,6 +304,7 @@ class ToolManager:
             if not servers:
                 default_servers = {
                     "core-mcp-server": {
+                        "type": "stdio",
                         "command": "uvx",
                         "args": ["awslabs.core-mcp-server@latest"],
                         "disabled": True,
@@ -240,9 +314,15 @@ class ToolManager:
                         "autoApprove": []
                     },
                     "exa-server": {
+                        "type": "http",
                         "url": "https://mcp.exa.ai/mcp?apiKey=8a72edef-4f2a-4bc8-ad59-d2b47384efca",
-                        "args": [],
                         "disabled": False
+                    },
+                    "fastmcp-demo-sse": {
+                        "type": "sse",
+                        "url": "http://localhost:8000/sse",
+                        "disabled": True,
+                        "description": "Demo FastMCP SSE server - run 'fastmcp run server.py --transport sse' to start"
                     }
                 }
                 
@@ -262,6 +342,59 @@ class ToolManager:
             logger.error(f"Error initializing default MCP server configurations: {str(e)}")
             return False
 
+    def list_servers_by_type(self, server_type: Optional[str] = None) -> Dict[str, Dict]:
+        """List MCP servers filtered by type
+        
+        Args:
+            server_type: Optional server type filter ('stdio', 'http', 'sse')
+            
+        Returns:
+            Dict: Filtered server configurations
+        """
+        all_servers = self.get_mcp_servers()
+        
+        if server_type is None:
+            return all_servers
+        
+        filtered_servers = {}
+        for name, config in all_servers.items():
+            if self.get_mcp_server_type(config) == server_type:
+                filtered_servers[name] = config
+        
+        return filtered_servers
+
+    def get_server_info(self, server_name: str) -> Optional[Dict]:
+        """Get detailed information about a specific server
+        
+        Args:
+            server_name: Name of the server
+            
+        Returns:
+            Dict: Server information including type and status
+        """
+        server_config = self.get_mcp_tools(server_name)
+        if not server_config:
+            return None
+        
+        server_type = self.get_mcp_server_type(server_config)
+        
+        info = {
+            "name": server_name,
+            "type": server_type,
+            "disabled": server_config.get("disabled", False),
+            "config": server_config
+        }
+        
+        # Add type-specific information
+        if server_type == "stdio":
+            info["command"] = server_config.get("command")
+            info["args"] = server_config.get("args", [])
+            info["env"] = server_config.get("env", {})
+        elif server_type in ["http", "sse"]:
+            info["url"] = server_config.get("url")
+        
+        return info
+
 
 # Create a singleton instance
-tool_manager = ToolManager()
+mcp_server_manager = MCPServerManager()
