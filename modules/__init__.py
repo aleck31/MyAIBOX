@@ -4,13 +4,10 @@ import gradio as gr
 from typing import Optional, Union, Dict, List, TypeVar, Generic, Type, cast
 from core.logger import logger
 from core.service.service_factory import ServiceFactory
-from core.service.chat_service import ChatService
-from core.service.gen_service import GenService
-from core.service.draw_service import DrawService
-from core.service.agent_service import AgentService
+
 
 # Define service type variable
-ServiceType = TypeVar('ServiceType', bound=Union[ChatService, DrawService, GenService, AgentService])
+ServiceType = TypeVar('ServiceType')
 
 
 class BaseHandler(Generic[ServiceType]):
@@ -42,6 +39,12 @@ class BaseHandler(Generic[ServiceType]):
         if cls._service is None:
             service_class = cls.get_service_class()
             logger.info(f"[{cls.__name__}] Initializing {service_class.__name__}")
+            
+            # Import service classes dynamically to avoid circular imports
+            from core.service.chat_service import ChatService
+            from core.service.gen_service import GenService
+            from core.service.draw_service import DrawService
+            from core.service.agent_service import AgentService
             
             # Create service based on service type using if-elif (match-case has issues with types)
             if service_class is ChatService:

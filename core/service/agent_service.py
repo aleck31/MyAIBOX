@@ -4,7 +4,7 @@ from typing import Dict, AsyncIterator, Any, List
 from core.logger import logger
 from core.service import BaseService
 from core.session.models import Session
-from genai.agents.agent_provider import AgentProvider
+from genai.agents.provider import AgentProvider
 
 
 class AgentService(BaseService):
@@ -18,6 +18,51 @@ class AgentService(BaseService):
         """
         super().__init__(module_name)
         self._agent_providers: Dict[str, AgentProvider] = {}
+    
+    def _convert_ui_to_strands_format(self, ui_history: List[Dict]) -> List:
+        """Convert UI history messages to Strands Message format
+        
+        Args:
+            ui_history: List of message dicts with 'role' and 'content' keys from UI
+            
+        Returns:
+            List of Strands Message objects
+        """
+        if not ui_history:
+            return []
+            
+        try:
+            from strands.types.content import Message
+            strands_messages = []
+            
+            for msg in ui_history:
+                if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
+                    # Handle different content formats
+                    content = msg['content']
+                    if isinstance(content, dict):
+                        # Extract text from dict format
+                        content = content.get('text', str(content))
+                    elif isinstance(content, (list, tuple)):
+                        # Convert list/tuple to text
+                        content = ' '.join(str(item) for item in content)
+                    
+                    # Convert to correct Bedrock format
+                    strands_msg = Message({
+                        'role': msg['role'],
+                        'content': [
+                            {
+                                'text': str(content)
+                            }
+                        ]
+                    })
+                    strands_messages.append(strands_msg)
+                    
+            logger.debug(f"[AgentService] Converted {len(ui_history)} UI messages to Strands format")
+            return strands_messages
+            
+        except Exception as e:
+            logger.error(f"[AgentService] Error converting UI messages to Strands format: {str(e)}")
+            return []
     
     async def _get_agent_provider(self, model_id, system_prompt: str):
         """Get or initialize AgentProvider
@@ -51,20 +96,31 @@ class AgentService(BaseService):
                 logger.error(f"[AgentService] Failed to initialize AgentProvider: {str(e)}")
                 self._agent_provider = None
 
-    async def gen_text_stream(self, session: Session, prompt: str, system_prompt: str) -> AsyncIterator[Dict]:
+    async def streaming_reply_with_history(
+        self, 
+        session: Session, 
+        prompt: str, 
+        system_prompt: str, 
+        history: List[Dict],
+        tool_config: Dict[str, Any] = None
+    ) -> AsyncIterator[Dict]:
         """
-        Generate text with streaming response and session context
+        Generate streaming response with conversation history (multi-turn)
         
         Args:
             session: User session
-            prompt: The user prompt
+            prompt: Current user prompt
             system_prompt: System prompt for the agent
+            history: List of previous messages in UI format
+                - Format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
+            tool_config: Optional tool configuration override
             
         Returns:
-            AsyncIterator yielding dictionaries
+            AsyncIterator yielding standardized agent response dictionaries
         """
         if not prompt:
             yield {"text": "Please provide a user prompt."}
+            return
 
         try:
             # Get model_id with fallback to module default
@@ -73,51 +129,114 @@ class AgentService(BaseService):
             # Get provider instance
             provider = await self._get_agent_provider(model_id, system_prompt)
 
-            # Get module configuration for tool filtering
-            from core.module_config import module_config
-            config = module_config.get_module_config(self.module_name)
-            enabled_tools = config.get('enabled_tools', []) if config else []
-            
-            # Configure tools using Universal Tool Manager
-            tool_config = {
-                'enabled': True,
-                'include_legacy': True,
-                'include_mcp': True,  # Enable MCP tools
-                'tool_filter': enabled_tools if enabled_tools else None  # Use database config or all tools
-            }
-            
-            logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
+            # Convert UI history to Strands format in Service layer
+            strands_history = self._convert_ui_to_strands_format(history) if history else []
 
-            # Track response state
-            accumulated_text = []
-            accumulated_files = []
-            response_metadata = {}
+            # Configure tools - use provided config or default
+            if tool_config is None:
+                # Get module configuration for tool filtering
+                from core.module_config import module_config
+                config = module_config.get_module_config(self.module_name)
+                enabled_tools = config.get('enabled_tools', []) if config else []
+                
+                tool_config = {
+                    'enabled': True,
+                    'include_legacy': True,
+                    'include_mcp': True,
+                    'include_strands': True,
+                    'tool_filter': enabled_tools if enabled_tools else None
+                }
+                
+                logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
+            else:
+                logger.debug(f"[AgentService] Using provided tool config: {tool_config}")
 
-            async for chunk in provider.generate_stream(prompt, tool_config):
+            # Stream standardized responses with converted history
+            async for chunk in provider.generate_stream(prompt, strands_history, tool_config):
                 if not isinstance(chunk, dict):
                     logger.warning(f"[AgentService] Unexpected chunk type: {type(chunk)}")
                     continue
 
-                if content := chunk.get('content', {}):
-                    # Handle text
-                    if text := content.get('text'):
-                        yield {'text': text}
-                        accumulated_text.append(text)
-                    # Handle files
-                    elif file_path := content.get('file_path'):
-                        yield {'file_path': file_path}
-                        accumulated_files.append(file_path)
-
-                # Handle tool use events
-                if tool_use := chunk.get('tool_use'):
-                    logger.debug(f"[AgentService] Tool use: {tool_use}")
-                    # You can yield tool use information if needed
-                    # yield {'tool_use': tool_use}
-
-                # Only update metadata if it exists
-                if metadata := chunk.get('metadata'):
-                    response_metadata.update(metadata)
+                # Direct pass-through of standardized format
+                yield chunk
 
         except Exception as e:
-            logger.error(f"[AgentService] Failed to generate text stream: {str(e)}", exc_info=True)
-            yield {"text": "I apologize, but I encountered a error. Please try again later."}
+            logger.error(f"[AgentService] Error in streaming_reply_with_history: {str(e)}", exc_info=True)
+            yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
+
+    async def gen_text_stream(
+        self, 
+        session: Session, 
+        prompt: str, 
+        system_prompt: str, 
+        tool_config: Dict[str, Any] = None
+    ) -> AsyncIterator[Dict]:
+        """
+        Generate text with streaming response (single-turn)
+        
+        Args:
+            session: User session
+            prompt: The user prompt
+            system_prompt: System prompt for the agent
+            tool_config: Optional tool configuration override
+            
+        Returns:
+            AsyncIterator yielding standardized agent response dictionaries
+        """
+        if not prompt:
+            yield {"text": "Please provide a user prompt."}
+            return
+
+        try:
+            # Get model_id with fallback to module default
+            model_id = await self.get_session_model(session)
+
+            # Get provider instance
+            provider = await self._get_agent_provider(model_id, system_prompt)
+
+            # Configure tools - use provided config or default
+            if tool_config is None:
+                # Get module configuration for tool filtering
+                from core.module_config import module_config
+                config = module_config.get_module_config(self.module_name)
+                enabled_tools = config.get('enabled_tools', []) if config else []
+                
+                tool_config = {
+                    'enabled': True,
+                    'include_legacy': True,
+                    'include_mcp': True,
+                    'include_strands': True,
+                    'tool_filter': enabled_tools if enabled_tools else None
+                }
+                
+                logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
+            else:
+                logger.debug(f"[AgentService] Using provided tool config: {tool_config}")
+
+            # Stream standardized responses without history (single-turn)
+            async for chunk in provider.generate_stream(prompt, None, tool_config):
+                if not isinstance(chunk, dict):
+                    logger.warning(f"[AgentService] Unexpected chunk type: {type(chunk)}")
+                    continue
+
+                # Direct pass-through of standardized format
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"[AgentService] Error in gen_text_stream: {str(e)}", exc_info=True)
+            yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
+
+    async def clear_history(self, session: Session) -> None:
+        """Clear chat history for a session
+        
+        Args:
+            session: Active chat session to clear history for
+            
+        Note:
+            - Clears the history list
+            - Updates timestamp
+            - Persists changes to session store
+        """
+        session.history = []  # Clear message history
+        await self.session_store.save_session(session)
+        logger.debug(f"[AgentService] Cleared history for session {session.session_id}")

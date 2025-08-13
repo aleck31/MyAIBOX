@@ -5,7 +5,7 @@ from core.session import Session, SessionStore
 from core.module_config import module_config
 from genai.models.model_manager import model_manager
 from genai.models import LLMParameters, GenImageParameters
-from genai.models.api_providers import LLMAPIProvider, LLMProviderError, create_model_provider
+from genai.models.providers import LLMAPIProvider, LLMProviderError, create_model_provider
 
 
 class BaseService:

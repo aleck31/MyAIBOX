@@ -2,7 +2,7 @@
 Configuration management using python-dotenv for environment variables
 """
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Union, List
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -44,21 +44,38 @@ class ENVConfig:
         """Get AWS Bedrock configuration"""
         return {
             'region_name': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to aws_region
-            'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', None)
+            'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', '')
+        }
+
+    @property
+    def sandbox_config(self) -> Dict[str, Union[str, int, List[str]]]:
+        """Get EC2 Sandbox Env configuration"""
+        # Get allowed runtimes as a list from space-separated string
+        allowed_runtimes_str = os.getenv('ALLOWED_RUNTIMES', 'python3 python node bash sh')
+        allowed_runtimes = allowed_runtimes_str.split() if allowed_runtimes_str else []
+        return {
+            'instance_id': os.getenv('INSTANCE_ID', ''),
+            'region': os.getenv('REGION', 'ap-northeast-1'),
+            'aws_profile': os.getenv('AWS_PROFILE', 'lab'),
+            'base_sandbox_dir': os.getenv('BASE_SANDBOX_DIR', '/opt/sandbox'),
+            'max_execution_time': int(os.getenv('MAX_EXECUTION_TIME', '900')),
+            'max_memory_mb': int(os.getenv('MAX_MEMORY_MB', '1024')),
+            'cleanup_after_hours': int(os.getenv('CLEANUP_AFTER_HOURS', '48')),
+            'allowed_runtimes': allowed_runtimes
         }
 
     @property
     def gemini_config(self) -> Dict[str, str]:
         """Get Gemini API configuration"""
         return {
-            'secret_id': os.getenv('GEMINI_SECRET_ID'),
+            'secret_id': os.getenv('GEMINI_SECRET_ID', '')
         }
 
     @property
     def openai_config(self) -> Dict[str, str]:
         """Get OpenAI API configuration"""
         return {
-            'secret_id': os.getenv('OPENAI_SECRET_ID'),
+            'secret_id': os.getenv('OPENAI_SECRET_ID', ''),
         }
 
 class AppConfig:

@@ -9,7 +9,7 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from genai.tools.tool_provider import MCPToolProvider
+from genai.tools.provider  import ToolProvider
 from genai.tools.mcp.mcp_server_manager import mcp_server_manager
 
 
@@ -20,7 +20,7 @@ async def test_exa_server():
     
     try:
         # Get exa-server configuration
-        config = mcp_server_manager.get_mcp_tools('exa-server')
+        config = mcp_server_manager.get_mcp_server('exa-server')
         if not config:
             print("✗ exa-server configuration not found")
             return
@@ -34,7 +34,7 @@ async def test_exa_server():
             return
         
         # Create MCP tool provider
-        provider = MCPToolProvider()
+        provider = ToolProvider()
         
         # Try to create MCP client
         print("\nTesting MCP client creation...")

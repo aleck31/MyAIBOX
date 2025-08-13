@@ -53,7 +53,7 @@ def get_aws_session(region_name: Optional[str] = None) -> boto3.Session:
         logger.error(f"Failed to create AWS session: {str(e)}")
         raise
 
-def get_aws_client(service_name: str, region_name: Optional[str] = None) -> boto3.client:
+def get_aws_client(service_name: str, region_name: Optional[str] = None):
     """Get configured AWS client for a specific service
 
     Parameters
@@ -65,7 +65,6 @@ def get_aws_client(service_name: str, region_name: Optional[str] = None) -> boto
     """
     try:
         session = get_aws_session(region_name=region_name)
-        
         # Configure retry settings
         config = Config(
             region_name=region_name or env_config.aws_region,
@@ -74,13 +73,13 @@ def get_aws_client(service_name: str, region_name: Optional[str] = None) -> boto
                 "mode": "standard",
             },
         )
-        
         return session.client(service_name=service_name, config=config)
+
     except Exception as e:
         logger.error(f"Error creating AWS client for {service_name}: {e}")
         raise
 
-def get_aws_resource(service_name: str, region_name: Optional[str] = None) -> boto3.resource:
+def get_aws_resource(service_name: str, region_name: Optional[str] = None):
     """Get configured AWS resource for a specific service
 
     Parameters
@@ -124,6 +123,10 @@ def translate_text(text, target_lang_code):
     client = get_aws_client(
         service_name='translate'
     )
+
+    # Initialize variables with default values
+    translated_text = None
+    source_lang_code = None
 
     try:
         # Call TranslateText API

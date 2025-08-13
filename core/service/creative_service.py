@@ -2,7 +2,7 @@
 from typing import Dict, Optional
 from core.logger import logger
 from core.session import Session
-from genai.models.api_providers import LLMMessage, LLMProviderError
+from genai.models.providers import LLMMessage, LLMProviderError
 from . import BaseService
 
 

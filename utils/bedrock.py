@@ -9,7 +9,6 @@ _BEDROCK_RUNTIME = None
 
 def get_bedrock_client(
     region_name: Optional[str],
-    assume_role_arn: Optional[str] = None,
     runtime: Optional[bool] = True,
 ):
     """Create a boto3 client for Amazon Bedrock, with optional configuration overrides
@@ -18,9 +17,6 @@ def get_bedrock_client(
     ----------
     region_name :
         AWS Region name in which the service should be called (e.g. "us-east-1").
-    assumed_role :
-        Optional ARN of an AWS IAM role to assume for calling the Bedrock service. If not
-        specified, the current active credentials will be used.
     runtime :
         Optional choice of getting different client to perform operations with the Amazon Bedrock service.
         Bedrock.Client: 
@@ -39,8 +35,7 @@ def get_bedrock_client(
         service_name = 'bedrock-runtime' if runtime else 'bedrock'
         bedrock_client = get_aws_client(
             service_name=service_name,
-            region_name=region_name,
-            assume_role_arn=assume_role_arn
+            region_name=region_name
         )
         
         if runtime:

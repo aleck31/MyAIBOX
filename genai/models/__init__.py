@@ -29,7 +29,7 @@ class LLMModel:
     category: str   #Legacy to compatibility with existing models
     vendor: str = ""      # Optional
     description: str = "" # Optional
-    capabilities: Optional[LLM_CAPABILITIES] = None
+    capabilities: LLM_CAPABILITIES = field(default_factory=LLM_CAPABILITIES)
 
     def __post_init__(self):
         """Validate model attributes after initialization"""
@@ -83,8 +83,8 @@ class LLMModel:
         
         # Extract and convert capabilities data if present
         capabilities_data = data.pop('capabilities', None)
-        capabilities = LLM_CAPABILITIES(**capabilities_data) if capabilities_data else None
-        
+        capabilities = LLM_CAPABILITIES(**capabilities_data)
+
         # Create instance with remaining data
         return cls(
             name=data['name'],

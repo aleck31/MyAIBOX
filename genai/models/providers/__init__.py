@@ -126,10 +126,10 @@ def create_model_provider(provider_name: str, model_id: str, llm_params: Union[L
     Raises:
         ValueError: If provider_type is not supported
     """
-    from genai.models.api_providers.bedrock_converse import BedrockConverse
-    from genai.models.api_providers.bedrock_invoke import BedrockInvoke
-    from genai.models.api_providers.google_gemini import GeminiProvider
-    from genai.models.api_providers.openai import OpenAIProvider
+    from genai.models.providers.bedrock_converse import BedrockConverse
+    from genai.models.providers.bedrock_invoke import BedrockInvoke
+    from genai.models.providers.google_gemini import GeminiProvider
+    from genai.models.providers.openai import OpenAIProvider
 
     # Map provider types to their implementations
     providers = {

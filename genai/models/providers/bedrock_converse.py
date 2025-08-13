@@ -7,7 +7,7 @@ from core.config import env_config
 from utils.aws import get_aws_client
 from utils.file import FileProcessor
 from genai.models.model_manager import model_manager
-from genai.tools.legacy.tool_registry import br_registry
+from genai.tools.legacy.tool_registry import legacy_tool_registry
 from genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
 from . import LLMAPIProvider, LLMProviderError
 
@@ -45,7 +45,7 @@ class BedrockConverse(LLMAPIProvider):
             tool_specs = []
             for tool_name in tools:
                 try:
-                    tool_spec = br_registry.get_tool_spec(tool_name)
+                    tool_spec = legacy_tool_registry.get_tool_spec(tool_name)
                     if tool_spec:
                         tool_specs.append(tool_spec)
                         logger.info(f"[BRConverseProvider] Loaded tool specification for {tool_name}")
@@ -617,7 +617,7 @@ class BedrockConverse(LLMAPIProvider):
   
                 try:
                     # Execute tool
-                    result = await br_registry.execute_tool(
+                    result = await legacy_tool_registry.execute_tool(
                         tool_use['name'],
                         **tool_use['input']
                     )
@@ -762,7 +762,7 @@ class BedrockConverse(LLMAPIProvider):
                         
                         try:
                             # Execute tool with unpacked input
-                            execute_result = await br_registry.execute_tool(
+                            execute_result = await legacy_tool_registry.execute_tool(
                                 tool_use['name'],
                                 **tool_use['input']
                             )

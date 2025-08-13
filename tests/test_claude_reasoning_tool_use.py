@@ -16,8 +16,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from core.logger import logger
 from genai.models.model_manager import model_manager
-from genai.models.api_providers import LLMMessage
-from genai.models.api_providers.bedrock_converse import BedrockConverse
+from genai.models.providers import LLMMessage
+from genai.models.providers.bedrock_converse import BedrockConverse
 from genai.models import LLMParameters
 
 # Configure logging
