@@ -9,11 +9,13 @@ API_PROVIDERS = ["Bedrock", "BedrockInvoke", "Gemini", "OpenAI"]
 def create_model_tab(model_choices_state):
     """Create model management tab UI components"""
     with gr.Tab("Model Management"):
+        gr.Markdown("Add, view, and delete LLM models that can be used across different modules.")
+
         with gr.Row():
             with gr.Column(scale=11):
-                gr.Markdown("Add, view, and delete LLM models that can be used across different modules.")
+                gr.Markdown("### LLM Model List")
             with gr.Column(scale=1):
-                btn_refresh_models = gr.Button(value='🔃 Refresh Models', min_width=28, size='sm')
+                btn_refresh_models = gr.Button("🔄 Refresh", variant="secondary")
 
         with gr.Row():
             models_list = gr.Dataframe(

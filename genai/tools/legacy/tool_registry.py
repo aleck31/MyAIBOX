@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional, Callable
 from core.logger import logger
 
 
-class BedrockToolRegistry:
+class LegacyToolRegistry:
     """Simplified registry for managing Bedrock tool specifications and execution"""
     
     def __init__(self):
@@ -48,7 +48,7 @@ class BedrockToolRegistry:
                 for spec in tool_module.list_of_tools_specs:
                     if spec.get('toolSpec', {}).get('name') == tool_name:
                         self.tool_specs[tool_name] = spec
-                        logger.debug(f"[BedrockToolRegistry] Loaded tool: {tool_name}")
+                        logger.debug(f"[LegacyToolRegistry] Loaded tool: {tool_name}")
                         break
                 else:
                     logger.warning(f"No tool specification found for {tool_name} in {package_name}")
@@ -111,10 +111,10 @@ class BedrockToolRegistry:
     
     def reload_tools(self):
         """Reload all tools"""
-        logger.info("[BedrockToolRegistry] Reloading all tools...")
+        logger.info("[LegacyToolRegistry] Reloading all tools...")
         self.tools.clear()
         self.tool_specs.clear()
         self._load_all_tools()
 
 # Create global registry instance
-br_registry = BedrockToolRegistry()
+legacy_tool_registry = LegacyToolRegistry()

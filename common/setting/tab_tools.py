@@ -3,6 +3,7 @@ Tool Management Tab for Settings
 """
 import gradio as gr
 from typing import Dict, Any
+from .handler_tools import ToolHandlers
 
 
 def create_tools_tab() -> Dict[str, Any]:
@@ -13,13 +14,12 @@ def create_tools_tab() -> Dict[str, Any]:
     """
     
     with gr.Tab("Tool Management"):
-        gr.Markdown("## MCP Server Management")
         gr.Markdown("Configure Model Context Protocol (MCP) servers and their tools.")
         
         with gr.Row():
             with gr.Column(scale=2):
                 # MCP Servers List
-                gr.Markdown("### MCP Servers")
+                gr.Markdown("### MCP Server List")
                 mcp_servers_list = gr.Dataframe(
                     headers=["Server Name", "Type", "Status", "URL", "Tools Count"],
                     datatype=["str", "str", "str", "str", "number"],
@@ -131,7 +131,6 @@ def create_tools_tab() -> Dict[str, Any]:
         # Handle server selection - using inline function like model management
         def handle_server_select(evt: gr.SelectData, servers_data):
             """Handle server selection from the dataframe"""
-            from .handler_tools import ToolHandlers
             
             try:
                 # Check if servers_data is empty - handle both list and DataFrame
@@ -161,7 +160,7 @@ def create_tools_tab() -> Dict[str, Any]:
                 
                 # Get full server config
                 from genai.tools.mcp.mcp_server_manager import mcp_server_manager
-                config = mcp_server_manager.get_mcp_tools(server_name)
+                config = mcp_server_manager.get_mcp_server(server_name)
                 if config:
                     full_url = config.get('url', config.get('command', 'N/A'))
                     args = config.get('args', [])

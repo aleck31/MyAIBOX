@@ -4,7 +4,6 @@ version = "2.0.0"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "MIT"}
 
 dependencies = [
     # Fundamental
@@ -15,8 +14,9 @@ dependencies = [
     "google-genai>=1.7.0",
     "openai>=1.0.0",
     
-    # MCP Tools
+    # Strands Agents
     "strands-agents",
+    "strands-agents-tools>=0.1.7",
     
     # Utilities
     "uvicorn[standard]>=0.23.0",

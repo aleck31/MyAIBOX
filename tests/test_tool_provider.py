@@ -10,8 +10,8 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from genai.tools.tool_provider import tool_provider, ToolType
-from genai.agents.agent_provider import AgentProvider
+from genai.tools.provider  import tool_provider, ToolType
+from genai.agents.provider import AgentProvider
 from core.session.models import Session, SessionMetadata
 from core.service.service_factory import ServiceFactory
 

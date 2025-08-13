@@ -111,11 +111,14 @@ my-aibox/
 ├── genai/               # Genai integration
 │   ├── models               # Models implementations
 │   │   ├── init.py               # Base LLM interfaces
-│   │   ├── model_manager.py      # Model management
-│   │   └── api_providers/        # Model provider integration
+│   │   ├── providers/            # Model provider integration
+│   │   └── model_manager.py      # Model management
+│   ├── agents               # Agents implementations
+│   │   └── provider.py      #
 │   └── tools/              # tools implementations
-│       ├── bedrock         # Tools for models on Bedrock
-│       └── tool_registry.py      # Tool registry
+│       ├── legacy           # Legacy tools for models on Bedrock
+│       ├── mcp              # MCP tools for AI Agents
+│       └── provider.py      # Unified tool provider
 ├── common/            # Common modules
 │   ├── login/            # Authentication UI
 │   ├── setting/          # Module settings

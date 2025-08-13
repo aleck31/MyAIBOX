@@ -1,5 +1,5 @@
 import gradio as gr
-from genai.tools.legacy.tool_registry import br_registry
+from genai.tools.legacy.tool_registry import legacy_tool_registry
 from .handler_modules import ModuleHandlers, MODULE_LIST
 
 def set_tools_visible(model_id):
@@ -26,7 +26,7 @@ def create_module_tab():
                 module_tools = {}
                 module_save_btns = {}
                 # Tools List from registry
-                available_tools = list(br_registry.tools.keys())
+                available_tools = list(legacy_tool_registry.tools.keys())
 
                 for module_name in MODULE_LIST:
                     with gr.Group():

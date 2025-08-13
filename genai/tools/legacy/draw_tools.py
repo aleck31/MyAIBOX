@@ -1,21 +1,24 @@
-"""Tools for image generation"""
+"""Tools for image generation - Direct Provider approach"""
+import io
+import json
+import base64
 import time
 import random
 from pathlib import Path
 from typing import Dict
+from PIL import Image
 from core.logger import logger
-from core.service.service_factory import ServiceFactory
-from core.module_config import module_config
+# Delay imports to avoid circular dependencies
 from modules.draw.prompts import NEGATIVE_PROMPTS
 
 
-async def generate_image(
+def generate_image(
     prompt: str,
     negative_prompt: str = '',
     aspect_ratio: str = '16:9',
     **kwargs  # Handle any additional parameters from the schema
 ) -> Dict:
-    """Generate an image from text description
+    """Generate an image from text description using direct provider approach
     
     Args:
         prompt: Text description of the image to generate
@@ -23,33 +26,83 @@ async def generate_image(
         aspect_ratio: The aspect ratio of the generated image
         
     Returns:
-        Dict containing base64 encoded image and metadata
+        Dict containing image path and metadata
     """
     try:
-        # Initialize draw service
-        draw_service = ServiceFactory.create_draw_service(
-            module_name = 'draw'
-        )
-
-        # Add negative prompt to defaults
-        negative_prompts = NEGATIVE_PROMPTS.copy()
-        if negative_prompt:
-            negative_prompts.append(negative_prompt)
-
         # Validate prompt
         if not prompt:
             raise ValueError("Prompt is required")
 
+        # Import dependencies dynamically to avoid circular imports
+        from genai.models.model_manager import model_manager
+        from genai.models import GenImageParameters
+        models = model_manager.get_models(filter={'category': 'image'})
+        if not models:
+            raise ValueError("No image generation models available")
+        
+        # Find Stability AI model
+        stability_model = None
+        for model in models:
+            if 'stability' in model.model_id:
+                stability_model = model
+                break
+        
+        if not stability_model:
+            raise ValueError("No Stability AI image generation models available")
+        
+        logger.debug(f"[generate_image] Using model: {stability_model.model_id}")
+
+        # Create image generation parameters
+        gen_params = GenImageParameters(
+            width=1024,
+            height=1024,
+            aspect_ratio=aspect_ratio
+        )
+
+        # Import provider dynamically to avoid circular imports
+        from genai.models.providers.bedrock_invoke import BedrockInvoke
+        
+        # Create provider instance
+        provider = BedrockInvoke(stability_model.model_id, gen_params)
+
+        # Prepare negative prompts
+        negative_prompts = NEGATIVE_PROMPTS.copy()
+        if negative_prompt:
+            negative_prompts.append(negative_prompt)
+
         # Generate a random seed for reproducibility
         used_seed = random.randrange(0, 4294967295)
 
-        # Generate image with dimensions
-        image = await draw_service.text_to_image_stateless(
-            prompt=prompt,
-            negative_prompt="\n".join(negative_prompts),
-            seed=used_seed,
-            aspect_ratio=aspect_ratio
-        )
+        # Prepare request body (following draw_service pattern)
+        request_body = {
+            "mode": "text-to-image",
+            "prompt": prompt,
+            "negative_prompt": "\n".join(negative_prompts),
+            "seed": used_seed,
+            "aspect_ratio": aspect_ratio,
+            "output_format": "png"
+        }
+
+        logger.debug(f"[generate_image] Request body: {json.dumps(request_body, indent=2)}")
+
+        # Generate image using provider (following draw_service pattern)
+        import asyncio
+        response = asyncio.run(provider.generate_content(
+            request_body,
+            accept="application/json",
+            content_type="application/json"
+        ))
+
+        if not response.content:
+            raise ValueError("No response received from model")
+
+        # Extract response body
+        response_body = response.content
+        logger.debug(f"[generate_image] Generation completed - Seeds: {response_body.get('seeds')}")
+
+        # Convert base64 to image (following draw_service pattern)
+        img_base64 = response_body["images"][0]
+        image = Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
         # Save to project's assets directory
         images_dir = Path("assets/generated/images")
@@ -63,28 +116,31 @@ async def generate_image(
         # Save the image
         image.save(file_path, format="PNG")
 
-        # Return the file path for Gradio to serve
+        logger.info(f"[generate_image] Image saved to: {file_path}")
+
+        # Return the file path and metadata with success status
         return {
-            "image": image,
+            "status": "success",
+            "file_path": str(file_path),
             "metadata": {
                 "seed": used_seed,
                 "aspect_ratio": aspect_ratio,
-                "file_path": str(file_path)
+                "model": stability_model.model_id,
+                "prompt": prompt,
+                "seeds": response_body.get('seeds'),
+                "finish_reasons": response_body.get('finish_reasons')
             }
         }
         
     except ValueError as e:
-        logger.error(f"[Tool] Validation error in generate_image tool: {str(e)}")
-        return {"error": f"Validation error: {str(e)}"}
-    except TypeError as e:
-        logger.error(f"[Tool] Type error in generate_image tool: {str(e)}")
-        return {"error": f"Type error: {str(e)}"}
-    except IOError as e:
-        logger.error(f"[Tool] I/O error in generate_image tool: {str(e)}")
-        return {"error": f"Failed to save image: {str(e)}"}
+        logger.error(f"[generate_image] Validation error: {str(e)}")
+        return {"status": "error", "error": f"Validation error: {str(e)}"}
+    except ImportError as e:
+        logger.error(f"[generate_image] Import error: {str(e)}")
+        return {"status": "error", "error": "Image generation provider not available"}
     except Exception as e:
-        logger.error(f"[Tool] Unexpected error in generate_image tool: {str(e)}")
-        return {"error": f"An unexpected error occurred: {str(e)}"}
+        logger.error(f"[generate_image] Unexpected error: {str(e)}", exc_info=True)
+        return {"status": "error", "error": f"Image generation failed: {str(e)}"}
 
 
 # Tool specifications in Bedrock format

@@ -1,20 +1,20 @@
 """
-Tool Management Handlers for Settings
+Handlers for Tool Management Settings
 """
 import json
 import asyncio
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any
 import gradio as gr
 from core.logger import logger
 from genai.tools.mcp.mcp_server_manager import mcp_server_manager
-from genai.tools.tool_provider import tool_provider, MCPToolProvider, ToolType
+from genai.tools.provider  import tool_provider, ToolType
 
 
 class ToolHandlers:
     """Handlers for tool management operations"""
     
-    @staticmethod
-    def refresh_mcp_servers_with_tools() -> Tuple[List[List], str]:
+    @classmethod
+    def refresh_mcp_servers_with_tools(cls) -> Tuple[List[List], str]:
         """Refresh the list of MCP servers and get actual tool counts
         
         Returns:
@@ -70,7 +70,7 @@ class ToolHandlers:
                 # Get actual tool count
                 tools_count = 0
                 if not config.get('disabled', False):
-                    tools_count = ToolHandlers._get_server_tool_count(server_name)
+                    tools_count = cls._get_server_tool_count(server_name)
                 
                 server_data.append([
                     server_name,
@@ -87,8 +87,8 @@ class ToolHandlers:
             logger.error(f"[ToolHandlers] Error refreshing MCP servers: {str(e)}")
             return [], f"✗ Error loading MCP servers: {str(e)}"
     
-    @staticmethod
-    def _get_server_tool_count(server_name: str) -> int:
+    @classmethod
+    def _get_server_tool_count(cls, server_name: str) -> int:
         """Get the actual tool count for a specific server
         
         Args:
@@ -98,53 +98,49 @@ class ToolHandlers:
             Number of tools provided by the server
         """
         try:
-            from genai.tools.tool_provider import tool_provider, ToolType
-            
             # Try to initialize if not already done
             if not (hasattr(tool_provider, '_initialized') and tool_provider._initialized):
-                logger.debug(f"[ToolHandlers] Initializing universal tool manager to get tool count for {server_name}")
+                logger.debug(f"[ToolHandlers] Tool provider not initialized, attempting to initialize for {server_name}")
                 try:
-                    # Use asyncio to run the async initialization
-                    import asyncio
-                    
                     # Check if we're in an async context
                     try:
                         loop = asyncio.get_running_loop()
                         # We're in an async context, but this is a sync method
                         # We can't await here, so we'll skip initialization
-                        logger.debug(f"[ToolHandlers] In async context, cannot initialize universal tool manager synchronously")
+                        logger.debug(f"[ToolHandlers] In async context, cannot initialize tool provider synchronously")
                         return 0
                     except RuntimeError:
                         # No running loop, we can create one
-                        logger.debug(f"[ToolHandlers] Creating new event loop to initialize universal tool manager")
+                        logger.debug(f"[ToolHandlers] Creating new event loop to initialize tool provider")
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                         try:
                             loop.run_until_complete(tool_provider.initialize())
-                            logger.debug(f"[ToolHandlers] Successfully initialized universal tool manager")
+                            logger.debug(f"[ToolHandlers] Successfully initialized tool provider")
                         finally:
                             loop.close()
                             asyncio.set_event_loop(None)
                             
                 except Exception as init_error:
-                    logger.warning(f"[ToolHandlers] Failed to initialize universal tool manager: {str(init_error)}")
+                    logger.warning(f"[ToolHandlers] Failed to initialize tool provider: {str(init_error)}")
                     return 0
             
+            # Get tool count if initialized
             if hasattr(tool_provider, '_initialized') and tool_provider._initialized:
                 mcp_tools = tool_provider.list_tools(ToolType.MCP)
                 count = len([t for t in mcp_tools if t.name.startswith(f"{server_name}:")])
                 logger.debug(f"[ToolHandlers] Found {count} tools for {server_name}")
                 return count
             else:
-                logger.debug(f"[ToolHandlers] Universal tool manager still not initialized after attempt")
+                logger.debug(f"[ToolHandlers] Tool provider still not initialized after attempt")
                 return 0
                 
         except Exception as e:
             logger.warning(f"[ToolHandlers] Error getting tool count for {server_name}: {str(e)}")
             return 0
     
-    @staticmethod
-    def get_server_details(servers_data: List[List], evt: gr.SelectData) -> Tuple[str, str, str, str, str, str]:
+    @classmethod
+    def get_server_details(cls, servers_data: Any, evt: gr.SelectData) -> Tuple[str, str, str, str, str, str]:
         """Get details for selected server
         
         Args:
@@ -165,7 +161,7 @@ class ToolHandlers:
             # Convert DataFrame to list if needed
             if hasattr(servers_data, 'values'):
                 # It's a DataFrame
-                if servers_data.empty:
+                if hasattr(servers_data, 'empty') and servers_data.empty:
                     logger.warning(f"[ToolHandlers] Server data is empty")
                     return "", "", "", "", "", "✗ No servers available"
                 servers_list = servers_data.values.tolist()
@@ -189,7 +185,7 @@ class ToolHandlers:
             logger.info(f"[ToolHandlers] Selected server: {server_name}")
             
             # Get full server config
-            config = mcp_server_manager.get_mcp_tools(server_name)
+            config = mcp_server_manager.get_mcp_server(server_name)
             if config:
                 full_url = config.get('url', config.get('command', 'N/A'))
                 args = config.get('args', [])
@@ -211,8 +207,8 @@ class ToolHandlers:
             logger.error(f"[ToolHandlers] Error getting server details: {str(e)}")
             return "", "", "", "", "", f"✗ Error: {str(e)}"
     
-    @staticmethod
-    def _reload_tools_background(operation_name: str):
+    @classmethod
+    def _reload_tools_background(cls, operation_name: str):
         """Reload tool provider in background thread
         
         Args:
@@ -225,7 +221,7 @@ class ToolHandlers:
                 asyncio.set_event_loop(loop)
                 try:
                     # Reload tool provider
-                    from genai.tools.tool_provider import tool_provider
+                    from genai.tools.provider  import tool_provider
                     loop.run_until_complete(tool_provider.reload_tools())
                     logger.info(f"[ToolHandlers] Tools reloaded successfully after {operation_name}")
                 except Exception as e:
@@ -240,8 +236,8 @@ class ToolHandlers:
         import threading
         threading.Thread(target=reload_task, daemon=True).start()
 
-    @staticmethod
-    def enable_server(server_name: str) -> Tuple[List[List], str]:
+    @classmethod
+    def enable_server(cls, server_name: str) -> Tuple[List[List], str]:
         """Enable an MCP server and reload tools
         
         Args:
@@ -254,7 +250,7 @@ class ToolHandlers:
             if not server_name:
                 return [], "✗ No server selected"
             
-            config = mcp_server_manager.get_mcp_tools(server_name)
+            config = mcp_server_manager.get_mcp_server(server_name)
             if not config:
                 return [], f"✗ Server '{server_name}' not found"
             
@@ -263,10 +259,10 @@ class ToolHandlers:
             
             if success:
                 # Async reload tools (non-blocking UI)
-                ToolHandlers._reload_tools_background(f"enabling server '{server_name}'")
+                cls._reload_tools_background(f"enabling server '{server_name}'")
                 
                 # Return updated server list immediately
-                server_data, _ = ToolHandlers.refresh_mcp_servers_with_tools()
+                server_data, _ = cls.refresh_mcp_servers_with_tools()
                 return server_data, f"✓ Enabled server '{server_name}' (tools reloading...)"
             else:
                 return [], f"✗ Failed to enable server '{server_name}'"
@@ -275,8 +271,8 @@ class ToolHandlers:
             logger.error(f"[ToolHandlers] Error enabling server: {str(e)}")
             return [], f"✗ Error enabling server: {str(e)}"
     
-    @staticmethod
-    def disable_server(server_name: str) -> Tuple[List[List], str]:
+    @classmethod
+    def disable_server(cls, server_name: str) -> Tuple[List[List], str]:
         """Disable an MCP server and reload tools
         
         Args:
@@ -289,7 +285,7 @@ class ToolHandlers:
             if not server_name:
                 return [], "✗ No server selected"
             
-            config = mcp_server_manager.get_mcp_tools(server_name)
+            config = mcp_server_manager.get_mcp_server(server_name)
             if not config:
                 return [], f"✗ Server '{server_name}' not found"
             
@@ -298,151 +294,27 @@ class ToolHandlers:
             
             if success:
                 # Async reload tools (non-blocking UI)
-                ToolHandlers._reload_tools_background(f"disabling server '{server_name}'")
+                cls._reload_tools_background(f"disabling server '{server_name}'")
                 
                 # Return updated server list immediately
-                server_data, _ = ToolHandlers.refresh_mcp_servers_with_tools()
+                server_data, _ = cls.refresh_mcp_servers_with_tools()
                 return server_data, f"✓ Disabled server '{server_name}' (tools reloading...)"
             else:
                 return [], f"✗ Failed to disable server '{server_name}'"
                 
         except Exception as e:
             logger.error(f"[ToolHandlers] Error disabling server: {str(e)}")
-    @staticmethod
-    def add_mcp_server(server_name: str, server_type: str, url_or_command: str, args: List[str] = None) -> Tuple[List[List], str]:
-        """Add a new MCP server and reload tools
-        
-        Args:
-            server_name: Name of the server
-            server_type: Type of server (http, stdio, sse)
-            url_or_command: URL for http/sse servers or command for stdio servers
-            args: Arguments for stdio servers
-            
-        Returns:
-            Tuple of (updated_server_data, status_message)
-        """
-        try:
-            if not server_name or not server_type or not url_or_command:
-                return [], "✗ Missing required fields"
-            
-            # Check if server already exists
-            existing_config = mcp_server_manager.get_mcp_tools(server_name)
-            if existing_config:
-                return [], f"✗ Server '{server_name}' already exists"
-            
-            # Build server configuration
-            config = {
-                'type': server_type,
-                'disabled': False
-            }
-            
-            if server_type == 'stdio':
-                config['command'] = url_or_command
-                if args:
-                    config['args'] = args
-            else:  # http or sse
-                config['url'] = url_or_command
-            
-            # Add server to database
-            success = mcp_server_manager.add_mcp_server(server_name, config)
-            
-            if success:
-                # Async reload tools (non-blocking UI)
-                ToolHandlers._reload_tools_background(f"adding server '{server_name}'")
-                
-                # Return updated server list immediately
-                server_data, _ = ToolHandlers.refresh_mcp_servers_with_tools()
-                return server_data, f"✓ Added server '{server_name}' (tools reloading...)"
-            else:
-                return [], f"✗ Failed to add server '{server_name}'"
-                
-        except Exception as e:
-            logger.error(f"[ToolHandlers] Error adding server: {str(e)}")
-            return [], f"✗ Error adding server: {str(e)}"
-    
-    @staticmethod
-    def delete_mcp_server(server_name: str) -> Tuple[List[List], str]:
-        """Delete an MCP server and reload tools
-        
-        Args:
-            server_name: Name of the server to delete
-            
-        Returns:
-            Tuple of (updated_server_data, status_message)
-        """
-        try:
-            if not server_name:
-                return [], "✗ No server selected"
-            
-            # Check if server exists
-            config = mcp_server_manager.get_mcp_tools(server_name)
-            if not config:
-                return [], f"✗ Server '{server_name}' not found"
-            
-            # Delete server from database
-            success = mcp_server_manager.delete_mcp_server(server_name)
-            
-            if success:
-                # Async reload tools (non-blocking UI)
-                ToolHandlers._reload_tools_background(f"deleting server '{server_name}'")
-                
-                # Return updated server list immediately
-                server_data, _ = ToolHandlers.refresh_mcp_servers_with_tools()
-                return server_data, f"✓ Deleted server '{server_name}' (tools reloading...)"
-            else:
-                return [], f"✗ Failed to delete server '{server_name}'"
-                
-        except Exception as e:
-            logger.error(f"[ToolHandlers] Error deleting server: {str(e)}")
-            return [], f"✗ Error deleting server: {str(e)}"
-    
-    @staticmethod
-    def test_server_connection(server_name: str) -> Tuple[Dict, str]:
-        """Test connection to an MCP server
-        
-        Args:
-            server_name: Name of the server to test
-            
-        Returns:
-            Tuple of (test_results, status_message)
-        """
-        try:
-            if not server_name:
-                return {}, "✗ No server selected"
-            
-            config = mcp_server_manager.get_mcp_tools(server_name)
-            if not config:
-                return {}, f"✗ Server '{server_name}' not found"
-            
-            # Create a temporary MCP tool provider for testing
-            provider = MCPToolProvider()
-            
-            # This would need to be async in a real implementation
-            # For now, return a placeholder
-            test_results = {
-                "server_name": server_name,
-                "server_type": config.get('type', 'unknown'),
-                "server_url": config.get('url', 'N/A'),
-                "status": "Connection test not implemented yet",
-                "tools_found": 0,
-                "error": None
-            }
-            
-            return test_results, f"Connection test initiated for '{server_name}'"
-            
-        except Exception as e:
-            logger.error(f"[ToolHandlers] Error testing server connection: {str(e)}")
-            return {"error": str(e)}, f"✗ Error testing connection: {str(e)}"
-    
-    @staticmethod
-    def add_mcp_server(name: str, server_type: str, url: str, args: str) -> Tuple[List[List], str]:
-        """Add a new MCP server
+            return [], f"✗ Error disabling server: {str(e)}"
+
+    @classmethod
+    def add_mcp_server(cls, name: str, server_type: str, url: str, args: str = "") -> Tuple[List[List], str]:
+        """Add a new MCP server from UI form
         
         Args:
             name: Server name
             server_type: Type of server (http, stdio, sse)
-            url: Server URL (for http/sse)
-            args: Arguments (for stdio)
+            url: Server URL (for http/sse) or command (for stdio)
+            args: Arguments string (for stdio, should be JSON format)
             
         Returns:
             Tuple of (updated_server_data, status_message)
@@ -458,8 +330,8 @@ class ToolHandlers:
             if server_type in ['http', 'sse'] and not url:
                 return [], f"✗ URL is required for {server_type} servers"
             
-            if server_type == 'stdio' and not args:
-                return [], "✗ Arguments are required for stdio servers"
+            if server_type == 'stdio' and not url:
+                return [], "✗ Command is required for stdio servers"
             
             # Check if server already exists
             existing_servers = mcp_server_manager.get_mcp_servers()
@@ -474,21 +346,27 @@ class ToolHandlers:
             
             if server_type in ['http', 'sse']:
                 config['url'] = url
-                config['args'] = []
             elif server_type == 'stdio':
-                try:
-                    parsed_args = json.loads(args) if args else []
-                    config['args'] = parsed_args
-                except json.JSONDecodeError:
-                    return [], "✗ Invalid JSON format for arguments"
+                config['command'] = url  # For stdio, url field contains the command
+                if args:
+                    try:
+                        parsed_args = json.loads(args) if args.strip() else []
+                        config['args'] = parsed_args
+                    except json.JSONDecodeError:
+                        return [], "✗ Invalid JSON format for arguments"
+                else:
+                    config['args'] = []
             
             # Add the server
-            success = mcp_server_manager.update_mcp_server(name, config)
+            success = mcp_server_manager.add_mcp_server(name, config)
             
             if success:
+                # Async reload tools (non-blocking UI)
+                cls._reload_tools_background(f"adding server '{name}'")
+                
                 # Refresh server list
-                server_data, _ = ToolHandlers.refresh_mcp_servers()
-                return server_data, f"✓ Added server '{name}'"
+                server_data, _ = cls.refresh_mcp_servers_with_tools()
+                return server_data, f"✓ Added server '{name}' (tools reloading...)"
             else:
                 return [], f"✗ Failed to add server '{name}'"
                 
@@ -496,8 +374,86 @@ class ToolHandlers:
             logger.error(f"[ToolHandlers] Error adding MCP server: {str(e)}")
             return [], f"✗ Error adding server: {str(e)}"
     
-    @staticmethod
-    def get_server_tools(server_name: str) -> Tuple[List[List], str]:
+    @classmethod
+    def delete_mcp_server(cls, server_name: str) -> Tuple[List[List], str]:
+        """Delete an MCP server and reload tools
+        
+        Args:
+            server_name: Name of the server to delete
+            
+        Returns:
+            Tuple of (updated_server_data, status_message)
+        """
+        try:
+            if not server_name:
+                return [], "✗ No server selected"
+            
+            # Check if server exists
+            config = mcp_server_manager.get_mcp_server(server_name)
+            if not config:
+                return [], f"✗ Server '{server_name}' not found"
+            
+            # Delete server from database
+            success = mcp_server_manager.delete_mcp_server(server_name)
+            
+            if success:
+                # Async reload tools (non-blocking UI)
+                cls._reload_tools_background(f"deleting server '{server_name}'")
+                
+                # Return updated server list immediately
+                server_data, _ = cls.refresh_mcp_servers_with_tools()
+                return server_data, f"✓ Deleted server '{server_name}' (tools reloading...)"
+            else:
+                return [], f"✗ Failed to delete server '{server_name}'"
+                
+        except Exception as e:
+            logger.error(f"[ToolHandlers] Error deleting server: {str(e)}")
+            return [], f"✗ Error deleting server: {str(e)}"
+    
+    @classmethod
+    def test_server_connection(cls, server_name: str) -> Tuple[Dict, str]:
+        """Test connection to an MCP server
+        
+        Args:
+            server_name: Name of the server to test
+            
+        Returns:
+            Tuple of (test_results, status_message)
+        """
+        try:
+            if not server_name:
+                return {}, "✗ No server selected"
+            
+            config = mcp_server_manager.get_mcp_server(server_name)
+            if not config:
+                return {}, f"✗ Server '{server_name}' not found"
+            
+            # Use MCP Server Manager to validate configuration
+            try:
+                is_valid = mcp_server_manager.validate_mcp_server_config(config)
+                if not is_valid:
+                    return {"error": "Invalid server configuration"}, f"✗ Invalid configuration for '{server_name}'"
+            except Exception as validation_error:
+                return {"error": str(validation_error)}, f"✗ Configuration error: {str(validation_error)}"
+            
+            # Build test results using existing manager
+            test_results = {
+                "server_name": server_name,
+                "server_type": mcp_server_manager.get_mcp_server_type(config),
+                "server_url": config.get('url', config.get('command', 'N/A')),
+                "status": "Configuration validated successfully",
+                "tools_found": cls._get_server_tool_count(server_name),
+                "error": None
+            }
+            
+            return test_results, f"✓ Configuration test passed for '{server_name}'"
+            
+        except Exception as e:
+            logger.error(f"[ToolHandlers] Error testing server connection: {str(e)}")
+            return {"error": str(e)}, f"✗ Error testing connection: {str(e)}"
+    
+    @classmethod
+    def get_server_tools(cls, server_name: str) -> Tuple[List[List], str]:
         """Get tools for a specific server
         
         Args:
@@ -512,9 +468,28 @@ class ToolHandlers:
             
             tools_data = []
             
-            # Try to get tools from universal tool manager
+            # Try to initialize tool provider if not already done
             try:
-                from genai.tools.tool_provider import tool_provider
+                if not (hasattr(tool_provider, '_initialized') and tool_provider._initialized):
+                    logger.info(f"[ToolHandlers] Initializing tool provider to get tools for '{server_name}'")
+                    # Try to initialize in a new event loop
+                    import asyncio
+                    try:
+                        loop = asyncio.get_running_loop()
+                        logger.debug(f"[ToolHandlers] In async context, cannot initialize synchronously")
+                        return [], f"Tool provider not initialized. Please refresh the page to initialize tools."
+                    except RuntimeError:
+                        # No running loop, create one
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(tool_provider.initialize())
+                            logger.info(f"[ToolHandlers] Successfully initialized tool provider")
+                        finally:
+                            loop.close()
+                            asyncio.set_event_loop(None)
+                
+                # Now try to get tools
                 if hasattr(tool_provider, '_initialized') and tool_provider._initialized:
                     mcp_tools = tool_provider.list_tools(ToolType.MCP)
                     
@@ -533,14 +508,18 @@ class ToolHandlers:
                     if tools_data:
                         return tools_data, f"✓ Loaded {len(tools_data)} tools for '{server_name}'"
                     else:
-                        return [], f"No tools found for '{server_name}' (server may be disabled or not connected)"
+                        # Check if server is disabled
+                        config = mcp_server_manager.get_mcp_server(server_name)
+                        if config and config.get('disabled', False):
+                            return [], f"Server '{server_name}' is disabled. Enable it to see tools."
+                        else:
+                            return [], f"No tools found for '{server_name}'. Server may not be connected or has no tools."
                 else:
-                    return [], f"Tool manager not initialized - try refreshing the page"
+                    return [], f"Tool provider initialization failed. Please check server configuration."
                     
             except Exception as e:
-                logger.warning(f"[ToolHandlers] Could not get tools from universal tool manager: {str(e)}")
-                # Fallback to placeholder
-                return [[f"example_tool", "Tool information not available", server_name]], f"Could not load tools for '{server_name}'"
+                logger.error(f"[ToolHandlers] Error initializing or getting tools: {str(e)}")
+                return [], f"Error loading tools: {str(e)}"
             
         except Exception as e:
             logger.error(f"[ToolHandlers] Error getting server tools: {str(e)}")
