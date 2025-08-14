@@ -5,7 +5,8 @@ from core.session import Session, SessionStore
 from core.module_config import module_config
 from genai.models.model_manager import model_manager
 from genai.models import LLMParameters, GenImageParameters
-from genai.models.providers import LLMAPIProvider, LLMProviderError, create_model_provider
+from genai.models.providers import LLMAPIProvider, LLMProviderError, create_model_provider 
+from genai.models.providers.bedrock_invoke import BedrockInvoke, create_creative_provider
 
 
 class BaseService:
@@ -25,6 +26,7 @@ class BaseService:
         self.module_name = module_name
         self.session_store = SessionStore.get_instance()
         self._model_providers: Dict[str, LLMAPIProvider] = {}
+        self._creative_providers: Dict[str, BedrockInvoke] = {}
         self._session_cache: Dict[str, tuple[Session, float]] = {}
         self.cache_ttl = cache_ttl
         self.model_id = None
@@ -93,7 +95,7 @@ class BaseService:
             session: Session to get model for
             
         Returns:
-            str: Model ID if found, None otherwise
+            str: Model ID (guaranteed to return a valid model ID)
             
         Notes:
             - Checks session metadata first
@@ -110,17 +112,15 @@ class BaseService:
                 self.model_id = model_id
                 return self.model_id
             # Falls back to module config default model
-            elif model_id := module_config.get_default_model(session.metadata.module_name):
+            else:
+                model_id = module_config.get_default_model(session.metadata.module_name)
                 self.model_id = model_id
                 logger.debug(f"[BaseService] Falls back to default model: {model_id}")
                 return self.model_id
-            else:
-                logger.warning(f"[BaseService] No model ID found for {session.metadata.module_name}")
-                return None 
 
         except Exception as e:
             logger.error(f"[BaseService] Failed to get model for session {session.session_id}: {str(e)}")
-            return None
+            raise ValueError(f"Unable to get any model ID for session: {str(e)}")
 
     async def update_session_model(self, session: Session, model_id: str) -> None:
         """Update model ID in session metadata
@@ -139,18 +139,15 @@ class BaseService:
             logger.error(f"[BaseService] Failed to update session model: {str(e)}")
             raise
 
-    def _get_model_provider(self, model_id: Optional[str], llm_params: Optional[LLMParameters] = None) -> LLMAPIProvider:
-        """Get or create Foundation Model provider for given model
+    def _get_model_provider(self, model_id: str, llm_params: Optional[LLMParameters] = None) -> LLMAPIProvider:
+        """Get or create Foundation model provider
         
         Args:
             model_id: ID of the model to get provider for
-            llm_params: Optional Foundation Model inference parameters to override defaults
+            llm_params: Optional inference parameters to override defaults
             
         Returns:
-            LLMAPIProvider: Cached or newly created provider
-            
-        Note:
-            If no llm_params provided, uses module's default inference parameters
+            LLMAPIProvider: Provider for text generation
         """
         try:
             # Use cached provider if available and no custom params
@@ -158,66 +155,114 @@ class BaseService:
                 logger.debug(f"[BaseService] Using cached provider for model {model_id}")
                 return self._model_providers[model_id]
 
-            # Get model info
+            # Get model info and validate it's a text model
             if model := model_manager.get_model_by_id(model_id):
-                logger.debug(f"[BaseService] Found model: {model.name} ({model.api_provider})")
+                if model.category == 'image':
+                    raise ValueError(f"Model {model_id} is an image model, use _get_creative_provider instead")
+                logger.debug(f"[BaseService] Found text model: {model.name} ({model.api_provider})")
             else:
                 raise ValueError(f"Model not found: {model_id}")
 
-            # Get module's default tools and params if not provided
+            # Get default params if not provided
             if not llm_params:
                 params = module_config.get_inference_params(self.module_name) or {}
                 
-                # Check if this is an image generation model
-                if model.category == 'image':
-                    # Use GenImageParameters for image generation models
-                    # Ensure proper type conversion for numeric parameters
-                    if 'height' in params:
-                        params['height'] = int(params['height'])
-                    if 'width' in params:
-                        params['width'] = int(params['width'])
-                    if 'img_number' in params:
-                        params['img_number'] = int(params['img_number'])
-                    if 'cfg_scale' in params:
-                        params['cfg_scale'] = float(params['cfg_scale'])
-                    
-                    llm_params = GenImageParameters(**(params or {}))
-                    logger.debug(f"[BaseService] Using GenImageParameters for model {model_id}")
-                else:
-                    # Use LLMParameters for text generation models
-                    # Ensure proper type conversion for numeric parameters
-                    if 'max_tokens' in params:
-                        params['max_tokens'] = int(params['max_tokens'])
-                    if 'temperature' in params:
-                        params['temperature'] = float(params['temperature'])
-                    if 'top_p' in params:
-                        params['top_p'] = float(params['top_p'])
-                    if 'top_k' in params:
-                        params['top_k'] = int(params['top_k'])
-                    
-                    llm_params = LLMParameters(**(params or {}))
+                # Ensure proper type conversion for numeric parameters
+                if 'max_tokens' in params:
+                    params['max_tokens'] = int(params['max_tokens'])
+                if 'temperature' in params:
+                    params['temperature'] = float(params['temperature'])
+                if 'top_p' in params:
+                    params['top_p'] = float(params['top_p'])
+                if 'top_k' in params:
+                    params['top_k'] = int(params['top_k'])
+                
+                llm_params = LLMParameters(**params)
 
+            # Get enabled tools
             enabled_tools = module_config.get_enabled_tools(self.module_name)
 
-            # Create provider with module configuration
+            # Create text model provider
             provider = create_model_provider(
                 model.api_provider,
                 model_id,
                 llm_params,
                 enabled_tools
             )
-
-            # Cache provider if no custom params
+            
+            # Cache provider if using default params
             if not llm_params:
                 self._model_providers[model_id] = provider
 
+            logger.debug(f"[BaseService] Created text provider for model {model_id}")
             return provider
 
         except LLMProviderError as e:
-            logger.error(f"[BaseService] Provider error for {model_id}: {e.error_code}")
+            logger.error(f"[BaseService] Provider error for text model {model_id}: {e.error_code}")
             raise
         except Exception as e:
-            logger.error(f"[BaseService] Failed to get provider for {model_id}: {str(e)}")
+            logger.error(f"[BaseService] Failed to get text provider for {model_id}: {str(e)}")
+            raise
+
+    def _get_creative_provider(self, model_id: str, gen_params: Optional[GenImageParameters] = None) -> BedrockInvoke:
+        """Get or create creative content generation provider
+        
+        Args:
+            model_id: ID of the creative model (image/video/audio)
+            gen_params: Optional generation parameters to override defaults
+            
+        Returns:
+            LLMAPIProvider: Provider for creative content generation
+        """
+        try:
+            # Use cached provider if available and no custom params
+            if model_id in self._creative_providers and not gen_params:
+                logger.debug(f"[BaseService] Using cached creative provider for model {model_id}")
+                return self._creative_providers[model_id]
+
+            # Get model info and validate it's a creative model
+            if model := model_manager.get_model_by_id(model_id):
+                if model.category != 'image':
+                    raise ValueError(f"Model {model_id} is not a creative model, use _get_text_provider instead")
+                logger.debug(f"[BaseService] Found creative model: {model.name} ({model.api_provider})")
+            else:
+                raise ValueError(f"Model not found: {model_id}")
+
+            # Get default params if not provided
+            if not gen_params:
+                params = module_config.get_inference_params(self.module_name) or {}
+                
+                # Ensure proper type conversion for numeric parameters
+                if 'height' in params:
+                    params['height'] = int(params['height'])
+                if 'width' in params:
+                    params['width'] = int(params['width'])
+                if 'img_number' in params:
+                    params['img_number'] = int(params['img_number'])
+                if 'cfg_scale' in params:
+                    params['cfg_scale'] = float(params['cfg_scale'])
+                
+                gen_params = GenImageParameters(**params)
+
+            # Create creative provider
+            provider = create_creative_provider(
+                model.api_provider,
+                model_id,
+                gen_params
+            )
+
+            # Cache provider if using default params
+            if not gen_params:
+                self._creative_providers[model_id] = provider
+
+            logger.debug(f"[BaseService] Created creative provider for model {model_id}")
+            return provider
+
+        except LLMProviderError as e:
+            logger.error(f"[BaseService] Provider error for creative model {model_id}: {e.error_code}")
+            raise
+        except Exception as e:
+            logger.error(f"[BaseService] Failed to get creative provider for {model_id}: {str(e)}")
             raise
 
     async def load_session_history(

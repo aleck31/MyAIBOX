@@ -84,7 +84,7 @@ class GenService(BaseService):
             messages = [self._prepare_message(content, model_id)]
 
             # Generate response
-            response = await provider.generate_content(
+            response = provider.generate_content(
                 messages=messages,
                 system_prompt=system_prompt,
                 **(option_params or {})
@@ -129,7 +129,7 @@ class GenService(BaseService):
             message = self._prepare_message(content, model_id)
 
             # Generate response
-            response = await provider.generate_content(
+            response = provider.generate_content(
                 messages=[message],
                 system_prompt=session.context.get('system_prompt', ''),
                 **(option_params or {})
@@ -195,7 +195,7 @@ class GenService(BaseService):
             response_metadata = {}
 
             try:
-                async for chunk in provider.generate_stream(
+                for chunk in provider.generate_stream(
                     messages=[message],
                     system_prompt=session.context.get('system_prompt', ''),
                     **(option_params or {})

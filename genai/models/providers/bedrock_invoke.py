@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Optional, Iterator, AsyncIterator, Union
+from typing import Dict, List, Optional, Iterator, Union
 from botocore import exceptions as boto_exceptions
 from core.logger import logger
 from core.config import env_config
@@ -79,7 +79,7 @@ class BedrockInvoke(LLMAPIProvider):
         # Raise LLMProviderError with error code, user-friendly message, and technical details
         raise LLMProviderError(error_code, message, error_detail)
 
-    def _invoke_model_sync(
+    def invoke_model_sync(
         self,
         request_body: Dict,
         accept: str = "application/json",
@@ -119,7 +119,7 @@ class BedrockInvoke(LLMAPIProvider):
         except boto_exceptions.ClientError as e:
             self._handle_bedrock_error(e)
     
-    def _invoke_model_stream_sync(
+    def invoke_model_stream(
         self,
         request_body: Dict,
         accept: str = "application/json",
@@ -157,80 +157,52 @@ class BedrockInvoke(LLMAPIProvider):
         except boto_exceptions.ClientError as e:
             self._handle_bedrock_error(e)
 
-    async def generate_content(
+
+    def generate_content(
         self,
-        request_body: Dict,
-        accept: str = "application/json",
-        content_type: str = "application/json",
+        messages: List[LLMMessage],
+        system_prompt: Optional[str] = None,
         **kwargs
     ) -> LLMResponse:
-        """Generate single-turn response
-        
-        Args:
-            request_body: Model-specific request parameters
-            accept: Response content type
-            content_type: Request content type
-            **kwargs: Additional parameters
-            
-        Returns:
-            LLMResponse containing generated content
-        """
-        try:
-            response = self._invoke_model_sync(
-                request_body=request_body,
-                accept=accept,
-                content_type=content_type,
-                **kwargs
-            )
-            
-            return LLMResponse(
-                content=response,
-                metadata={}
-            )
-            
-        except boto_exceptions.ClientError as e:
-            self._handle_bedrock_error(e)
+        """Generate content is not supported by invoke API"""
+        raise NotImplementedError(
+            "Generate content streaming is not supported by the invoke API. "
+            "Use BedrockConverse provider for chat functionality."
+        )
 
-    async def generate_stream(
+    def generate_stream(
         self,
-        request_body: Dict,
-        accept: str = "application/json",
-        content_type: str = "application/json",
+        messages: List[LLMMessage],
+        system_prompt: Optional[str] = None,
         **kwargs
-    ) -> AsyncIterator[Dict]:
-        """Generate streaming response
-        
-        Args:
-            request_body: Model-specific request parameters
-            accept: Response content type
-            content_type: Request content type
-            **kwargs: Additional parameters
-            
-        Yields:
-            Dict containing response chunks
-        """
-        try:
-            # Convert sync stream to async
-            for chunk in self._invoke_model_stream_sync(
-                request_body=request_body,
-                accept=accept,
-                content_type=content_type,
-                **kwargs
-            ):
-                yield chunk
-                
-        except boto_exceptions.ClientError as e:
-            self._handle_bedrock_error(e)
+    ) -> Iterator[Dict]:
+        """Generate stream is not supported by invoke API"""
+        raise NotImplementedError(
+            "Generate stream is not supported by the invoke API. "
+            "Use BedrockConverse provider for chat functionality."
+        )
 
-    async def multi_turn_generate(
+    def multi_turn_generate(
         self,
         message: LLMMessage,
         history: Optional[List[LLMMessage]] = None,
         system_prompt: Optional[str] = None,
         **kwargs
-    ) -> AsyncIterator[Dict]:
+    ) -> Iterator[Dict]:
         """Multi-turn generation is not supported by invoke API"""
         raise NotImplementedError(
             "Multi-turn generation is not supported by the invoke API. "
             "Use BedrockConverse provider for chat functionality."
         )
+
+
+def create_creative_provider(provider_name: str, model_id: str, image_params: GenImageParameters) -> 'BedrockInvoke':
+    """Factory function to create creative content generation provider instance"""
+    from genai.models.providers.bedrock_invoke import BedrockInvoke
+
+    # Only BedrockInvoke supports creative content generation
+    if provider_name.upper() != 'BEDROCKINVOKE':
+        raise ValueError(f"Creative content generation is only supported by BedrockInvoke provider, got: {provider_name}")
+
+    # Create BedrockInvoke provider instance for creative content generation (no tools needed)
+    return BedrockInvoke(model_id, image_params, [])

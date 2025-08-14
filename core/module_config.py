@@ -36,7 +36,9 @@ class ModuleConfig:
     def __init__(self):
         session = get_aws_session(region_name=env_config.aws_region)
         self.dynamodb = session.resource('dynamodb')
-        self.table = self.dynamodb.Table(env_config.database_config['setting_table'])
+        # Use getattr to avoid static type checking issues
+        table_method = getattr(self.dynamodb, 'Table')
+        self.table = table_method(env_config.database_config['setting_table'])
         self._config_cache = {}  # Cache for module configurations
 
     def _decimal_to_numeric(self, obj: Any) -> Any:
@@ -64,7 +66,7 @@ class ModuleConfig:
             return Decimal(str(obj))
         return obj
 
-    def get_module_config(self, module_name: str, sub_module: str = None) -> Optional[Dict]:
+    def get_module_config(self, module_name: str, sub_module: Optional[str] = None) -> Optional[Dict]:
         """
         Get configuration for a specific module
         
@@ -136,13 +138,12 @@ class ModuleConfig:
             logger.error(f"[ModuleConfig] Error updating module config: {str(e)}")
             raise
 
-    def get_default_model(self, module_name: str, sub_module: str = None) -> str:
+    def get_default_model(self, module_name: str) -> str:
         """
         Get the default model ID for a specific module
         
         Args:
             module_name: Name of the module
-            sub_module: Optional sub-module name
             
         Returns:
             str: Default model ID or fallback model ID
@@ -159,23 +160,19 @@ class ModuleConfig:
             logger.error(f"[ModuleConfig] Error getting default model for module {module_name}: {str(e)}")
             return 'anthropic.claude-3-5-sonnet-20241022-v2:0'
 
-    def get_inference_params(self, module_name: str, sub_module: str = None) -> Optional[Dict]:
+    def get_inference_params(self, module_name: str) -> Optional[Dict]:
         """Get inference parameters from module configuration"""
         config = self.get_module_config(module_name)
         if config and 'parameters' in config:
-            # if sub_module and 'sub_modules' in config:
-            #     sub_config = config['sub_modules'].get(sub_module, {})
-            #     return sub_config.get('parameters', config['parameters'])
             return config['parameters']
         return None
 
-    def get_enabled_tools(self, module_name: str, sub_module: str = None) -> List[str]:
+    def get_enabled_tools(self, module_name: str) -> List[str]:
         """
         Get the list of enabled tools for a specific module
         
         Args:
             module_name: Name of the module
-            sub_module: Optional sub-module name
             
         Returns:
             List[str]: List of enabled tool module names
@@ -183,9 +180,6 @@ class ModuleConfig:
         try:
             config = self.get_module_config(module_name)
             if config:
-                # if sub_module and 'sub_modules' in config:
-                #     sub_config = config['sub_modules'].get(sub_module, {})
-                #     return sub_config.get('enabled_tools', [])
                 return config.get('enabled_tools', [])
             return []
         except Exception as e:

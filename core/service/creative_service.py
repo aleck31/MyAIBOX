@@ -47,7 +47,7 @@ class CreativeService(BaseService):
         """
         try:
             # Always use default model for stateless operations
-            provider = self._get_model_provider(self.model_id)
+            provider = self._get_creative_provider(self.model_id)
             
             logger.debug(f"[CreativeService] Content for stateless generation: {content}")
             
@@ -55,7 +55,7 @@ class CreativeService(BaseService):
             messages = [self._prepare_message(content)]
 
             # Generate response
-            response = await provider.generate_content(
+            response = provider.generate_content(
                 messages=messages,
                 system_prompt=system_prompt,
                 **(option_params or {})
@@ -92,7 +92,7 @@ class CreativeService(BaseService):
             model_id = await self.get_session_model(session)
 
             # Get LLM provider
-            provider = self._get_model_provider(model_id)
+            provider = self._get_creative_provider(model_id)
             
             logger.debug(f"[CreativeService] Content for session {session.session_id}: {content}")
             
@@ -100,7 +100,7 @@ class CreativeService(BaseService):
             message = self._prepare_message(content)
 
             # Generate response
-            response = await provider.generate_content(
+            response = provider.generate_content(
                 messages=[message],
                 system_prompt=session.context.get('system_prompt', ''),
                 **(option_params or {})

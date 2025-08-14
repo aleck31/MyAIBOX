@@ -1,6 +1,7 @@
 import io
 import json
-from typing import Dict, List, Optional, Iterator, AsyncIterator, Any
+import asyncio
+from typing import Dict, List, Optional, Iterator, Any, Union
 from botocore.exceptions import ClientError, ParamValidationError
 from core.logger import logger
 from core.config import env_config
@@ -31,6 +32,8 @@ class BedrockConverse(LLMAPIProvider):
             tools: Optional list of tool names to enable
         """
         super().__init__(model_id, llm_params, [])  # Initialize base with empty tools list
+        # Explicitly set type for type checker
+        self.llm_params: LLMParameters = llm_params
 
         # Initialize FileProcessor for file handling
         self.file_processor = FileProcessor(max_file_size=MAX_FILE_SIZE)
@@ -187,7 +190,7 @@ class BedrockConverse(LLMAPIProvider):
     def _handle_tool_result(
         self,
         tool_use: Dict,
-        exec_result: Dict[str, Any],
+        exec_result: Union[Dict[str, Any], str],
         is_error: bool = False
     ) -> Dict:
         """Format a tool result or error as a user message.
@@ -335,6 +338,36 @@ class BedrockConverse(LLMAPIProvider):
         """
         return [self._convert_message(msg) for msg in messages]
 
+    def _prepare_request_params(
+        self,
+        messages: List[LLMMessage],
+        system_prompt: Optional[str] = '',
+        **kwargs
+    ) -> Dict:
+        """Prepare common request parameters for both sync and stream calls"""
+        inference_config, additional_fields = self._prepare_inference_params(**kwargs)
+        
+        # Prepare request parameters
+        request_params = {
+            "modelId": self.model_id,
+            "messages": messages,
+            "inferenceConfig": inference_config
+        }
+        
+        # Add additional parameters if specified
+        if additional_fields:
+            request_params["additionalModelRequestFields"] = additional_fields
+
+        # Add system param if system prompt is provided
+        if system_prompt and system_prompt.strip():
+            request_params["system"] = [{"text": system_prompt}]
+
+        # Add toolConfig if specified
+        if self.tools and len(self.tools) > 0:
+            request_params["toolConfig"] = {"tools": self.tools}
+            
+        return request_params
+
     def _converse_sync(
             self,
             messages: List[LLMMessage],
@@ -361,25 +394,8 @@ class BedrockConverse(LLMAPIProvider):
             Exception: For unexpected errors
         """
         try:
-            inference_config, additional_fields = self._prepare_inference_params(**kwargs)
-            
-            # Prepare request parameters
-            request_params = {
-                "modelId": self.model_id,
-                "messages": messages,
-                "inferenceConfig": inference_config
-            }
-            # Add additional parameters if specified
-            if additional_fields:
-                request_params["additionalModelRequestFields"] = additional_fields
-
-            # Add system parm if system prompt is provided
-            if system_prompt.strip():
-                request_params["system"] = [{"text": system_prompt}]
-
-            # Add toolConfig if specified
-            if self.tools and len(self.tools) > 0:
-                request_params["toolConfig"] = {"tools": self.tools}
+            # Prepare request parameters using common method
+            request_params = self._prepare_request_params(messages, system_prompt, **kwargs)
 
             # Get response
             # logger.debug(f"[BRConverseProvider] Full request params: {request_params}")
@@ -451,25 +467,9 @@ class BedrockConverse(LLMAPIProvider):
             - {"metadata": dict} for response metadata, such as usage, metrics and stop reason
         """
         try:
-            inference_config, additional_fields = self._prepare_inference_params(**kwargs)
+            # Prepare request parameters using common method
+            request_params = self._prepare_request_params(messages, system_prompt, **kwargs)
             logger.debug(f"[BRConverseProvider] Stream using model: {self.model_id}")
-            # Prepare request parameters
-            request_params = {
-                "modelId": self.model_id,
-                "messages": messages,
-                "inferenceConfig": inference_config
-            }
-            # Add additional parameters if specified
-            if additional_fields:
-                request_params["additionalModelRequestFields"] = additional_fields
-
-            # Add system parm if system prompt is provided
-            if system_prompt.strip():
-                request_params["system"] = [{"text": system_prompt}]
-
-            # Add toolConfig if specified
-            if self.tools and len(self.tools) > 0:
-                request_params["toolConfig"] = {"tools": self.tools}
 
             # Initialize response tracking
             metadata = ResponseMetadata()
@@ -572,7 +572,7 @@ class BedrockConverse(LLMAPIProvider):
         except ClientError as e:
             self._handle_bedrock_error(e)
 
-    async def generate_content(
+    def generate_content(
         self,
         messages: List[LLMMessage],
         system_prompt: Optional[str] = '',
@@ -598,7 +598,7 @@ class BedrockConverse(LLMAPIProvider):
               
             # Get initial response
             response = self._converse_sync(
-                messages=llm_messages,
+                messages=llm_messages,  # type: ignore[arg-type]
                 system_prompt=system_prompt,
                 **kwargs
             )
@@ -616,11 +616,11 @@ class BedrockConverse(LLMAPIProvider):
                 })
   
                 try:
-                    # Execute tool
-                    result = await legacy_tool_registry.execute_tool(
+                    # Execute tool using asyncio.run to call async method from sync context
+                    result = asyncio.run(legacy_tool_registry.execute_tool(
                         tool_use['name'],
                         **tool_use['input']
-                    )
+                    ))
                     message_with_result = self._handle_tool_result(tool_use, result)
                 except Exception as e:
                     logger.error(f"Tool executing error: {str(e)}")
@@ -631,17 +631,13 @@ class BedrockConverse(LLMAPIProvider):
                 llm_messages.append(message_with_result)
                 logger.debug(f"Messages with tool result: {llm_messages}")
                 response = self._converse_sync(
-                    messages=llm_messages,
+                    messages=llm_messages,  # type: ignore[arg-type]
                     system_prompt=system_prompt,
                     **kwargs
                 )
-                
-                # Update content from final response
-                if response.get('content'):
-                    resp_content = response['content']
 
-            # Update content if present
-            elif response.get('content'):
+            # Extract content from response (either original or after tool execution)
+            if response.get('content'):
                 resp_content = response['content']
             else:
                 resp_content = {'text': ''}
@@ -656,12 +652,12 @@ class BedrockConverse(LLMAPIProvider):
         except ClientError as e:
             self._handle_bedrock_error(e)
 
-    async def generate_stream(
+    def generate_stream(
         self,
         messages: List[LLMMessage],
         system_prompt: Optional[str] = '',
         **kwargs
-    ) -> AsyncIterator[Dict]:
+    ) -> Iterator[Dict]:
         """Generate streaming response with multi-turn tool use handling
 
         Args:
@@ -701,10 +697,11 @@ class BedrockConverse(LLMAPIProvider):
             while True:  # Continue until no more tool uses
                 has_tool_use = False
                 thinking_buffer = StringIO()  # track thinking content that comes before a tool use
+                reasoning_signature = ""  # Initialize reasoning signature
 
                 # Convert synchronous stream to async
                 for chunk in self._converse_stream_sync(
-                    messages=llm_messages,
+                    messages=llm_messages,  # type: ignore[arg-type]
                     system_prompt=system_prompt,
                     **kwargs
                 ):
@@ -761,11 +758,11 @@ class BedrockConverse(LLMAPIProvider):
                         # logger.debug(f"[BRConverseProvider] Added Assistant message: {assistant_message}")
                         
                         try:
-                            # Execute tool with unpacked input
-                            execute_result = await legacy_tool_registry.execute_tool(
+                            # Execute tool with unpacked input using asyncio.run
+                            execute_result = asyncio.run(legacy_tool_registry.execute_tool(
                                 tool_use['name'],
                                 **tool_use['input']
-                            )
+                            ))
                             message_with_result = self._handle_tool_result(tool_use, execute_result)
                             
                             # Stream file_path immediately if present
@@ -795,13 +792,13 @@ class BedrockConverse(LLMAPIProvider):
         except ClientError as e:
             self._handle_bedrock_error(e)
 
-    async def multi_turn_generate(
+    def multi_turn_generate(
         self,
         message: LLMMessage,
         history: Optional[List[LLMMessage]] = None,
         system_prompt: Optional[str] = '',
         **kwargs
-    ) -> AsyncIterator[Dict]:
+    ) -> Iterator[Dict]:
         """Generate streaming response for multi-turn chat with tool use handling
 
         Args:
@@ -825,8 +822,8 @@ class BedrockConverse(LLMAPIProvider):
             messages.append(message)
             logger.info(f"[BRConverseProvider] Processing multi-turn chat with {len(messages)} messages")
             
-            # Stream responses using async iterator
-            async for chunk in self.generate_stream(
+            # Stream responses using sync iterator
+            for chunk in self.generate_stream(
                 messages=messages,
                 system_prompt=system_prompt,
                 **kwargs

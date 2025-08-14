@@ -124,9 +124,14 @@ class ChatbotHandlers(BaseHandler[ChatService]):
             logger.error(f"[ChatbotHandlers] Failed to undo last message: {e}", exc_info=True)
 
     @classmethod
-    async def update_persona_role(cls, chat_style: str, request: gr.Request = None):
+    async def update_persona_role(cls, chat_style: str, request: gr.Request):
         """Update session persona role when option selection changes"""
         try:
+            # Check if request is provided
+            if request is None:
+                logger.warning(f"[{cls.__name__}] No request provided for persona role update")
+                return
+                
             # Initialize service and session
             service, session = await cls._init_session(request)
 
@@ -145,7 +150,7 @@ class ChatbotHandlers(BaseHandler[ChatService]):
         chat_style: str,
         model_id: str,
         request: gr.Request
-    ) -> AsyncGenerator[Union[Dict[str, str], List[gr.ChatMessage]], None]:
+    ) -> AsyncGenerator[Union[Dict[str, str], gr.ChatMessage, List[gr.ChatMessage]], None]:
         """
         Stream assistant's response to user input.
 

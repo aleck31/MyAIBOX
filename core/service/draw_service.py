@@ -69,7 +69,7 @@ class DrawService(BaseService):
             self._validate_model(model_id)
             
             # Get provider with module's default configuration
-            provider = self._get_model_provider(model_id)
+            provider = self._get_creative_provider(model_id)
             
             # Prepare request body
             request_body = {
@@ -90,24 +90,22 @@ class DrawService(BaseService):
             # logger.info(f"[DrawService] Generating image with model {model_id}")
             logger.debug(f"[DrawService] Request body: {json.dumps(request_body, indent=2)}")
 
-            response = await provider.generate_content(
+            response = provider.invoke_model_sync(
                 request_body,
                 accept="application/json",
                 content_type="application/json"
             )
 
-            if not response.content:
+            if not response:
                 raise ValueError("No response received from model")
 
-            # Extract and log generation info
-            response_body = response.content
             # Log generation metrics
             logger.debug(
-                f"[DrawService] Text to Image generation completed - Seeds: {response_body.get('seeds')} - Finish reason: {response_body.get('finish_reasons')}"
+                f"[DrawService] Text to Image generation completed - Seeds: {response.get('seeds')} - Finish reason: {response.get('finish_reasons')}"
             )
 
             # Convert base64 to image
-            img_base64 = response_body["images"][0]
+            img_base64 = response["images"][0]
             return Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
         except LLMProviderError as e:
@@ -145,7 +143,7 @@ class DrawService(BaseService):
             self._validate_model(model_id)
 
             # Get LLM provider
-            provider = self._get_model_provider(model_id)
+            provider = self._get_creative_provider(model_id)
             
             # Prepare request body
             request_body = {
@@ -166,24 +164,22 @@ class DrawService(BaseService):
             logger.info(f"[DrawService] Generating image with model {model_id}")
             logger.debug(f"[DrawService] Request body: {json.dumps(request_body, indent=2)}")
 
-            response = await provider.generate_content(
+            response = provider.invoke_model_sync(
                 request_body,
                 accept="application/json",
                 content_type="application/json"
             )
             
-            if not response.content:
+            if not response:
                 raise ValueError("No response received from model")
                 
-            # Extract and log generation info
-            response_body = response.content
             # Log generation metrics
             logger.debug(
-                f"[DrawService] Text to generation completed - Seeds: {response_body.get('seeds')} - Finish reason: {response_body.get('finish_reasons')}"
+                f"[DrawService] Text to generation completed - Seeds: {response.get('seeds')} - Finish reason: {response.get('finish_reasons')}"
             )
 
             # Convert base64 to image
-            img_base64 = response_body["images"][0]
+            img_base64 = response["images"][0]
             return Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
         except LLMProviderError as e:

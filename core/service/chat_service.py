@@ -247,7 +247,7 @@ class ChatService(BaseService):
             # Stream from LLM
             logger.debug(f"[ChatService] Streaming with model {model_id} and params: {style_params}")
             try:
-                async for chunk in provider.multi_turn_generate(
+                for chunk in provider.multi_turn_generate(
                     message=user_message,
                     history=history_messages,
                     system_prompt=session.context.get('system_prompt'),

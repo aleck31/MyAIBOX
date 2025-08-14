@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, AsyncIterator, Union
+from typing import Dict, List, Optional, Union, Iterator
 from genai.models import LLMParameters, GenImageParameters, LLMMessage, LLMResponse
 
 
@@ -49,7 +49,7 @@ class LLMAPIProvider(ABC):
         pass
     
     @abstractmethod
-    async def generate_content(
+    def generate_content(
         self,
         messages: List[LLMMessage],
         system_prompt: Optional[str] = None,
@@ -62,20 +62,18 @@ class LLMAPIProvider(ABC):
             **kwargs: Additional parameters for inference
             
         Return:
-            Dict containing either:
-            - {"content": dict} for content chunks
-            - {"metadata": dict} for response metadata        
+            LLMResponse containing the generated content
         """        
         pass
 
     @abstractmethod
-    async def generate_stream(
+    def generate_stream(
         self,
         messages: List[LLMMessage],
         system_prompt: Optional[str] = None,
         **kwargs
-    ) -> AsyncIterator[Dict]:
-        """Generate a streaming response
+    ) -> Iterator[Dict]:
+        """Generate a streaming response (synchronous)
         Args:
             messages: user messages
             system_prompt: Optional system instructions
@@ -89,14 +87,14 @@ class LLMAPIProvider(ABC):
         pass
 
     @abstractmethod
-    async def multi_turn_generate(
+    def multi_turn_generate(
         self,
         message: LLMMessage,
         history: List[LLMMessage],
         system_prompt: Optional[str] = None,
         **kwargs
-    ) -> AsyncIterator[Dict]:
-        """Generate streaming response for multi-turn chat
+    ) -> Iterator[Dict]:
+        """Generate streaming response for multi-turn chat (synchronous)
         Args:
             message: Current user message
             history: Optional chat history
@@ -111,13 +109,13 @@ class LLMAPIProvider(ABC):
         pass
 
 
-def create_model_provider(provider_name: str, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools: Optional[List[str]] = None) -> LLMAPIProvider:
-    """Factory function to create appropriate provider instance
+def create_model_provider(provider_name: str, model_id: str, llm_params: LLMParameters, tools: Optional[List[str]] = None) -> LLMAPIProvider:
+    """Factory function to create text generation provider instance
 
     Args:
         provider_name: Name of provider (e.g. 'Bedrock', 'Gemini', 'OpenAI')
         model_id: Model identifier
-        llm_params: LLM inference parameters (either LLMParameters for text or GenImageParameters for images)
+        llm_params: LLM inference parameters for text generation
         tools: Optional list of tool module names to enable
 
     Returns:

@@ -154,9 +154,9 @@ class DrawHandlers(BaseHandler[DrawService]):
         ratio: str,
         seed: Optional[int] = None,
         is_random: bool = True,
-        model_id: str = None,
-        request: gr.Request = None
-    ) -> Tuple[Image.Image, int]:
+        model_id: Optional[str] = None,
+        request: Optional[gr.Request] = None
+    ) -> Tuple[Optional[Image.Image], int]:
         """Generate image from text prompt
         
         Args:
@@ -173,12 +173,24 @@ class DrawHandlers(BaseHandler[DrawService]):
         if not model_id:
             gr.Info("lease select a model for image generation.", duration=3)
 
+        # Initialize used_seed with default value
+        used_seed = 0
+        
         try:
+            # Check required parameters
+            if not model_id:
+                logger.error("[DrawHandlers] Model ID is required")
+                return None, used_seed
+            
+            if not request:
+                logger.error("[DrawHandlers] Request is required")
+                return None, used_seed
+                
             # Get services
             draw_service, session = await cls._init_session(request)
 
             # Process parameters
-            used_seed = cls._random_seed() if is_random else int(seed)
+            used_seed = cls._random_seed() if is_random else (seed or 0)
             if negative:
                 negative_prompts = negative
             else:

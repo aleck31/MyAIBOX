@@ -12,6 +12,7 @@ from core.logger import logger
 # Global session cache - dictionary to store sessions by region and role
 _AWS_SESSION = {}
 
+
 def get_aws_session(region_name: Optional[str] = None) -> boto3.Session:
     """Get configured AWS session with optional role assumption
 
@@ -53,6 +54,7 @@ def get_aws_session(region_name: Optional[str] = None) -> boto3.Session:
         logger.error(f"Failed to create AWS session: {str(e)}")
         raise
 
+
 def get_aws_client(service_name: str, region_name: Optional[str] = None):
     """Get configured AWS client for a specific service
 
@@ -79,6 +81,7 @@ def get_aws_client(service_name: str, region_name: Optional[str] = None):
         logger.error(f"Error creating AWS client for {service_name}: {e}")
         raise
 
+
 def get_aws_resource(service_name: str, region_name: Optional[str] = None):
     """Get configured AWS resource for a specific service
 
@@ -98,7 +101,7 @@ def get_aws_resource(service_name: str, region_name: Optional[str] = None):
 
 
 def get_secret(secret_name):
-    '''Get user dict from Secrets Manager'''
+    """Get user dict from Secrets Manager"""
     try:
         # Get Secrets Manager client using centralized AWS configuration
         client = get_aws_client('secretsmanager')
@@ -115,11 +118,12 @@ def get_secret(secret_name):
         logger.error(f"Error getting secret {secret_name}: {str(ex)}")
         raise
 
+
 def translate_text(text, target_lang_code):
-    '''
+    """
     Translates input text to the target language. Supported languages: 
     https://docs.aws.amazon.com/translate/latest/dg/what-is-languages.html
-    '''
+    """
     client = get_aws_client(
         service_name='translate'
     )
