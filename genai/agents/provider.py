@@ -8,12 +8,58 @@ from strands.models import BedrockModel
 from strands.models.openai import OpenAIModel
 from utils.aws import get_aws_session
 from genai.models.model_manager import model_manager
-from genai.tools.provider  import tool_provider, ToolType
+from genai.tools.provider import tool_provider, ToolType
 from genai.agents.resp_format import create_text_chunk, create_tool_chunk, create_file_chunk
 
 
+class ToolExecutionTracker:
+    """Helper class to track tool execution status"""
+    
+    def __init__(self):
+        self.active_tools = {}  # tool_use_id -> tool_info
+        self.completed_tools = []
+    
+    def start_tool(self, tool_use_id: str, tool_name: str, tool_input: str):
+        """Record tool execution start"""
+        # Check if this tool is already being tracked to prevent duplicates
+        if tool_use_id not in self.active_tools:
+            self.active_tools[tool_use_id] = {
+                'name': tool_name,
+                'input': tool_input,
+                'status': 'running'
+            }
+            logger.debug(f"[ToolTracker] Tool started: {tool_name} (ID: {tool_use_id})")
+            return True  # New tool started
+        else:
+            # Tool already tracked, just update input if it's more complete
+            existing_input = self.active_tools[tool_use_id]['input']
+            if len(tool_input) > len(existing_input):
+                self.active_tools[tool_use_id]['input'] = tool_input
+                logger.debug(f"[ToolTracker] Tool input updated: {tool_name} (ID: {tool_use_id})")
+            return False  # Tool already exists
+    
+    def complete_tool(self, tool_use_id: str, status: str = 'completed', result: str = None):
+        """Record tool execution completion"""
+        if tool_use_id in self.active_tools:
+            tool_info = self.active_tools.pop(tool_use_id)
+            tool_info['status'] = status
+            tool_info['result'] = result
+            self.completed_tools.append(tool_info)
+            logger.debug(f"[ToolTracker] Tool completed: {tool_info['name']} (Status: {status})")
+            return tool_info
+        return None
+    
+    def get_active_tool(self, tool_use_id: str):
+        """Get active tool information"""
+        return self.active_tools.get(tool_use_id)
+    
+    def has_active_tools(self):
+        """Check if there are any running tools"""
+        return len(self.active_tools) > 0
+
+
 class AgentProvider:
-    """Provider for Strands Agents integration with Universal Tool Manager"""
+    """Improved Strands Agents Provider"""
     
     def __init__(self, model_id: str, system_prompt: str = ''):
         """Initialize Strands Agent provider
@@ -25,23 +71,11 @@ class AgentProvider:
         self.model_id = model_id
         self.system_prompt = system_prompt
         self._agent_cache = {}
+        self.tool_tracker = ToolExecutionTracker()
         logger.debug(f"[AgentProvider] Initialized with model ID: {self.model_id}")
     
-    def _get_agent_cache_key(self, tools_enabled: bool, tool_filter: Optional[List[str]], include_mcp: bool, include_legacy: bool) -> str:
-        """Generate cache key for agent instances"""
-        key_parts = [
-            self.model_id,
-            self.system_prompt,
-            str(tools_enabled),
-            str(sorted(tool_filter) if tool_filter else "all"),
-            str(include_mcp),
-            str(include_legacy)
-        ]
-        return "|".join(key_parts)
-
     def _get_strands_model(self):
         """Get Strands model based on API provider"""
-
         logger.debug(f"[AgentProvider] Getting model by ID: {self.model_id}")
         model = model_manager.get_model_by_id(self.model_id)
         
@@ -69,132 +103,42 @@ class AgentProvider:
                     raise
             case 'OPENAI':
                 return OpenAIModel(
-                    client_args={
-                        "api_key": "<KEY>",
-                    },
+                    client_args={"api_key": "<KEY>"},
                     model_id=self.model_id,
-                    params={
-                        "max_tokens": 1000,
-                        "temperature": 0.7,
-                    }
+                    params={"max_tokens": 1000, "temperature": 0.7}
                 )
             case _:
                 logger.error(f"[AgentProvider] Unsupported API provider: {model.api_provider}")
                 raise ValueError(f"Unsupported API provider: {model.api_provider}")
 
-    def _parse_tool_metrics(self, metrics_obj) -> Optional[Dict]:
-        """Parse tool metrics from event_loop_metrics
-        
-        Args:
-            metrics_obj: EventLoopMetrics object or string representation
-            
-        Returns:
-            Dict with tool information or None if no tools found
-        """
-        try:
-            # Convert to string if it's an object
-            metrics_str = str(metrics_obj)
-            
-            # Log the full metrics for debugging
-            logger.debug(f"[AgentProvider] Full tool metrics: {metrics_str}")
-            
-            # Extract tool metrics using regex (since it's a string representation)
-            import re
-            
-            # Look for tool_metrics pattern - updated to capture result
-            tool_pattern = r"'(\w+)': ToolMetrics\(tool=\{'toolUseId': '([^']+)', 'name': '([^']+)', 'input': (\{[^}]*\})\}, call_count=(\d+), success_count=(\d+), error_count=(\d+)(?:, total_time=([^,)]+))?"
-            
-            match = re.search(tool_pattern, metrics_str)
-            if match:
-                tool_name = match.group(1)
-                tool_use_id = match.group(2)
-                tool_display_name = match.group(3)
-                tool_input_str = match.group(4)
-                call_count = int(match.group(5))
-                success_count = int(match.group(6))
-                error_count = int(match.group(7))
-                
-                # Parse tool input (basic parsing)
-                try:
-                    import ast
-                    tool_params = ast.literal_eval(tool_input_str)
-                except:
-                    tool_params = {}
-                
-                # Determine status based on counts
-                if error_count > 0:
-                    status = "failed"
-                elif success_count > 0:
-                    status = "completed"
-                else:
-                    status = "running"
-                
-                # For now, we can't extract the actual result from EventLoopMetrics
-                # The result is handled separately by Strands and passed to the LLM
-                # We'll indicate that the tool completed successfully
-                result = f"Tool '{tool_display_name}' completed successfully" if status == "completed" else None
-                
-                logger.debug(f"[AgentProvider] Parsed tool: {tool_display_name}, status: {status}, result: {result}")
-                
-                return {
-                    "name": tool_display_name,
-                    "params": tool_params,
-                    "status": status,
-                    "result": result,
-                    "id": tool_use_id,
-                    "call_count": call_count,
-                    "success_count": success_count,
-                    "error_count": error_count
-                }
-            
-        except Exception as e:
-            logger.debug(f"[AgentProvider] Could not parse tool metrics: {str(e)}")
-        
+    def _handle_text_event(self, event: Dict) -> Optional[Dict]:
+        """Handle text events"""
+        if 'data' in event and 'delta' in event:
+            text_delta = event['delta'].get('text', '')
+            if text_delta:
+                return create_text_chunk(text_delta)
         return None
 
-    def _standardize_chunk(self, raw_event: Dict) -> Optional[Dict]:
-        """Convert raw Strands event to standard agent response format
-        
-        Args:
-            raw_event: Raw event from Strands agent
+    def _handle_tool_start_event(self, event: Dict) -> Optional[Dict]:
+        """Handle tool execution start events"""
+        if 'current_tool_use' in event:
+            tool_info = event['current_tool_use']
+            tool_use_id = tool_info.get('toolUseId', 'unknown')
+            tool_name = tool_info.get('name', 'unknown')
+            tool_input = tool_info.get('input', '')
             
-        Returns:
-            Standardized response chunk or None if event should be skipped
-        """
-        # PRIORITY 1: Handle Strands simplified format (contains more metadata)
-        if 'data' in raw_event and 'delta' in raw_event:
-            text_delta = raw_event['delta'].get('text', '')
-            if text_delta:
-                # Also check for tool usage information in the same event
-                tool_info = None
-                if 'event_loop_metrics' in raw_event:
-                    tool_info = self._parse_tool_metrics(raw_event['event_loop_metrics'])
-                
-                result = create_text_chunk(text_delta)
-                
-                # Add tool information if available
-                if tool_info:
-                    result['tool_use'] = {
-                        "name": tool_info['name'],
-                        "params": tool_info['params'],
-                        "status": tool_info['status'],
-                        "result": tool_info.get('result')
-                    }
-                
-                return result
-        
-        # PRIORITY 2: Handle metadata events (usage statistics, etc.)
-        elif 'event' in raw_event and 'metadata' in raw_event['event']:
-            return {"metadata": raw_event['event']['metadata']}
-        
-        # PRIORITY 3: Handle message stop events
-        elif 'event' in raw_event and 'messageStop' in raw_event['event']:
-            return {"metadata": {"stop_reason": raw_event['event']['messageStop'].get('stopReason')}}
-        
-        # PRIORITY 4: Handle tool result messages
-        elif 'message' in raw_event:
-            message = raw_event['message']
-            # Check if this is a tool result message
+            # Record tool execution start and only return event if it's a new tool
+            is_new_tool = self.tool_tracker.start_tool(tool_use_id, tool_name, tool_input)
+            
+            if is_new_tool:
+                # Return tool start event only for new tools
+                return create_tool_chunk(tool_name, tool_input, 'running')
+        return None
+
+    def _handle_tool_result_event(self, event: Dict) -> Optional[Dict]:
+        """Handle tool result events"""
+        if 'message' in event:
+            message = event['message']
             if (isinstance(message, dict) and 
                 message.get('role') == 'user' and 
                 'content' in message):
@@ -204,149 +148,98 @@ class AgentProvider:
                     for item in content:
                         if isinstance(item, dict) and 'toolResult' in item:
                             tool_result = item['toolResult']
-                            logger.debug(f"[AgentProvider] Found toolResult: {tool_result}")
+                            tool_use_id = tool_result.get('toolUseId', 'unknown')
+                            status = tool_result.get('status', 'completed')
                             
-                            # Extract tool information from the result
-                            if isinstance(tool_result, dict):
-                                tool_use_id = tool_result.get('toolUseId', 'unknown')
-                                status = tool_result.get('status', 'completed')
-                                
-                                # Parse the content to extract the actual tool result
-                                result_data = None
-                                if 'content' in tool_result and isinstance(tool_result['content'], list):
-                                    for content_item in tool_result['content']:
-                                        if isinstance(content_item, dict) and 'text' in content_item:
-                                            try:
-                                                # The text contains a string representation of the actual result
-                                                import ast
-                                                result_data = ast.literal_eval(content_item['text'])
-                                                break
-                                            except:
-                                                result_data = content_item['text']
-                                
-                                # Extract tool name and file path from result data
-                                tool_name = 'unknown'
-                                file_path = None
-                                
-                                if isinstance(result_data, dict):
-                                    file_path = result_data.get('file_path')
-                                    # Try to infer tool name from the result or use a default
-                                    if file_path and 'img_' in file_path:
-                                        tool_name = 'generate_image'
-                                
-                                # Create a tool result chunk with the actual result data
+                            # Parse tool result
+                            result_data = None
+                            if 'content' in tool_result and isinstance(tool_result['content'], list):
+                                for content_item in tool_result['content']:
+                                    if isinstance(content_item, dict) and 'text' in content_item:
+                                        try:
+                                            import ast
+                                            result_data = ast.literal_eval(content_item['text'])
+                                            break
+                                        except:
+                                            result_data = content_item['text']
+                            
+                            # Complete tool execution tracking
+                            tool_info = self.tool_tracker.complete_tool(tool_use_id, status, result_data)
+                            
+                            if tool_info:
                                 return create_tool_chunk(
-                                    tool_name, 
-                                    {}, 
+                                    tool_info['name'], 
+                                    tool_info['input'], 
                                     status, 
                                     result_data
                                 )
-            
-            # Skip other message events since we've been streaming chunks
+        return None
+
+    def _handle_metadata_event(self, event: Dict) -> Optional[Dict]:
+        """Handle metadata events"""
+        if 'event' in event:
+            if 'metadata' in event['event']:
+                return {"metadata": event['event']['metadata']}
+            elif 'messageStop' in event['event']:
+                return {"metadata": {"stop_reason": event['event']['messageStop'].get('stopReason')}}
+        return None
+
+    def _standardize_chunk(self, raw_event: Dict) -> Optional[Dict]:
+        """Convert raw Strands event to standard agent response format
+        
+        Uses clear event handling logic to avoid complex conditional statements
+        """
+        # 1. Handle text events (most common)
+        text_chunk = self._handle_text_event(raw_event)
+        if text_chunk:
+            return text_chunk
+        
+        # 2. Handle tool start events
+        tool_start_chunk = self._handle_tool_start_event(raw_event)
+        if tool_start_chunk:
+            return tool_start_chunk
+        
+        # 3. Handle tool result events
+        tool_result_chunk = self._handle_tool_result_event(raw_event)
+        if tool_result_chunk:
+            return tool_result_chunk
+        
+        # 4. Handle metadata events
+        metadata_chunk = self._handle_metadata_event(raw_event)
+        if metadata_chunk:
+            return metadata_chunk
+        
+        # 5. Skip events that don't need processing
+        skip_events = [
+            'init_event_loop', 'start_event_loop', 'start',
+            'event_loop_metrics', 'agent', 'event_loop_parent_span',
+            'event_loop_cycle_id', 'request_state', 'event_loop_cycle_trace',
+            'event_loop_cycle_span', 'event_loop_parent_cycle_id'
+        ]
+        
+        if any(key in raw_event for key in skip_events):
             return None
         
-        # SKIP: Bedrock native events (to avoid duplicates with Strands format)
-        elif 'event' in raw_event and 'contentBlockDelta' in raw_event['event']:
-            # Skip this to avoid duplicates - we handle the Strands format above
+        # 6. Skip Bedrock native events (avoid duplicates)
+        if 'event' in raw_event and 'contentBlockDelta' in raw_event['event']:
             return None
         
-        # LEGACY: Handle tool usage information from event_loop_metrics (standalone)
-        elif 'event_loop_metrics' in raw_event and 'data' not in raw_event:
-            tool_info = self._parse_tool_metrics(raw_event['event_loop_metrics'])
-            if tool_info:
-                return create_tool_chunk(
-                    tool_info['name'], 
-                    tool_info['params'], 
-                    tool_info['status'],
-                    tool_info.get('result')
-                )
-        
-        # LEGACY: Handle legacy formats for backward compatibility
-        elif 'content' in raw_event and 'text' in raw_event['content']:
-            # Try to parse JSON string in text field (legacy format)
-            import json
-            try:
-                event_data = json.loads(raw_event['content']['text'])
-                
-                if 'event' in event_data and 'contentBlockDelta' in event_data['event']:
-                    delta = event_data['event']['contentBlockDelta'].get('delta', {})
-                    if 'text' in delta:
-                        return create_text_chunk(delta['text'])
-                        
-            except (json.JSONDecodeError, KeyError):
-                # If it's not JSON, treat as plain text
-                return create_text_chunk(raw_event['content']['text'])
-        
-        # LEGACY: Handle tool use from delta events (existing logic)
-        elif 'tool_use' in raw_event:
-            tool_info = raw_event['tool_use']
-            tool_name = tool_info.get('name', 'unknown')
-            tool_params = tool_info.get('input', {})
-            
-            if 'result' in tool_info:
-                status = "completed"
-                result = str(tool_info['result'])
-            else:
-                status = "running"
-                result = None
-
-            return create_tool_chunk(tool_name, tool_params, status, result)
-        
-        # LEGACY: Handle current_tool_use from delta (existing logic)
-        elif 'delta' in raw_event and 'current_tool_use' in raw_event['delta']:
-            tool_info = raw_event['delta']['current_tool_use']
-            tool_name = tool_info.get('name', 'unknown')
-            tool_params = tool_info.get('input', {})
-
-            return create_tool_chunk(tool_name, tool_params, "running")
-        
-        # Handle file generation from tool results
-        elif 'file_path' in raw_event:
-            file_path = raw_event['file_path']
-            import os
-            _, ext = os.path.splitext(file_path.lower())
-            
-            if ext in ['.py', '.js', '.html', '.css', '.java', '.cpp', '.c', '.go', '.rs']:
-                file_type = "code"
-                language = ext[1:]
-            elif ext in ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg']:
-                file_type = "image"
-                language = None
-            elif ext in ['.mp3', '.wav', '.ogg', '.m4a']:
-                file_type = "audio"
-                language = None
-            elif ext in ['.md', '.txt', '.doc', '.docx', '.pdf']:
-                file_type = "document"
-                language = None
-            else:
-                file_type = "file"
-                language = None
-
-            return create_file_chunk(file_path, file_type, language)
-        
-        # Skip events that don't contain useful content
+        # 7. Log unhandled events (for debugging)
+        if logger.isEnabledFor(10):  # DEBUG level is 10
+            logger.debug(f"[AgentProvider] Unhandled event keys: {list(raw_event.keys())}")
         return None
 
     async def _process_events(self, agent, prompt: str) -> AsyncIterator[Dict]:
-        """Process events from the agent and standardize the format
-        
-        Args:
-            agent: Strands Agent instance
-            prompt: User prompt
-            
-        Returns:
-            AsyncIterator of standardized agent response chunks
-        """
+        """Process events from the agent and standardize the format"""
         logger.debug(f"[AgentProvider] Processing events for prompt: {prompt}")
         
         try:
             async for event in agent.stream_async(prompt):
-                # Log ALL raw events for debugging
-                logger.debug(f"[AgentProvider] Raw event: {event}")
-                logger.debug(f"[AgentProvider] Raw event type: {type(event)}")
-                logger.debug(f"[AgentProvider] Raw event keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
+                # Only log raw events in debug mode
+                if logger.isEnabledFor(10):  # DEBUG level is 10
+                    logger.debug(f"[AgentProvider] Raw event keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
                 
-                # Standardize the raw event to our format
+                # Standardize event
                 standardized_chunk = self._standardize_chunk(event)
                 
                 if standardized_chunk is not None:
@@ -355,7 +248,6 @@ class AgentProvider:
                     
         except Exception as e:
             logger.error(f"[AgentProvider] Error processing events: {str(e)}", exc_info=True)
-            # Yield error information
             yield {
                 "text": f"Error processing response: {str(e)}",
                 "metadata": {"error": True, "error_message": str(e)}
@@ -367,44 +259,15 @@ class AgentProvider:
         history_messages: Optional[List] = None,
         tool_config: Optional[Dict] = None
     ) -> AsyncIterator[Dict]:
-        """Unified streaming generation method
-        
-        Args:
-            prompt: User prompt
-            history_messages: Optional list of Strands Message objects for context (None for single-turn)
-            tool_config: Optional tool configuration dict with keys:
-                - enabled: bool (default True)
-                - include_legacy: bool (default True) 
-                - include_mcp: bool (default True)
-                - tool_filter: List[str] (optional specific tools)
-            
-        Returns:
-            AsyncIterator of structured events with content and metadata
-        """
-        logger.debug(f"[AgentProvider] Generate stream with {len(history_messages) if history_messages else 0} history messages")
-        
-        # Use unified generation logic
-        async for chunk in self._generate_with_agent(prompt, history_messages, tool_config):
-            yield chunk
+        """Unified streaming generation method"""
+        if history_messages is not None:
+            logger.debug(f"[AgentProvider] Generate stream with {len(history_messages)} history messages")
 
-    async def _generate_with_agent(
-        self, 
-        prompt: str, 
-        history_messages: Optional[List] = None,
-        tool_config: Optional[Dict] = None
-    ) -> AsyncIterator[Dict]:
-        """Unified agent generation logic
-        
-        Args:
-            prompt: User prompt
-            history_messages: Optional list of Strands Message objects for context
-            tool_config: Optional tool configuration
-            
-        Returns:
-            AsyncIterator of structured events with content and metadata
-        """
         try:
             logger.debug(f"[AgentProvider] Generating content for: {prompt}")
+
+            # Reset tool tracker
+            self.tool_tracker = ToolExecutionTracker()
 
             # Create model
             model = self._get_strands_model()
@@ -415,110 +278,57 @@ class AgentProvider:
             
             tools_enabled = tool_config.get('enabled', True)
             include_legacy = tool_config.get('include_legacy', True)
-            include_mcp = tool_config.get('include_mcp', True)
+            include_mcp = tool_config.get('include_mcp', False)  # Default disable MCP
+            include_strands = tool_config.get('include_strands', True)
             tool_filter = tool_config.get('tool_filter', None)
 
             # Get tools if enabled
             if tools_enabled:
                 try:
-                    # Initialize universal tool manager if not already done
                     await tool_provider.initialize()
                     
-                    # Get active MCP clients for context management
-                    active_mcp_clients = []
                     if include_mcp:
-                        # Get MCP clients that need to be kept alive
-                        mcp_tools = tool_provider.list_tools(ToolType.MCP)
-                        mcp_clients_dict = {}
-                        
-                        for tool_info in mcp_tools:
-                            if not tool_info.enabled:
-                                continue
-                            if tool_filter and tool_info.name not in tool_filter:
-                                continue
-                            
-                            # Get MCP client from tool config - fix attribute access
-                            if hasattr(tool_info, 'config') and tool_info.config and 'tool_object' in tool_info.config:
-                                tool_obj = tool_info.config['tool_object']
-                                if hasattr(tool_obj, 'mcp_client'):
-                                    server_name = tool_info.config.get('server', 'unknown')
-                                    mcp_clients_dict[server_name] = tool_obj.mcp_client
-                        
-                        active_mcp_clients = list(mcp_clients_dict.values())
+                        logger.warning("[AgentProvider] MCP tools enabled - may impact performance")
                     
-                    # Use MCP clients in context managers
-                    if active_mcp_clients:
-                        logger.info(f"[AgentProvider] Managing {len(active_mcp_clients)} MCP client contexts")
-                        
-                        # Use synchronous context managers for MCP clients
-                        import contextlib
-                        with contextlib.ExitStack() as stack:
-                            # Enter all MCP client contexts (synchronous)
-                            for mcp_client in active_mcp_clients:
-                                stack.enter_context(mcp_client)
-                            
-                            # Now get tools with active MCP contexts
-                            tools = await tool_provider.get_tools_for_agent(
-                                tool_filter=tool_filter,
-                                include_legacy=include_legacy,
-                                include_mcp=include_mcp
-                            )
-                            
-                            # Create agent with tools and optional history
-                            agent = Agent(
-                                tools=tools,
-                                system_prompt=self.system_prompt,
-                                model=model,
-                                messages=history_messages  # Add history support
-                            )
-                            logger.info(f"[AgentProvider] Initialized Strands Agent with {len(tools)} tools (MCP contexts active)")
-                            
-                            # Process events within MCP contexts
-                            async for event_data in self._process_events(agent, prompt):
-                                yield event_data
-                    else:
-                        # No MCP clients, proceed normally
-                        tools = await tool_provider.get_tools_for_agent(
-                            tool_filter=tool_filter,
-                            include_legacy=include_legacy,
-                            include_mcp=False  # No MCP tools available
-                        )
-                        
-                        agent = Agent(
-                            tools=tools,
-                            system_prompt=self.system_prompt,
-                            model=model,
-                            messages=history_messages  # Add history support
-                        )
-                        logger.info(f"[AgentProvider] Initialized Strands Agent with {len(tools)} tools (Python only)")
-                        
-                        # Process events
-                        async for event_data in self._process_events(agent, prompt):
-                            yield event_data
+                    tools = await tool_provider.get_tools_for_agent(
+                        tool_filter=tool_filter,
+                        include_legacy=include_legacy,
+                        include_mcp=include_mcp,
+                        include_strands=include_strands
+                    )
+                    
+                    agent = Agent(
+                        tools=tools,
+                        system_prompt=self.system_prompt,
+                        model=model,
+                        messages=history_messages
+                    )
+                    logger.info(f"[AgentProvider] Initialized Strands Agent with {len(tools)} tools")
+                    
+                    async for event_data in self._process_events(agent, prompt):
+                        yield event_data
                     
                 except Exception as e:
                     logger.error(f"[AgentProvider] Error loading tools: {str(e)}", exc_info=True)
-                    logger.warning(f"[AgentProvider] Tool loading failed, specific error: {type(e).__name__}: {str(e)}")
                     # Fallback to no tools
                     agent = Agent(
                         system_prompt=self.system_prompt, 
                         model=model,
-                        messages=history_messages  # Add history support
+                        messages=history_messages
                     )
                     logger.warning(f"[AgentProvider] Falling back to agent without tools")
                     
                     async for event_data in self._process_events(agent, prompt):
                         yield event_data
             else:
-                # Tools disabled, create agent without tools
+                # Tools disabled
                 agent = Agent(
                     system_prompt=self.system_prompt, 
                     model=model,
-                    messages=history_messages  # Add history support
+                    messages=history_messages
                 )
                 logger.info(f"[AgentProvider] Initialized Strands Agent without tools")
                 
-                # Process events
                 async for event_data in self._process_events(agent, prompt):
                     yield event_data
             
@@ -527,11 +337,7 @@ class AgentProvider:
             raise
 
     async def get_available_tools(self) -> Dict[str, List[Dict]]:
-        """Get information about available tools
-        
-        Returns:
-            Dict with 'legacy' and 'mcp' keys containing tool information
-        """
+        """Get information about available tools"""
         try:
             await tool_provider.initialize()
             

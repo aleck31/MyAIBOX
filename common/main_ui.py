@@ -8,7 +8,6 @@ from modules.vision.ui import tab_vision
 from modules.coding.ui import tab_coding
 from modules.asking.ui import tab_asking
 from modules.draw.ui import tab_draw
-from modules.deepsearch.ui import tab_deepsearch
 from common.setting.ui import tab_setting
 from core.logger import logger
 
@@ -70,13 +69,13 @@ def create_main_interface():
     interface = gr.TabbedInterface(
         [
             tab_assistant, tab_persona, tab_text,
-            tab_summary, tab_vision, tab_deepsearch, tab_asking,
+            tab_summary, tab_vision, tab_asking,
             tab_coding, tab_draw, 
             tab_setting
         ],
         tab_names=[
             "Assistant 🤖", "Persona 🎭", "Text 📝", 
-            "Summary 📰", "Vision 👀", "DeepSearch 🔍", "Asking 🤔",
+            "Summary 📰", "Vision 👀", "Asking 🤔",
             "Coding 💻", "Draw 🎨", 
             "Setting ⚙️"
         ],

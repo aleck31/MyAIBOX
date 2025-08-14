@@ -85,23 +85,20 @@ def generate_image(
 
         logger.debug(f"[generate_image] Request body: {json.dumps(request_body, indent=2)}")
 
-        # Generate image using provider (following draw_service pattern)
-        import asyncio
-        response = asyncio.run(provider.generate_content(
-            request_body,
+        # Generate image using provider's direct invoke method
+        response = provider.invoke_model_sync(
+            request_body=request_body,
             accept="application/json",
             content_type="application/json"
-        ))
+        )
 
-        if not response.content:
+        if not response:
             raise ValueError("No response received from model")
 
-        # Extract response body
-        response_body = response.content
-        logger.debug(f"[generate_image] Generation completed - Seeds: {response_body.get('seeds')}")
+        logger.debug(f"[generate_image] Generation completed - Seeds: {response.get('seeds')}")
 
         # Convert base64 to image (following draw_service pattern)
-        img_base64 = response_body["images"][0]
+        img_base64 = response["images"][0]
         image = Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
         # Save to project's assets directory
@@ -127,8 +124,8 @@ def generate_image(
                 "aspect_ratio": aspect_ratio,
                 "model": stability_model.model_id,
                 "prompt": prompt,
-                "seeds": response_body.get('seeds'),
-                "finish_reasons": response_body.get('finish_reasons')
+                "seeds": response.get('seeds'),
+                "finish_reasons": response.get('finish_reasons')
             }
         }
         

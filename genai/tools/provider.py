@@ -58,30 +58,38 @@ class ToolProvider:
         if self._initialized:
             return
         
-        logger.info("[ToolProvider] Initializing MCP clients...")
+        # TODO: Re-enable MCP clients after proper integration design
+        # Temporarily disable MCP client initialization to fix performance issues
+        logger.info("[ToolProvider] Initializing tool provider (MCP disabled)...")
         
-        try:
-            # Initialize MCP clients
-            mcp_servers = self.mcp_manager.get_mcp_servers()
-            
-            for server_name, server_config in mcp_servers.items():
-                if server_config.get("disabled", False):
-                    continue
-                
-                try:
-                    mcp_client = await self._create_mcp_client(server_name, server_config)
-                    if mcp_client:
-                        self._mcp_clients[server_name] = mcp_client
-                        logger.debug(f"[ToolProvider] Initialized MCP client: {server_name}")
-                except Exception as e:
-                    logger.error(f"[ToolProvider] Failed to initialize MCP client {server_name}: {e}")
-            
-            self._initialized = True
-            logger.info(f"[ToolProvider] Initialized with {len(self._mcp_clients)} MCP clients")
-            
-        except Exception as e:
-            logger.error(f"[ToolProvider] Error during initialization: {str(e)}")
-            raise
+        # DISABLED: MCP client initialization
+        # try:
+        #     # Initialize MCP clients
+        #     mcp_servers = self.mcp_manager.get_mcp_servers()
+        #     
+        #     for server_name, server_config in mcp_servers.items():
+        #         if server_config.get("disabled", False):
+        #             continue
+        #         
+        #         try:
+        #             mcp_client = await self._create_mcp_client(server_name, server_config)
+        #             if mcp_client:
+        #                 self._mcp_clients[server_name] = mcp_client
+        #                 logger.debug(f"[ToolProvider] Initialized MCP client: {server_name}")
+        #         except Exception as e:
+        #             logger.error(f"[ToolProvider] Failed to initialize MCP client {server_name}: {e}")
+        #     
+        #     self._initialized = True
+        #     logger.info(f"[ToolProvider] Initialized with {len(self._mcp_clients)} MCP clients")
+        #     
+        # except Exception as e:
+        #     logger.error(f"[ToolProvider] Error during initialization: {str(e)}")
+        #     raise
+        
+        # Initialize empty MCP clients dict
+        self._mcp_clients = {}
+        self._initialized = True
+        logger.info(f"[ToolProvider] Initialized with {len(self._mcp_clients)} MCP clients (MCP disabled)")
     
     async def _create_mcp_client(self, server_name: str, server_config: Dict) -> Optional[Any]:
         """Create MCP client - delegates to existing manager logic"""
@@ -150,20 +158,26 @@ class ToolProvider:
             except ImportError:
                 logger.warning("[ToolProvider] Strands builtin tools not available")
         
-        # Add MCP tools
+        # DISABLED: MCP tools - temporarily disabled for performance
+        # Add MCP tools - Fixed: Proper MCP client usage according to Strands documentation
+        # if include_mcp:
+        #     # According to Strands docs, MCP tools should be used within Agent's context
+        #     # We'll provide the MCP clients to the Agent instead of pre-listing tools
+        #     for server_name, mcp_client in self._mcp_clients.items():
+        #         try:
+        #             # Don't use context manager here - let Agent handle MCP session lifecycle
+        #             # Just verify the client is available
+        #             if hasattr(mcp_client, '_transport_callable'):
+        #                 logger.debug(f"[ToolProvider] MCP client {server_name} available for agent")
+        #                 # Note: Agent will handle MCP tools within its own context manager
+        #                 # For now, we skip adding MCP tools to avoid session conflicts
+        #                 # This needs to be handled at the Agent level
+        #         except Exception as e:
+        #             logger.debug(f"[ToolProvider] MCP client {server_name} not available: {e}")
+        #             continue
+        
         if include_mcp:
-            for server_name, mcp_client in self._mcp_clients.items():
-                try:
-                    with mcp_client:
-                        mcp_tools = mcp_client.list_tools_sync()
-                        for mcp_tool in mcp_tools:
-                            tool_name_attr = getattr(mcp_tool, 'tool_name', None) or getattr(mcp_tool, 'name', None)
-                            if tool_name_attr:
-                                full_tool_name = f"{server_name}:{tool_name_attr}"
-                                if not tool_filter or full_tool_name in tool_filter:
-                                    tools.append(mcp_tool)
-                except Exception as e:
-                    logger.error(f"[ToolProvider] Error getting tools from {server_name}: {e}")
+            logger.debug("[ToolProvider] MCP tools requested but temporarily disabled")
         
         logger.debug(f"[ToolProvider] Returning {len(tools)} tools for agent")
         return tools

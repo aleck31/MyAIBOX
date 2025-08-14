@@ -1,6 +1,6 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
-from typing import Dict, AsyncIterator, Any, List
+from typing import Dict, AsyncIterator, Any, List, Optional
 from core.logger import logger
 from core.service import BaseService
 from core.session.models import Session
@@ -96,6 +96,95 @@ class AgentService(BaseService):
                 logger.error(f"[AgentService] Failed to initialize AgentProvider: {str(e)}")
                 self._agent_provider = None
 
+    def _get_default_tool_config(self) -> Dict[str, Any]:
+        """Get default tool configuration for this module
+        
+        Returns:
+            Default tool configuration dictionary
+        """
+        try:
+            # Get module configuration for tool filtering
+            from core.module_config import module_config
+            config = module_config.get_module_config(self.module_name)
+            enabled_tools = config.get('enabled_tools', []) if config else []
+            
+            tool_config = {
+                'enabled': True,
+                'include_legacy': True,
+                'include_mcp': False,  # Default disable MCP for performance
+                'include_strands': True,
+                'tool_filter': enabled_tools if enabled_tools else None
+            }
+            
+            logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
+            return tool_config
+            
+        except Exception as e:
+            logger.error(f"[AgentService] Error getting module config: {str(e)}")
+            # Fallback to basic config
+            return {
+                'enabled': True,
+                'include_legacy': True,
+                'include_mcp': False,
+                'include_strands': True,
+                'tool_filter': None
+            }
+
+    async def _generate_stream_async(
+        self, 
+        session: Session, 
+        prompt: str, 
+        system_prompt: str, 
+        history: Optional[List[Dict]] = None,
+        tool_config: Optional[Dict[str, Any]] = None
+    ) -> AsyncIterator[Dict]:
+        """Internal method for streaming generation with common logic
+        
+        Args:
+            session: User session
+            prompt: Current user prompt
+            system_prompt: System prompt for the agent
+            history: Optional list of previous messages in UI format
+            tool_config: Optional tool configuration override
+            
+        Returns:
+            AsyncIterator yielding standardized agent response dictionaries
+        """
+        if not prompt:
+            yield {"text": "Please provide a user prompt."}
+            return
+
+        try:
+            # Get model_id with fallback to module default
+            model_id = await self.get_session_model(session)
+
+            # Get provider instance
+            provider = await self._get_agent_provider(model_id, system_prompt)
+
+            # Convert UI history to Strands format if provided
+            strands_history = None
+            if history:
+                strands_history = self._convert_ui_to_strands_format(history)
+
+            # Use provided tool config or get default
+            if tool_config is None:
+                tool_config = self._get_default_tool_config()
+            else:
+                logger.debug(f"[AgentService] Using provided tool config: {tool_config}")
+
+            # Stream standardized responses
+            async for chunk in provider.generate_stream(prompt, strands_history, tool_config):
+                if not isinstance(chunk, dict):
+                    logger.warning(f"[AgentService] Unexpected chunk type: {type(chunk)}")
+                    continue
+
+                # Direct pass-through of standardized format
+                yield chunk
+
+        except Exception as e:
+            logger.error(f"[AgentService] Error in streaming generation: {str(e)}", exc_info=True)
+            yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
+
     async def streaming_reply_with_history(
         self, 
         session: Session, 
@@ -118,51 +207,14 @@ class AgentService(BaseService):
         Returns:
             AsyncIterator yielding standardized agent response dictionaries
         """
-        if not prompt:
-            yield {"text": "Please provide a user prompt."}
-            return
-
-        try:
-            # Get model_id with fallback to module default
-            model_id = await self.get_session_model(session)
-
-            # Get provider instance
-            provider = await self._get_agent_provider(model_id, system_prompt)
-
-            # Convert UI history to Strands format in Service layer
-            strands_history = self._convert_ui_to_strands_format(history) if history else []
-
-            # Configure tools - use provided config or default
-            if tool_config is None:
-                # Get module configuration for tool filtering
-                from core.module_config import module_config
-                config = module_config.get_module_config(self.module_name)
-                enabled_tools = config.get('enabled_tools', []) if config else []
-                
-                tool_config = {
-                    'enabled': True,
-                    'include_legacy': True,
-                    'include_mcp': True,
-                    'include_strands': True,
-                    'tool_filter': enabled_tools if enabled_tools else None
-                }
-                
-                logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
-            else:
-                logger.debug(f"[AgentService] Using provided tool config: {tool_config}")
-
-            # Stream standardized responses with converted history
-            async for chunk in provider.generate_stream(prompt, strands_history, tool_config):
-                if not isinstance(chunk, dict):
-                    logger.warning(f"[AgentService] Unexpected chunk type: {type(chunk)}")
-                    continue
-
-                # Direct pass-through of standardized format
-                yield chunk
-
-        except Exception as e:
-            logger.error(f"[AgentService] Error in streaming_reply_with_history: {str(e)}", exc_info=True)
-            yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
+        async for chunk in self._generate_stream_async(
+            session=session,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            history=history,
+            tool_config=tool_config
+        ):
+            yield chunk
 
     async def gen_text_stream(
         self, 
@@ -183,48 +235,14 @@ class AgentService(BaseService):
         Returns:
             AsyncIterator yielding standardized agent response dictionaries
         """
-        if not prompt:
-            yield {"text": "Please provide a user prompt."}
-            return
-
-        try:
-            # Get model_id with fallback to module default
-            model_id = await self.get_session_model(session)
-
-            # Get provider instance
-            provider = await self._get_agent_provider(model_id, system_prompt)
-
-            # Configure tools - use provided config or default
-            if tool_config is None:
-                # Get module configuration for tool filtering
-                from core.module_config import module_config
-                config = module_config.get_module_config(self.module_name)
-                enabled_tools = config.get('enabled_tools', []) if config else []
-                
-                tool_config = {
-                    'enabled': True,
-                    'include_legacy': True,
-                    'include_mcp': True,
-                    'include_strands': True,
-                    'tool_filter': enabled_tools if enabled_tools else None
-                }
-                
-                logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
-            else:
-                logger.debug(f"[AgentService] Using provided tool config: {tool_config}")
-
-            # Stream standardized responses without history (single-turn)
-            async for chunk in provider.generate_stream(prompt, None, tool_config):
-                if not isinstance(chunk, dict):
-                    logger.warning(f"[AgentService] Unexpected chunk type: {type(chunk)}")
-                    continue
-
-                # Direct pass-through of standardized format
-                yield chunk
-
-        except Exception as e:
-            logger.error(f"[AgentService] Error in gen_text_stream: {str(e)}", exc_info=True)
-            yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
+        async for chunk in self._generate_stream_async(
+            session=session,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            history=None,  # No history for single-turn
+            tool_config=tool_config
+        ):
+            yield chunk
 
     async def clear_history(self, session: Session) -> None:
         """Clear chat history for a session
