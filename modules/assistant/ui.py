@@ -44,7 +44,7 @@ def create_interface() -> gr.Blocks:
 
     with gr.Blocks() as chat_interface:
 
-        gr.Markdown("Let me help you with ... (Powered by Bedrock)")
+        gr.Markdown("Let me help you with ... (Powered by Strands Agents)")
 
         # Create optimized chat interface
         chat = gr.ChatInterface(

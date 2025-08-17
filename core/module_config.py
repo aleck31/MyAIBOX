@@ -194,7 +194,7 @@ class ModuleConfig:
                 'setting_name': 'assistant',
                 'type': 'module',
                 'description': 'Assistant Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
                 'parameters': {
                     'max_tokens': 4096,
                     'temperature': Decimal('0.7'),
@@ -267,31 +267,11 @@ class ModuleConfig:
                     'top_k': 100
                 }
             },
-            'deepsearch': {
-                'setting_name': 'deepsearch',
-                'type': 'module',
-                'description': 'Deep Search Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-                'parameters': {
-                    'temperature': Decimal('0.7'),
-                    'max_tokens': 4096,
-                    'top_p': Decimal('0.9'),
-                    'top_k': 100
-                },
-                'enabled_tools': [
-                    'search_wikipedia',
-                    'search_internet'
-                ],
-                'thinking': {
-                    'type': 'enabled',
-                    'budget_tokens': 2048
-                }
-            },
             'asking': {
                 'setting_name': 'asking',
                 'type': 'module',
                 'description': 'Asking Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 4096

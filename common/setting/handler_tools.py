@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Any
 import gradio as gr
 from core.logger import logger
 from genai.tools.mcp.mcp_server_manager import mcp_server_manager
-from genai.tools.provider  import tool_provider, ToolType
+from genai.tools.provider import tool_provider
 
 
 class ToolHandlers:

@@ -60,11 +60,11 @@ class ServiceFactory:
             raise
 
     @classmethod
-    def create_agent_service(cls, module_name: str = 'deepsearch') -> AgentService:
+    def create_agent_service(cls, module_name: str = 'assistant') -> AgentService:
         """Create Strands agent service
         
         Args:
-            module_name: Name of the module requesting service (defaults to 'deepsearch')
+            module_name: Name of the module requesting service (defaults to 'assistant')
             
         Returns:
             AgentService: Configured service instance

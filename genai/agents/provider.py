@@ -8,7 +8,7 @@ from strands.models import BedrockModel
 from strands.models.openai import OpenAIModel
 from utils.aws import get_aws_session
 from genai.models.model_manager import model_manager
-from genai.tools.provider import tool_provider, ToolType
+from genai.tools.provider import tool_provider
 from genai.agents.resp_format import create_text_chunk, create_tool_chunk, create_file_chunk
 
 
@@ -229,6 +229,44 @@ class AgentProvider:
             logger.debug(f"[AgentProvider] Unhandled event keys: {list(raw_event.keys())}")
         return None
 
+    async def _generate_with_mcp_context(self, prompt: str, base_tools: List, mcp_clients: List, model, history_messages):
+        """Generate response with MCP context management
+        
+        Args:
+            prompt: User prompt
+            base_tools: Non-MCP tools (legacy + strands)
+            mcp_clients: List of MCP clients requiring context management
+            model: Strands model instance
+            history_messages: Conversation history
+        """
+        from contextlib import ExitStack
+        
+        with ExitStack() as stack:
+            all_tools = base_tools.copy()
+            
+            # Enter all MCP client contexts
+            for client in mcp_clients:
+                try:
+                    stack.enter_context(client)
+                    mcp_tools = client.list_tools_sync()
+                    all_tools.extend(mcp_tools)  # Strands native mixed tool support!
+                    logger.debug(f"[AgentProvider] Added {len(mcp_tools)} tools from MCP client")
+                except Exception as e:
+                    logger.warning(f"[AgentProvider] Failed to get tools from MCP client: {e}")
+            
+            # Create Agent with mixed tools - Strands handles everything natively!
+            agent = Agent(
+                tools=all_tools,
+                system_prompt=self.system_prompt,
+                model=model,
+                messages=history_messages
+            )
+            logger.info(f"[AgentProvider] Initialized Strands Agent with {len(all_tools)} mixed tools")
+            
+            # Process events normally
+            async for event_data in self._process_events(agent, prompt):
+                yield event_data
+
     async def _process_events(self, agent, prompt: str) -> AsyncIterator[Dict]:
         """Process events from the agent and standardize the format"""
         logger.debug(f"[AgentProvider] Processing events for prompt: {prompt}")
@@ -278,35 +316,38 @@ class AgentProvider:
             
             tools_enabled = tool_config.get('enabled', True)
             include_legacy = tool_config.get('include_legacy', True)
-            include_mcp = tool_config.get('include_mcp', False)  # Default disable MCP
-            include_strands = tool_config.get('include_strands', True)
-            tool_filter = tool_config.get('tool_filter', None)
+            mcp_tools_enabled = tool_config.get('mcp_tools_enabled', False)  # Default disable MCP
+            strands_tools_enabled = tool_config.get('strands_tools_enabled', True)
 
             # Get tools if enabled
             if tools_enabled:
                 try:
-                    await tool_provider.initialize()
+                    # Use tool provider with native Strands mixed tool support
+                    base_tools, mcp_clients = tool_provider.get_tools_and_contexts({
+                        'include_legacy': include_legacy,
+                        'mcp_tools_enabled': mcp_tools_enabled,
+                        'strands_tools_enabled': strands_tools_enabled
+                    })
                     
-                    if include_mcp:
-                        logger.warning("[AgentProvider] MCP tools enabled - may impact performance")
-                    
-                    tools = await tool_provider.get_tools_for_agent(
-                        tool_filter=tool_filter,
-                        include_legacy=include_legacy,
-                        include_mcp=include_mcp,
-                        include_strands=include_strands
-                    )
-                    
-                    agent = Agent(
-                        tools=tools,
-                        system_prompt=self.system_prompt,
-                        model=model,
-                        messages=history_messages
-                    )
-                    logger.info(f"[AgentProvider] Initialized Strands Agent with {len(tools)} tools")
-                    
-                    async for event_data in self._process_events(agent, prompt):
-                        yield event_data
+                    if mcp_tools_enabled and mcp_clients:
+                        logger.info(f"[AgentProvider] Using MCP tools with {len(mcp_clients)} clients")
+                        # Use MCP context management
+                        async for event_data in self._generate_with_mcp_context(
+                            prompt, base_tools, mcp_clients, model, history_messages
+                        ):
+                            yield event_data
+                    else:
+                        # No MCP tools, direct Agent creation
+                        agent = Agent(
+                            tools=base_tools,
+                            system_prompt=self.system_prompt,
+                            model=model,
+                            messages=history_messages
+                        )
+                        logger.info(f"[AgentProvider] Initialized Strands Agent with {len(base_tools)} tools")
+                        
+                        async for event_data in self._process_events(agent, prompt):
+                            yield event_data
                     
                 except Exception as e:
                     logger.error(f"[AgentProvider] Error loading tools: {str(e)}", exc_info=True)
@@ -339,42 +380,29 @@ class AgentProvider:
     async def get_available_tools(self) -> Dict[str, List[Dict]]:
         """Get information about available tools"""
         try:
-            await tool_provider.initialize()
+            tools_info = tool_provider.list_tools()
             
-            legacy_tools = tool_provider.list_tools(ToolType.LEGACY)
-            mcp_tools = tool_provider.list_tools(ToolType.MCP)
+            # Group by type
+            legacy_tools = [t for t in tools_info if t['type'] == 'legacy']
+            strands_tools = [t for t in tools_info if t['type'] == 'strands']
+            mcp_tools = [t for t in tools_info if t['type'] == 'mcp_server']
             
             return {
-                'legacy': [
-                    {
-                        'name': tool.name,
-                        'description': tool.description,
-                        'enabled': tool.enabled,
-                        'package': tool.config.get('package') if hasattr(tool, 'config') and tool.config else None
-                    }
-                    for tool in legacy_tools
-                ],
-                'mcp': [
-                    {
-                        'name': tool.name,
-                        'description': tool.description,
-                        'enabled': tool.enabled,
-                        'server': tool.config.get('server') if hasattr(tool, 'config') and tool.config else None
-                    }
-                    for tool in mcp_tools
-                ]
+                'legacy': legacy_tools,
+                'strands': strands_tools,
+                'mcp': mcp_tools
             }
         except Exception as e:
             logger.error(f"[AgentProvider] Error getting available tools: {str(e)}")
-            return {'legacy': [], 'mcp': []}
+            return {'legacy': [], 'strands': [], 'mcp': []}
 
     def enable_tool(self, tool_name: str):
-        """Enable a specific tool"""
-        tool_provider.enable_tool(tool_name)
+        """Enable a specific tool (placeholder for future implementation)"""
+        logger.info(f"[AgentProvider] Enable tool requested: {tool_name}")
 
     def disable_tool(self, tool_name: str):
-        """Disable a specific tool"""
-        tool_provider.disable_tool(tool_name)
+        """Disable a specific tool (placeholder for future implementation)"""
+        logger.info(f"[AgentProvider] Disable tool requested: {tool_name}")
 
     async def reload_tools(self):
         """Reload all tools"""

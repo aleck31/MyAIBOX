@@ -63,10 +63,13 @@ def create_tools_tab() -> Dict[str, Any]:
                     interactive=False
                 )
                 
-                # Enable/Disable Controls
+                # Enable/Disable/Delete Controls
                 with gr.Row():
                     enable_server_btn = gr.Button("✅ Enable", variant="primary")
-                    disable_server_btn = gr.Button("❌ Disable", variant="stop")
+                    disable_server_btn = gr.Button("❌ Disable", variant="secondary")
+                
+                with gr.Row():
+                    delete_server_btn = gr.Button("🗑️ Delete Server", variant="stop")
         
         # Server Tools Section
         gr.Markdown("### Available Tools")
@@ -128,7 +131,9 @@ def create_tools_tab() -> Dict[str, Any]:
             visible=False
         )
         
-        # Handle server selection - using inline function like model management
+        # Event Bindings - Handle all tool management events within this tab
+        
+        # Handle server selection
         def handle_server_select(evt: gr.SelectData, servers_data):
             """Handle server selection from the dataframe"""
             
@@ -202,27 +207,71 @@ def create_tools_tab() -> Dict[str, Any]:
                 server_tools_list
             ]
         )
+        
+        # Bind button events - All tool management events handled within this tab
+        
+        # Refresh MCP servers with tool counts
+        refresh_servers_btn.click(
+            fn=ToolHandlers.refresh_mcp_servers_with_tools,
+            inputs=[],
+            outputs=[mcp_servers_list, status_message]
+        )
+        
+        # Enable server
+        enable_server_btn.click(
+            fn=ToolHandlers.enable_server,
+            inputs=[selected_server],
+            outputs=[mcp_servers_list, status_message]
+        )
+        
+        # Disable server
+        disable_server_btn.click(
+            fn=ToolHandlers.disable_server,
+            inputs=[selected_server],
+            outputs=[mcp_servers_list, status_message]
+        )
+        
+        # Delete server
+        delete_server_btn.click(
+            fn=ToolHandlers.delete_mcp_server,
+            inputs=[selected_server],
+            outputs=[mcp_servers_list, status_message]
+        )
+        
+        # Test connection
+        test_connection_btn.click(
+            fn=ToolHandlers.test_server_connection,
+            inputs=[selected_server],
+            outputs=[connection_test_results, status_message]
+        ).success(
+            # Show test results
+            fn=lambda: gr.update(visible=True),
+            outputs=[connection_test_results]
+        )
+        
+        # Add new server
+        add_server_btn.click(
+            fn=ToolHandlers.add_mcp_server,
+            inputs=[
+                new_server_name,
+                new_server_type,
+                new_server_url,
+                new_server_args
+            ],
+            outputs=[mcp_servers_list, status_message]
+        ).success(
+            # Clear form after successful addition
+            fn=lambda: ("", "http", "", ""),
+            outputs=[
+                new_server_name,
+                new_server_type,
+                new_server_url,
+                new_server_args
+            ]
+        )
     
-    # Return components for external access
+    # Return only components needed for external access (mainly for initialization)
     return {
         'mcp_servers_list': mcp_servers_list,
-        'server_tools_list': server_tools_list,
-        'selected_server': selected_server,
-        'server_name_display': server_name_display,
-        'server_type_display': server_type_display,
-        'server_url_display': server_url_display,
-        'server_status_display': server_status_display,
-        'new_server_name': new_server_name,
-        'new_server_type': new_server_type,
-        'new_server_url': new_server_url,
-        'new_server_args': new_server_args,
-        'status_message': status_message,
-        'connection_test_results': connection_test_results,
-        'buttons': {
-            'refresh_servers': refresh_servers_btn,
-            'test_connection': test_connection_btn,
-            'enable_server': enable_server_btn,
-            'disable_server': disable_server_btn,
-            'add_server': add_server_btn
-        }
+        'status_message': status_message
     }

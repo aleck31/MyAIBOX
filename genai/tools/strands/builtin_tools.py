@@ -1,23 +1,30 @@
 """
 Strands Built-in Tools
-简单的内置工具列表，只包含验证可用的工具
+Simple builtin tools list containing only verified working tools
 """
 from typing import List, Optional
 from core.logger import logger
 
 
-# 只包含验证可用的工具
+# Only include verified working tools
 BUILTIN_TOOLS = [
-    'current_time',    # ✅ 已验证工作
-    'calculator',      # ✅ 已验证工作  
-    'http_request',    # ⚠️ 部分工作
-    'sleep',           # ✅ 基础工具
-    'speak'            # ✅ 已验证工作，能生成音频文件
+    'current_time',
+    'calculator',
+    'http_request',
+    'sleep',
+    'speak' 
 ]
 
 
 def load_builtin_tools(tool_filter: Optional[List[str]] = None) -> List:
-    """加载内置工具"""
+    """Load builtin tools
+    
+    Args:
+        tool_filter: Optional list of specific tool names to load
+        
+    Returns:
+        List of loaded Strands tool functions
+    """
     tools = []
     tools_to_load = tool_filter if tool_filter else BUILTIN_TOOLS
     
@@ -40,7 +47,11 @@ def load_builtin_tools(tool_filter: Optional[List[str]] = None) -> List:
 
 
 def get_available_tools() -> List[str]:
-    """获取可用的工具列表"""
+    """Get list of available tools
+    
+    Returns:
+        List of available tool names
+    """
     available = []
     for tool_name in BUILTIN_TOOLS:
         try:

@@ -159,12 +159,17 @@ class AssistantHandlers(BaseHandler[AgentService]):
 
             service, session = await cls._init_session(request)
             
+            # Load tool configuration from database
+            from core.module_config import module_config
+            module_cfg = module_config.get_module_config('assistant')
+            enabled_legacy_tools = module_cfg.get('enabled_tools', []) if module_cfg else []
+            
+            # Use new simplified tool_config format
             tool_config = {
-                'enabled': True, 
-                'include_legacy': True, 
-                'include_mcp': False,  # Default disable MCP for performance
-                'include_strands': True, 
-                'tool_filter': None
+                'enabled': True,
+                'legacy_tools': enabled_legacy_tools,  # Direct list of tool names
+                'mcp_tools_enabled': True,   # Enable MCP tools for Assistant
+                'strands_tools_enabled': True,  # Enable Strands tools
             }
 
             # Configuration constants

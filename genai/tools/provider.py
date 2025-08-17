@@ -1,251 +1,205 @@
 """
-Tool Provider for MyAIBOX
-Unified management of Python tools and MCP tools for Strands Agents
+Simplified Tool Provider for MyAIBOX
+Leverages Strands native mixed tool support for unified tool management
 """
-from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass
-from enum import Enum
+from typing import Dict, List, Optional, Any, Tuple
+from contextlib import ExitStack
 from core.logger import logger
-from genai.tools.mcp.mcp_server_manager import mcp_server_manager  # MCP server configuration manager
-# Delay imports to avoid circular dependencies
-# from genai.tools.legacy.tool_registry import legacy_tool_registry  # Python tool registry
-
-
-class ToolType(Enum):
-    """Tool type enumeration"""
-    LEGACY = "legacy"
-    MCP = "mcp"
-    STRANDS = "strands"
-
-
-@dataclass
-class ToolInfo:
-    """Simplified tool information container"""
-    name: str
-    type: ToolType
-    description: str
-    enabled: bool = True
 
 
 class ToolProvider:
-    """Unified tool provider"""
+    """Simplified unified tool provider leveraging Strands native capabilities"""
     
     def __init__(self):
         # Lazy loading to avoid circular imports
         self._legacy_registry = None
-        self._mcp_manager = None
-        self._mcp_clients: Dict[str, Any] = {}
-        self._initialized = False
+        self._mcp_server_manager = None
     
     @property
     def legacy_registry(self):
         """Lazy load legacy tool registry"""
         if self._legacy_registry is None:
-            # Import dynamically to avoid circular imports
             from genai.tools.legacy.tool_registry import legacy_tool_registry
             self._legacy_registry = legacy_tool_registry
         return self._legacy_registry
     
     @property
-    def mcp_manager(self):
+    def mcp_server_manager(self):
         """Lazy load MCP server manager"""
-        if self._mcp_manager is None:
-            self._mcp_manager = mcp_server_manager
-        return self._mcp_manager
+        if self._mcp_server_manager is None:
+            from genai.tools.mcp.mcp_server_manager import mcp_server_manager
+            self._mcp_server_manager = mcp_server_manager
+        return self._mcp_server_manager
     
-    async def initialize(self):
-        """Initialize MCP clients only (legacy tools are already loaded)"""
-        if self._initialized:
-            return
-        
-        # TODO: Re-enable MCP clients after proper integration design
-        # Temporarily disable MCP client initialization to fix performance issues
-        logger.info("[ToolProvider] Initializing tool provider (MCP disabled)...")
-        
-        # DISABLED: MCP client initialization
-        # try:
-        #     # Initialize MCP clients
-        #     mcp_servers = self.mcp_manager.get_mcp_servers()
-        #     
-        #     for server_name, server_config in mcp_servers.items():
-        #         if server_config.get("disabled", False):
-        #             continue
-        #         
-        #         try:
-        #             mcp_client = await self._create_mcp_client(server_name, server_config)
-        #             if mcp_client:
-        #                 self._mcp_clients[server_name] = mcp_client
-        #                 logger.debug(f"[ToolProvider] Initialized MCP client: {server_name}")
-        #         except Exception as e:
-        #             logger.error(f"[ToolProvider] Failed to initialize MCP client {server_name}: {e}")
-        #     
-        #     self._initialized = True
-        #     logger.info(f"[ToolProvider] Initialized with {len(self._mcp_clients)} MCP clients")
-        #     
-        # except Exception as e:
-        #     logger.error(f"[ToolProvider] Error during initialization: {str(e)}")
-        #     raise
-        
-        # Initialize empty MCP clients dict
-        self._mcp_clients = {}
-        self._initialized = True
-        logger.info(f"[ToolProvider] Initialized with {len(self._mcp_clients)} MCP clients (MCP disabled)")
-    
-    async def _create_mcp_client(self, server_name: str, server_config: Dict) -> Optional[Any]:
-        """Create MCP client - delegates to existing manager logic"""
-        try:
-            # Lazy import to avoid circular dependencies
-            from strands.tools.mcp import MCPClient
-            
-            server_type = self.mcp_manager.get_mcp_server_type(server_config)
-            
-            if server_type == "stdio":
-                from mcp import stdio_client, StdioServerParameters
-                return MCPClient(
-                    lambda: stdio_client(
-                        StdioServerParameters(
-                            command=server_config["command"],
-                            args=server_config.get("args", []),
-                            env=server_config.get("env", {})
-                        )
-                    )
-                )
-            elif server_type == "http":
-                from mcp.client.streamable_http import streamablehttp_client
-                return MCPClient(lambda: streamablehttp_client(server_config["url"]))
-            elif server_type == "sse":
-                from mcp.client.sse import sse_client
-                return MCPClient(lambda: sse_client(server_config["url"]))
-            else:
-                logger.error(f"[ToolProvider] Unsupported server type: {server_type}")
-                return None
-                
-        except Exception as e:
-            logger.error(f"[ToolProvider] Failed to create MCP client for {server_name}: {e}")
-            return None
-    
-    async def get_tools_for_agent(self, 
-                                  tool_filter: Optional[List[str]] = None,
-                                  include_legacy: bool = True,
-                                  include_mcp: bool = True,
-                                  include_strands: bool = True) -> List[Callable]:
-        """Get tools for Strands Agent"""
-        if not self._initialized:
-            await self.initialize()
-        
-        tools = []
-        
-        # Add legacy tools
-        if include_legacy:
-            # Lazy import to avoid circular dependencies
-            from strands import tool
-            
-            for tool_name, tool_func in self.legacy_registry.tools.items():
-                if tool_filter and tool_name not in tool_filter:
-                    continue
-                
-                # Convert to Strands tool
-                strands_tool = tool(tool_func)
-                tools.append(strands_tool)
-        
-        # Add Strands built-in tools
-        if include_strands:
-            try:
-                from genai.tools.strands.builtin_tools import load_builtin_tools
-                strands_tools = load_builtin_tools(tool_filter)
-                tools.extend(strands_tools)
-                logger.debug(f"[ToolProvider] Added {len(strands_tools)} Strands tools")
-            except ImportError:
-                logger.warning("[ToolProvider] Strands builtin tools not available")
-        
-        # DISABLED: MCP tools - temporarily disabled for performance
-        # Add MCP tools - Fixed: Proper MCP client usage according to Strands documentation
-        # if include_mcp:
-        #     # According to Strands docs, MCP tools should be used within Agent's context
-        #     # We'll provide the MCP clients to the Agent instead of pre-listing tools
-        #     for server_name, mcp_client in self._mcp_clients.items():
-        #         try:
-        #             # Don't use context manager here - let Agent handle MCP session lifecycle
-        #             # Just verify the client is available
-        #             if hasattr(mcp_client, '_transport_callable'):
-        #                 logger.debug(f"[ToolProvider] MCP client {server_name} available for agent")
-        #                 # Note: Agent will handle MCP tools within its own context manager
-        #                 # For now, we skip adding MCP tools to avoid session conflicts
-        #                 # This needs to be handled at the Agent level
-        #         except Exception as e:
-        #             logger.debug(f"[ToolProvider] MCP client {server_name} not available: {e}")
-        #             continue
-        
-        if include_mcp:
-            logger.debug("[ToolProvider] MCP tools requested but temporarily disabled")
-        
-        logger.debug(f"[ToolProvider] Returning {len(tools)} tools for agent")
-        return tools
-    
-    def list_tools(self, tool_type: Optional[ToolType] = None, enabled_only: bool = True) -> List[ToolInfo]:
-        """List tools by type with filtering options
+    def get_tools_and_contexts(self, tool_config: Dict) -> Tuple[List, List]:
+        """Get all tools and required context managers
         
         Args:
-            tool_type: Optional filter by tool type
-            enabled_only: Whether to return only enabled tools
+            tool_config: Tool configuration dictionary
             
         Returns:
-            List of tool information
+            Tuple of (tools_list, context_managers_list)
+            
+        Note:
+            Leverages Strands native mixed tool support - simply returns a list
+            of tools that can be directly passed to Agent(tools=tools_list)
         """
+        if not tool_config.get('enabled', True):
+            logger.debug("[ToolProvider] Tools disabled by configuration")
+            return [], []
+            
         tools = []
+        context_managers = []
+        
+        # Load specific legacy tools
+        legacy_tool_names = tool_config.get('legacy_tools', [])
+        if legacy_tool_names:
+            legacy_tools = self._get_specific_legacy_tools(legacy_tool_names)
+            tools.extend(legacy_tools)
+            logger.debug(f"[ToolProvider] Added {len(legacy_tools)} legacy tools")
+        
+        # Strands builtin tools
+        if tool_config.get('strands_tools_enabled', True):
+            strands_tools = self._get_strands_tools()
+            tools.extend(strands_tools)
+            logger.debug(f"[ToolProvider] Added {len(strands_tools)} Strands tools")
+        
+        # MCP tools (require context management)
+        if tool_config.get('mcp_tools_enabled', False):
+            mcp_clients = self._get_mcp_clients()
+            context_managers.extend(mcp_clients)
+            logger.debug(f"[ToolProvider] Added {len(mcp_clients)} MCP clients")
+        
+        logger.debug(f"[ToolProvider] Total: {len(tools)} direct tools, {len(context_managers)} MCP clients")
+        return tools, context_managers
+
+    def _get_specific_legacy_tools(self, tool_names: List[str]) -> List:
+        """Get specific legacy tools by name
+        
+        Args:
+            tool_names: List of specific tool names to load
+            
+        Returns:
+            List of Strands-compatible tool functions
+        """
+        from strands import tool
+        
+        tools = []
+        for tool_name in tool_names:
+            if tool_name in self.legacy_registry.tools:
+                # Convert to Strands tool using @tool decorator
+                strands_tool = tool(self.legacy_registry.tools[tool_name])
+                tools.append(strands_tool)
+                logger.debug(f"[ToolProvider] Loaded legacy tool: {tool_name}")
+            else:
+                logger.warning(f"[ToolProvider] Legacy tool not found: {tool_name}")
+        
+        return tools
+    
+    def _get_strands_tools(self) -> List:
+        """Get all Strands builtin tools"""
+        try:
+            from genai.tools.strands.builtin_tools import load_builtin_tools
+            # Load all Strands tools by default
+            return load_builtin_tools()
+        except ImportError:
+            logger.warning("[ToolProvider] Strands builtin tools not available")
+            return []
+    
+    def _get_mcp_clients(self) -> List:
+        """Get all enabled MCP clients"""
+        
+        clients = []
+        servers = self.mcp_server_manager.get_mcp_servers()
+        
+        for server_name, server_config in servers.items():
+            if server_config.get('disabled', False):
+                logger.debug(f"[ToolProvider] Skipping disabled MCP server: {server_name}")
+                continue
+            
+            try:
+                client = self._create_mcp_client(server_config)
+                if client:
+                    clients.append(client)
+                    logger.debug(f"[ToolProvider] Created MCP client: {server_name}")
+            except Exception as e:
+                logger.warning(f"[ToolProvider] Failed to create MCP client {server_name}: {e}")
+        
+        return clients
+    
+    def _create_mcp_client(self, server_config: Dict):
+        """Create single MCP client based on server configuration"""
+        from strands.tools.mcp import MCPClient
+        
+        server_type = self.mcp_server_manager.get_mcp_server_type(server_config)
+        
+        if server_type == 'stdio':
+            from mcp import stdio_client, StdioServerParameters
+            return MCPClient(lambda: stdio_client(
+                StdioServerParameters(
+                    command=server_config['command'],
+                    args=server_config.get('args', []),
+                    env=server_config.get('env', {})
+                )
+            ))
+        elif server_type == 'http':
+            from mcp.client.streamable_http import streamablehttp_client
+            return MCPClient(lambda: streamablehttp_client(server_config['url']))
+        elif server_type == 'sse':
+            from mcp.client.sse import sse_client
+            return MCPClient(lambda: sse_client(server_config['url']))
+        else:
+            logger.error(f"[ToolProvider] Unsupported MCP server type: {server_type}")
+            return None
+    
+    def list_tools(self, enabled_only: bool = True) -> List[Dict]:
+        """List available tools for UI/debugging purposes"""
+        tools_info = []
         
         # Legacy tools
         for tool_name, tool_func in self.legacy_registry.tools.items():
             description = tool_func.__doc__ or f"Legacy tool: {tool_name}"
-            tool_info = ToolInfo(
-                name=tool_name,
-                type=ToolType.LEGACY,
-                description=description.strip()
-            )
-            tools.append(tool_info)
+            tools_info.append({
+                'name': tool_name,
+                'type': 'legacy',
+                'description': description.strip(),
+                'enabled': True
+            })
         
-        # MCP tools (if initialized)
-        if self._initialized:
-            for server_name, mcp_client in self._mcp_clients.items():
-                try:
-                    # Skip if client session is already running to avoid conflicts
-                    if hasattr(mcp_client, '_session') and mcp_client._session and getattr(mcp_client._session, 'is_running', False):
-                        logger.debug(f"[ToolProvider] Skipping {server_name} - session already running")
-                        continue
-                    
-                    with mcp_client:
-                        mcp_tools = mcp_client.list_tools_sync()
-                        for mcp_tool in mcp_tools:
-                            tool_name_attr = getattr(mcp_tool, 'tool_name', None) or getattr(mcp_tool, 'name', None)
-                            if tool_name_attr:
-                                description = getattr(mcp_tool, 'description', f"MCP tool from {server_name}")
-                                tool_info = ToolInfo(
-                                    name=f"{server_name}:{tool_name_attr}",
-                                    type=ToolType.MCP,
-                                    description=description
-                                )
-                                tools.append(tool_info)
-                except Exception as e:
-                    logger.debug(f"[ToolProvider] Could not list tools from {server_name}: {e}")
-                    # Continue with other servers even if one fails
-                    continue
+        # Strands tools
+        try:
+            from genai.tools.strands.builtin_tools import BUILTIN_TOOLS
+            for tool_name in BUILTIN_TOOLS:
+                tools_info.append({
+                    'name': tool_name,
+                    'type': 'strands',
+                    'description': f"Strands builtin tool: {tool_name}",
+                    'enabled': True
+                })
+        except ImportError:
+            pass
         
-        # Apply filters
-        if tool_type:
-            tools = [tool for tool in tools if tool.type == tool_type]
+        # MCP servers
+        servers = self.mcp_server_manager.get_mcp_servers()
+        for server_name, server_config in servers.items():
+            tools_info.append({
+                'name': server_name,
+                'type': 'mcp_server',
+                'description': f"MCP server: {server_name}",
+                'enabled': not server_config.get('disabled', False)
+            })
         
         if enabled_only:
-            tools = [tool for tool in tools if tool.enabled]
+            tools_info = [tool for tool in tools_info if tool['enabled']]
         
-        return tools
+        return tools_info
     
     async def reload_tools(self):
-        """Reload all tools (compatibility method for handler_tools.py)"""
-        logger.info("[ToolProvider] Reloading all tools...")
-        self._mcp_clients.clear()
-        self._initialized = False
-        await self.initialize()
+        """Reload tools (legacy compatibility)"""
+        logger.info("[ToolProvider] Reload tools called")
+        # In simplified version, tools are loaded on-demand, so no action needed
+        pass
 
 
-# Create singleton instance - no immediate initialization to avoid circular imports
+# Create singleton instance
 tool_provider = ToolProvider()

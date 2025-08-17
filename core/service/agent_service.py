@@ -19,7 +19,7 @@ class AgentService(BaseService):
         super().__init__(module_name)
         self._agent_providers: Dict[str, AgentProvider] = {}
     
-    def _convert_ui_to_strands_format(self, ui_history: List[Dict]) -> List:
+    def _convert_to_strands_format(self, ui_history: List[Dict]) -> List:
         """Convert UI history messages to Strands Message format
         
         Args:
@@ -97,38 +97,22 @@ class AgentService(BaseService):
                 self._agent_provider = None
 
     def _get_default_tool_config(self) -> Dict[str, Any]:
-        """Get default tool configuration for this module
+        """Get default tool configuration for the service
+        
+        Note: No longer reads from database - modules should pass their own legacy_tools
         
         Returns:
             Default tool configuration dictionary
         """
-        try:
-            # Get module configuration for tool filtering
-            from core.module_config import module_config
-            config = module_config.get_module_config(self.module_name)
-            enabled_tools = config.get('enabled_tools', []) if config else []
-            
-            tool_config = {
-                'enabled': True,
-                'include_legacy': True,
-                'include_mcp': False,  # Default disable MCP for performance
-                'include_strands': True,
-                'tool_filter': enabled_tools if enabled_tools else None
-            }
-            
-            logger.debug(f"[AgentService] Using tool filter from database: {enabled_tools}")
-            return tool_config
-            
-        except Exception as e:
-            logger.error(f"[AgentService] Error getting module config: {str(e)}")
-            # Fallback to basic config
-            return {
-                'enabled': True,
-                'include_legacy': True,
-                'include_mcp': False,
-                'include_strands': True,
-                'tool_filter': None
-            }
+        tool_config = {
+            'enabled': True,
+            'legacy_tools': [],  # Empty by default - modules should specify their tools
+            'mcp_tools_enabled': False,  # Default disable MCP for performance
+            'strands_tools_enabled': True,
+        }
+        
+        logger.debug(f"[AgentService] Using default tool config (no legacy tools)")
+        return tool_config
 
     async def _generate_stream_async(
         self, 
@@ -164,7 +148,7 @@ class AgentService(BaseService):
             # Convert UI history to Strands format if provided
             strands_history = None
             if history:
-                strands_history = self._convert_ui_to_strands_format(history)
+                strands_history = self._convert_to_strands_format(history)
 
             # Use provided tool config or get default
             if tool_config is None:

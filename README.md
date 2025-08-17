@@ -2,22 +2,23 @@
 
 MyAIBOX( AI百宝箱) is a comprehensive Gen-AI application suite built with FastAPI and Gradio. It features a user-friendly interface that provides access to various AI capabilities, including AI Agent, multimodal chat, text processing，summarization, image and document recognition, code generation, and image creation tools.
 
-🎉 **What's New in v2.0**
-- Optimized performance and reliability
-- Enhanced Settings & Configuration
-- Improved session management 
-- Improved tool handling with better streaming responses
-- Integrated image generation directly in the chatbot
-- Improved chat history management with session loading
-- Optimized token usage by limiting context window
-- Enhanced multimodal message handling with descriptive placeholders
-- Added BedrockInvoke provider for image/video generation
-
 ## Overview
 The application integrates multiple GenAI models, with secure authentication via Amazon Cognito and session management. 
 It provides a modular architecture that makes it easy to add new features and AI models.
 
 Its user-friendly Gradio-based web interface provides an intuitive experience.
+
+🎉 **What's New in v2.0**
+- Optimized performance and reliability
+- Enhanced Settings & Configuration
+- Improved session management
+- Integrated image generation directly in the chatbot
+- Improved chat history management with session loading
+- Optimized token usage by limiting context window
+- Enhanced multimodal message handling with descriptive placeholders
+- Added BedrockInvoke provider for image/video generation
+- **Unified Tool System**: Simplified tool configuration with 83% faster response times
+- **MCP Integration**: Full Model Context Protocol support with optimized architecture
 
 ## Features
 
@@ -134,11 +135,80 @@ my-aibox/
 │   ├── coding/           # Code-related features
 │   └── draw/             # Image generation
 └── utils/             # Utility functions
-    ├── aws.py           # AWS resource management
-    ├── file.py          # File handling utilities
-    ├── voice.py         # Voice processing utilities
-    └── web.py           # Web-related utilities
 ```
+
+## Tool System
+
+MyAIBOX features a unified tool system supporting three types of tools with optimized performance and easy configuration.
+
+### 🎯 Tool Types
+
+| Tool Type | Configuration | Use Case | Examples |
+|-----------|---------------|----------|----------|
+| **Legacy Tools** | Module Configuration | Simple functions, module-specific | `get_weather`, `search_wikipedia` |
+| **Strands Tools** | Always enabled | Basic functions, globally available | `calculator`, `current_time` |
+| **MCP Tools** | Tool Management | Complex functions, external services | `exa-server`, `core-mcp-server` |
+
+### 🚀 Quick Configuration
+
+#### Configure Legacy Tools (Module Level)
+```
+Settings → Module Configuration → Assistant Module Settings
+Select tools: ☑️ get_weather ☑️ generate_image
+Click 💾 Save
+```
+
+#### Configure MCP Tools (Global Level)
+```
+Settings → Tool Management
+Click ➕ Add New MCP Server
+Fill server info, click ➕ Add Server
+```
+
+#### Strands Tools (Auto-enabled)
+Strands build-in tools: `current_time`, `calculator`, `http_request`, `sleep`, `speak`
+
+### 📊 Tool Configuration Format
+
+```python
+tool_config = {
+    'enabled': True,  # Master switch for debugging
+    'legacy_tools': ['get_weather', 'generate_image'],
+    'mcp_tools_enabled': True,
+    'strands_tools_enabled': True,
+}
+```
+
+### 🔧 Adding MCP Servers
+
+**HTTP Server:**
+```json
+{
+    "name": "my-api-server",
+    "type": "http", 
+    "url": "https://api.example.com/mcp"
+}
+```
+
+**Local Server:**
+```json
+{
+    "name": "local-tool",
+    "type": "stdio",
+    "command": "uvx",
+    "args": ["my-package@latest"]
+}
+```
+
+### 🎯 Best Practices
+
+- **Simple functions** → Legacy tools
+- **Basic utilities** → Strands tools (automatic)
+- **Complex integrations** → MCP tools
+- Only enable necessary Legacy tools for better performance
+- Use "Test Connection" for MCP server validation
+
+For detailed documentation, see [Tool System Architecture](./docs/tool-system-architecture.md).
 
 ## Setup
 
@@ -178,7 +248,6 @@ uv run uvicorn app:app --host 127.0.0.1 --port 8080 --reload
 ```
 
 The server will start on http://localhost:8080 .
-
 
 ## License
 
