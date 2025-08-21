@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 from datetime import datetime
-from core.logger import logger
+from common.logger import logger
 from core.session import Session, SessionStore
 from core.module_config import module_config
 from genai.models.model_manager import model_manager

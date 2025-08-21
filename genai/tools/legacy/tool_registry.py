@@ -1,7 +1,7 @@
 import inspect
 import importlib
 from typing import Dict, Any, List, Optional, Callable
-from core.logger import logger
+from common.logger import logger
 
 
 class LegacyToolRegistry:

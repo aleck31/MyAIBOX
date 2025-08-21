@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, AsyncIterator, Any, List, Optional
-from core.logger import logger
+from common.logger import logger
 from core.service import BaseService
 from core.session.models import Session
 from genai.agents.provider import AgentProvider
@@ -175,7 +175,7 @@ class AgentService(BaseService):
         prompt: str, 
         system_prompt: str, 
         history: List[Dict],
-        tool_config: Dict[str, Any] = None
+        tool_config: Dict[str, Any]
     ) -> AsyncIterator[Dict]:
         """
         Generate streaming response with conversation history (multi-turn)

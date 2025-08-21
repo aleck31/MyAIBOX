@@ -2,14 +2,13 @@ import asyncio
 import sys
 import os
 import logging
-from typing import Dict, Optional
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.logger import logger
 from core.session import Session
 from core.service.gen_service import GenService
+from common.logger import logger
 
 # Configure logging
 logger.setLevel(logging.DEBUG)

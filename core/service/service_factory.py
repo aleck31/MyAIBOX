@@ -1,4 +1,4 @@
-from core.logger import logger
+from common.logger import logger
 from .chat_service import ChatService
 from .gen_service import GenService
 from .draw_service import DrawService

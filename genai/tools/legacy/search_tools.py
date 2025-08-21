@@ -3,7 +3,7 @@ import wikipedia
 from strands import tool
 from googlesearch import search as google_search
 from cachetools import TTLCache
-from core.logger import logger
+from common.logger import logger
 
 
 # Constants

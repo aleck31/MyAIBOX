@@ -1,7 +1,7 @@
 import json
 from typing import Dict, List, Optional, Iterator, Union
 from botocore import exceptions as boto_exceptions
-from core.logger import logger
+from common.logger import logger
 from core.config import env_config
 from utils.aws import get_aws_client
 from . import LLMAPIProvider, LLMParameters, GenImageParameters, LLMMessage, LLMResponse, LLMProviderError

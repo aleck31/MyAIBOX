@@ -15,9 +15,9 @@ from starlette.middleware.sessions import SessionMiddleware
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from core.auth import cognito_auth
-from core.config import app_config, env_config
-from common.login import get_auth_user
+from core.config import app_config
+from common.auth import cognito_auth
+from webui.login import get_auth_user
 
 
 class TestAuth(unittest.TestCase):

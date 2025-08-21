@@ -10,9 +10,9 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.logger import logger
 from core.session import Session, SessionMetadata
 from core.service.agent_service import AgentService
+from common.logger import logger
 from genai.models.model_manager import model_manager
 
 async def test_agent_service():

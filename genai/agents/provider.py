@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, AsyncIterator, Optional, List
-from core.logger import logger
+from common.logger import logger
 from core.config import env_config
 from strands import Agent
 from strands.models import BedrockModel
@@ -38,7 +38,7 @@ class ToolExecutionTracker:
                 logger.debug(f"[ToolTracker] Tool input updated: {tool_name} (ID: {tool_use_id})")
             return False  # Tool already exists
     
-    def complete_tool(self, tool_use_id: str, status: str = 'completed', result: str = None):
+    def finish_tool(self, tool_use_id: str, status: str = 'completed', result: Optional[str] = None):
         """Record tool execution completion"""
         if tool_use_id in self.active_tools:
             tool_info = self.active_tools.pop(tool_use_id)
@@ -164,14 +164,16 @@ class AgentProvider:
                                             result_data = content_item['text']
                             
                             # Complete tool execution tracking
-                            tool_info = self.tool_tracker.complete_tool(tool_use_id, status, result_data)
+                            tool_info = self.tool_tracker.finish_tool(tool_use_id, status, result_data)
                             
                             if tool_info:
+                                # Ensure result is a string for create_tool_chunk
+                                result_str = str(result_data) if result_data is not None else ""
                                 return create_tool_chunk(
                                     tool_info['name'], 
                                     tool_info['input'], 
                                     status, 
-                                    result_data
+                                    result_str
                                 )
         return None
 
@@ -275,13 +277,14 @@ class AgentProvider:
             async for event in agent.stream_async(prompt):
                 # Only log raw events in debug mode
                 if logger.isEnabledFor(10):  # DEBUG level is 10
-                    logger.debug(f"[AgentProvider] Raw event keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
+                    # logger.debug(f"[AgentProvider] Raw event keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
+                    pass
                 
                 # Standardize event
                 standardized_chunk = self._standardize_chunk(event)
                 
                 if standardized_chunk is not None:
-                    logger.debug(f"[AgentProvider] Yielding chunk: {list(standardized_chunk.keys())}")
+                    # logger.debug(f"[AgentProvider] Yielding chunk: {list(standardized_chunk.keys())}")
                     yield standardized_chunk
                     
         except Exception as e:

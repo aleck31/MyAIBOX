@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: MIT-0
 """Helper utilities for working with Amazon Bedrock from Python notebooks"""
 from typing import Optional
-from core.logger import logger
+from common.logger import logger
 from utils.aws import get_aws_client
+
 
 _BEDROCK_RUNTIME = None
 

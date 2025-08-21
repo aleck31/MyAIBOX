@@ -7,9 +7,8 @@ import random
 from pathlib import Path
 from typing import Dict
 from PIL import Image
-from core.logger import logger
-# Delay imports to avoid circular dependencies
-from modules.draw.prompts import NEGATIVE_PROMPTS
+from common.logger import logger
+from webui.modules.draw.prompts import NEGATIVE_PROMPTS
 
 
 def generate_image(

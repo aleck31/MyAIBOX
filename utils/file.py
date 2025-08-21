@@ -25,10 +25,30 @@ class FileProcessor:
         self.max_file_size = max_file_size
         # Target file size is 90% of max_file_size if provided, otherwise use a default
         self.target_file_size = int(max_file_size * 0.9) if max_file_size is not None else 4.5 * 1024 * 1024
-    
-    @staticmethod
-    def convert_to_rgb(image: Image.Image) -> Image.Image:
-        """Convert image to RGB format if needed by removing alpha channel
+
+    def _detect_image_format(self, file_path: str) -> Optional[str]:
+        """Detect actual image format using PIL
+        
+        Args:
+            file_path: Path to the image file
+            
+        Returns:
+            Detected format string (lowercase) or None if detection fails
+        """
+        try:
+            import PIL.Image
+            with PIL.Image.open(file_path) as img:
+                # PIL.Image.format returns the actual format (e.g., 'JPEG', 'PNG')
+                if format := img.format:
+                    # Convert to lowercase to match Bedrock expectations
+                    return format.lower()
+            return None
+        except Exception as e:
+            # If PIL detection fails, return None to fallback to extension-based detection
+            return None
+
+    def _image_to_rgb(self, image: Image.Image) -> Image.Image:
+        """Convert PIL Image to RGB format if needed by removing alpha channel
         
         Args:
             image: PIL Image object to convert
@@ -44,38 +64,22 @@ class FileProcessor:
             return background
         return image
 
-    def optimize_image(self, image: Image.Image, format: str = 'JPEG') -> Image.Image:
-        """Optimize image size and quality while maintaining visual information
-        
-        Quality levels are tried in sequence until target size is reached:
-        - 95%: High quality, minimal compression artifacts
-        - 75%: Balanced quality, good compression ratio
-        - 50%: Maximum compression, acceptable quality for LLM vision tasks
+    def _image_to_base64(self, image: Image.Image, optimize: bool = False) -> str:
+        """Convert PIL Image object to base64 string with optional optimization
         
         Args:
-            image: PIL Image object to optimize
+            image: PIL Image object to convert
+            optimize: Whether to optimize the image before conversion
             
         Returns:
-            PIL.Image: Optimized image
+            str: Base64 encoded string of the image
         """
-        # Convert to RGB if needed
-        image = self.convert_to_rgb(image)
-        
-        # Quality levels to try in order
-        quality_levels = [95, 75, 50]
-        
-        for quality in quality_levels:
-            buffer = BytesIO()
-            image.save(buffer, format=format, quality=quality, optimize=True)
-            size = buffer.tell()
-            
-            # If small enough or reached minimum quality, return this version
-            if size <= self.target_file_size or quality == quality_levels[-1]:
-                logging.debug(f"Optimized image with {quality}% quality: {size / 1024:.1f} KB")
-                buffer.seek(0)
-                return Image.open(buffer)
+        try:
+            return base64.b64encode(self._image_to_bytes(image, optimize)).decode("utf-8")
+        except Exception as e:
+            raise ValueError(f"Failed to convert image to base64: {str(e)}") from e
 
-    def image_to_bytes(self, image: Image.Image, optimize: bool = False, format: str = 'JPEG') -> bytes:
+    def _image_to_bytes(self, image: Image.Image, optimize: bool = False, format: str = 'JPEG') -> bytes:
         """Convert PIL Image to bytes with optional optimization and format specification
         
         Args:
@@ -91,21 +95,6 @@ class FileProcessor:
         img.save(buffer, format=format)
         return buffer.getvalue()
 
-    def image_to_base64(self, image: Image.Image, optimize: bool = False) -> str:
-        """Convert PIL Image object to base64 string with optional optimization
-        
-        Args:
-            image: PIL Image object to convert
-            optimize: Whether to optimize the image before conversion
-            
-        Returns:
-            str: Base64 encoded string of the image
-        """
-        try:
-            return base64.b64encode(self.image_to_bytes(image, optimize)).decode("utf-8")
-        except Exception as e:
-            raise ValueError(f"Failed to convert image to base64: {str(e)}") from e
-
     def read_file(self, file_path: str, optimize: bool = True) -> bytes:
         """Read file bytes from path with automatic type detection and optimization
         
@@ -117,13 +106,15 @@ class FileProcessor:
             bytes: File content as bytes
         """
         try:
-            # Auto-detect file type
-            file_type, _ = self.get_file_type_and_format(file_path)
+            # Detect file type and format
+            file_type, detected_format = self.get_file_type_and_format(file_path)
             
             # Process image files
             if file_type == 'image':
                 with Image.open(file_path) as img:
-                    return self.image_to_bytes(img, optimize)
+                    # Preserve original format to avoid MIME type mismatches with Nova
+                    original_format = detected_format.upper() if detected_format else 'JPEG'
+                    return self._image_to_bytes(img, optimize, format=original_format)
             
             # For non-image files, read raw bytes
             with open(file_path, 'rb') as f:
@@ -139,6 +130,40 @@ class FileProcessor:
                 f"Error type: {type(e).__name__}. "
                 f"Details: {str(e)}"
             )
+
+    def optimize_image(self, image: Image.Image, format: str) -> Image.Image:
+        """Optimize image size and quality while maintaining visual information
+        
+        Quality levels are tried in sequence until target size is reached:
+        - 95%: High quality, minimal compression artifacts
+        - 75%: Balanced quality, good compression ratio
+        - 50%: Maximum compression, acceptable quality for LLM vision tasks
+        
+        Args:
+            image: PIL Image object to optimize
+            
+        Returns:
+            PIL.Image: Optimized image
+        """
+        # Convert to RGB if needed
+        image = self._image_to_rgb(image)
+        
+        # Quality levels to try in order
+        quality_levels = [95, 75, 50]
+        
+        for quality in quality_levels:
+            buffer = BytesIO()
+            image.save(buffer, format=format, quality=quality, optimize=True)
+            size = buffer.tell()
+            
+            # If small enough or reached minimum quality, return this version
+            if size <= self.target_file_size or quality == quality_levels[-1]:
+                logging.debug(f"Optimized image with {quality}% quality: {size / 1024:.1f} KB")
+                buffer.seek(0)
+                return Image.open(buffer)
+
+        # Fallback: return original image if optimization fails
+        return image
 
     @staticmethod
     def file_to_base64(file_path: str) -> str:
@@ -179,10 +204,9 @@ class FileProcessor:
         sanitized_name = sanitized_name.strip()
         return sanitized_name
 
-    @staticmethod
-    def get_file_type_and_format(file_path: str) -> Tuple[Optional[str], Optional[str]]:
-        """Determine file type and format from file path
-        
+    def get_file_type_and_format(self, file_path: str) -> Tuple[Optional[str], Optional[str]]:
+        """Determine file type and format from file path and content 
+
         Args:
             file_path: Path to the file
             
@@ -194,11 +218,16 @@ class FileProcessor:
         except IndexError:
             return None, None
         
-        # Image formats - normalize to Bedrock supported formats
-        if ext in ['jpg', 'jpeg']:
-            return 'image', 'jpeg'
-        elif ext in ['png', 'gif', 'webp']:
-            return 'image', ext
+        # For images, use PIL to detect actual format (MIME type)
+        if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+            actual_format = self._detect_image_format(file_path)
+            if actual_format:
+                return 'image', actual_format
+            # Fallback to extension-based detection if PIL fails
+            if ext in ['jpg', 'jpeg']:
+                return 'image', 'jpeg'
+            elif ext in ['png', 'gif', 'webp']:
+                return 'image', ext
 
         # Document formats    
         if ext in ['pdf', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'md']:

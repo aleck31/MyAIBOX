@@ -5,7 +5,7 @@ from typing import Dict, Optional, Any, List
 from decimal import Decimal
 from botocore.exceptions import ClientError
 from core.config import env_config
-from core.logger import logger
+from common.logger import logger
 from utils.aws import get_aws_session
 
 

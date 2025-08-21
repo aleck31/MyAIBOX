@@ -7,11 +7,11 @@ import boto3
 from typing import Optional, Dict, Any
 from botocore.config import Config
 from core.config import env_config
-from core.logger import logger
+from common.logger import logger
+
 
 # Global session cache - dictionary to store sessions by region and role
 _AWS_SESSION = {}
-
 
 def get_aws_session(region_name: Optional[str] = None) -> boto3.Session:
     """Get configured AWS session with optional role assumption

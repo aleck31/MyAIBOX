@@ -3,7 +3,6 @@
 Run all service tests after converting from async to sync
 """
 import sys
-import os
 import subprocess
 from pathlib import Path
 
@@ -11,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from core.logger import logger
+from common.logger import logger
 
 def run_test(test_script: str) -> bool:
     """Run a single test script"""
@@ -73,7 +72,6 @@ def main():
     
     if passed == total:
         logger.info("🎉 All service tests PASSED!")
-        logger.info("✨ Async to Sync conversion is SUCCESSFUL!")
     else:
         logger.error(f"💥 {total - passed} service tests FAILED!")
         logger.error("🔧 Please check the failed tests for issues.")

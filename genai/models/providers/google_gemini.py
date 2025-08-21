@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional, Iterator
 from google import genai
 from google.genai import types
-from core.logger import logger
 from core.config import env_config
+from common.logger import logger
 from utils.aws import get_secret
 from . import LLMAPIProvider, LLMParameters, LLMMessage, LLMResponse, LLMProviderError
 

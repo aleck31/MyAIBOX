@@ -4,8 +4,7 @@ import random
 import requests
 from requests.exceptions import HTTPError
 # from selectolax.parser import HTMLParser
-from core.logger import logger
-# from gne import GeneralNewsExtractor
+from common.logger import logger
 
 
 UserAgents = [

@@ -39,6 +39,7 @@ Its user-friendly Gradio-based web interface provides an intuitive experience.
   - Text rewriting with different styles
   - Text reduction for conciseness
   - Text expansion for detail enhancement
+  - Document and text summarization
   - Multi-language support
 
 * **Vision Recognition** 👀
@@ -48,7 +49,6 @@ Its user-friendly Gradio-based web interface provides an intuitive experience.
   - Camera and clipboard input support
 
 * **Advanced Features**
-  - **Summary** 📰: Document and text summarization
   - **Asking** 🧠: Provide responses with comprehensive thinking
   - **Coding** 💻: Code generation and analysis
   - **Draw** 🎨: AI-powered image generation
@@ -97,9 +97,7 @@ The project follows a clean, layered architecture:
 my-aibox/
 ├── app.py          # Main application entry point
 ├── core/           # Core components
-│   ├── auth.py        # Authentication handling (cognito)
 │   ├── config.py      # Configuration settings
-│   ├── logger.py      # Logging configuration
 │   ├── module_config.py    # Module configuration
 │   ├── service/         # Service integration
 │   │   ├── gen_service.py      # General content generation service
@@ -109,6 +107,9 @@ my-aibox/
 │   └── session/        # Session management
 │       ├── models.py         # Data models for Session
 │       └── store.py          # DynamoDB-based session storage
+├── common/            # Common modules
+│   ├── auth.py        # Authentication handling (cognito)
+│   └── logger.py      # Logging configuration
 ├── genai/               # Genai integration
 │   ├── models               # Models implementations
 │   │   ├── init.py               # Base LLM interfaces
@@ -120,21 +121,24 @@ my-aibox/
 │       ├── legacy           # Legacy tools for models on Bedrock
 │       ├── mcp              # MCP tools for AI Agents
 │       └── provider.py      # Unified tool provider
-├── common/            # Common modules
-│   ├── login/            # Authentication UI
-│   ├── setting/          # Module settings
-│   └── main_ui.py        # UI settings
-├── modules/           # Feature modules
-│   ├── init.py           # Base handler class 
-│   ├── assistant/        # AI Assistant with tools 
-│   ├── persona/          # Chatbot with personality profiles
-│   ├── text/             # Text processing
-│   ├── summary/          # Text summarization
-│   ├── vision/           # Image analysis
-│   ├── asking/           # Q&A with thinking
-│   ├── coding/           # Code-related features
-│   └── draw/             # Image generation
-└── utils/             # Utility functions
+├── utils/             # Utility functions
+├── webui/             # Gradio Web UI
+│   ├── login/            # Login UI
+│   ├── modules/          # Feature modules
+│   │   ├── assistant/        # AI Assistant with tools 
+│   │   ├── persona/          # Chatbot with personality profiles
+│   │   ├── text/             # Text processing
+│   │   ├── summary/          # Text summarization
+│   │   ├── vision/           # Image analysis
+│   │   ├── asking/           # Q&A with thinking
+│   │   ├── coding/           # Code-related features
+│   │   └── draw/             # Image generation
+│   └── settings/         # Settings UI
+│       ├── account           # Account settings
+│       ├── module            # Module configuration
+│       ├── model             # Model configuration
+│       └── tool              # MCP tool configuration
+└── README.md/
 ```
 
 ## Tool System
@@ -199,14 +203,6 @@ tool_config = {
     "args": ["my-package@latest"]
 }
 ```
-
-### 🎯 Best Practices
-
-- **Simple functions** → Legacy tools
-- **Basic utilities** → Strands tools (automatic)
-- **Complex integrations** → MCP tools
-- Only enable necessary Legacy tools for better performance
-- Use "Test Connection" for MCP server validation
 
 For detailed documentation, see [Tool System Architecture](./docs/tool-system-architecture.md).
 

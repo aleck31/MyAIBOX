@@ -7,11 +7,11 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from core.logger import logger
 from core.config import app_config
+from common.logger import logger
 from genai.models.model_manager import model_manager
-from common.login import router as login_router, get_auth_user
-from common.main_ui import create_main_interface
+from webui.login import router as login_router, get_auth_user
+from webui.main import create_main_interface
 
 
 # Get configurations from app_config
