@@ -1,8 +1,8 @@
-from common.logger import logger
 from .chat_service import ChatService
 from .gen_service import GenService
 from .draw_service import DrawService
 from .agent_service import AgentService
+from . import logger
 
 
 class ServiceFactory:
@@ -19,10 +19,10 @@ class ServiceFactory:
             GenService: Configured service instance
         """
         try:
-            logger.debug(f"[ServiceFactory] Creating GenService for {module_name}")
+            logger.debug(f"Creating GenService for {module_name}")
             return GenService(module_name=module_name)
         except Exception as e:
-            logger.error(f"[ServiceFactory] Failed to create GenService: {str(e)}")
+            logger.error(f"Failed to create GenService: {str(e)}")
             raise
 
     @classmethod
@@ -36,10 +36,10 @@ class ServiceFactory:
             ChatService: Configured service instance
         """
         try:
-            logger.debug(f"[ServiceFactory] Creating ChatService for {module_name}")
+            logger.debug(f"Creating ChatService for {module_name}")
             return ChatService(module_name=module_name)
         except Exception as e:
-            logger.error(f"[ServiceFactory] Failed to create ChatService: {str(e)}")
+            logger.error(f"Failed to create ChatService: {str(e)}")
             raise
 
     @classmethod
@@ -53,10 +53,10 @@ class ServiceFactory:
             DrawService: Configured service instance
         """
         try:
-            logger.debug(f"[ServiceFactory] Creating DrawService for {module_name}")
+            logger.debug(f"Creating DrawService for {module_name}")
             return DrawService(module_name=module_name)
         except Exception as e:
-            logger.error(f"[ServiceFactory] Failed to create DrawService: {str(e)}")
+            logger.error(f"Failed to create DrawService: {str(e)}")
             raise
 
     @classmethod
@@ -70,8 +70,8 @@ class ServiceFactory:
             AgentService: Configured service instance
         """
         try:
-            logger.debug(f"[ServiceFactory] Creating AgentService for {module_name}")
+            logger.debug(f"Creating AgentService for {module_name}")
             return AgentService(module_name=module_name)
         except Exception as e:
-            logger.error(f"[ServiceFactory] Failed to create AgentService: {str(e)}")
+            logger.error(f"Failed to create AgentService: {str(e)}")
             raise

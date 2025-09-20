@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.session import Session, SessionMetadata
 from core.service.draw_service import DrawService
-from common.logger import logger
+from common.logger import setup_logger, logger
 from genai.models.model_manager import model_manager
 
 async def test_draw_service():

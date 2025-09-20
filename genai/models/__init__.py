@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, List, Optional, Union, Any
 from dataclasses import dataclass, asdict, field
+from common.logger import setup_logger
+
+logger = setup_logger('models')
 
 
 # Model category and capabilities

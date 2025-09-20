@@ -1,10 +1,10 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, AsyncIterator, Any, List, Optional
-from common.logger import logger
 from core.service import BaseService
 from core.session.models import Session
 from genai.agents.provider import AgentProvider
+from . import logger
 
 
 class AgentService(BaseService):
@@ -154,19 +154,19 @@ class AgentService(BaseService):
             if tool_config is None:
                 tool_config = self._get_default_tool_config()
             else:
-                logger.debug(f"[AgentService] Using provided tool config: {tool_config}")
+                logger.debug(f"Using provided tool config: {tool_config}")
 
             # Stream standardized responses
             async for chunk in provider.generate_stream(prompt, strands_history, tool_config):
                 if not isinstance(chunk, dict):
-                    logger.warning(f"[AgentService] Unexpected chunk type: {type(chunk)}")
+                    logger.warning(f"Unexpected chunk type: {type(chunk)}")
                     continue
 
                 # Direct pass-through of standardized format
                 yield chunk
 
         except Exception as e:
-            logger.error(f"[AgentService] Error in streaming generation: {str(e)}", exc_info=True)
+            logger.error(f"Error in streaming generation: {str(e)}", exc_info=True)
             yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
 
     async def streaming_reply_with_history(
@@ -191,14 +191,70 @@ class AgentService(BaseService):
         Returns:
             AsyncIterator yielding standardized agent response dictionaries
         """
-        async for chunk in self._generate_stream_async(
-            session=session,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            history=history,
-            tool_config=tool_config
-        ):
-            yield chunk
+        # Track response state for saving to session
+        accumulated_text = []
+        accumulated_files = []
+        response_metadata = {}
+        
+        try:
+            async for chunk in self._generate_stream_async(
+                session=session,
+                prompt=prompt,
+                system_prompt=system_prompt,
+                history=history,
+                tool_config=tool_config
+            ):
+                # Collect response content for session saving
+                if text := chunk.get('text'):
+                    accumulated_text.append(text)
+                
+                if files := chunk.get('files'):
+                    if isinstance(files, list):
+                        accumulated_files.extend(files)
+                    else:
+                        accumulated_files.append(files)
+                
+                if metadata := chunk.get('metadata'):
+                    response_metadata.update(metadata)
+                
+                # Yield chunk to caller
+                yield chunk
+
+            # Save chat history after successful streaming (similar to ChatService)
+            if accumulated_text or accumulated_files:
+                from datetime import datetime
+                
+                # Create user message
+                user_message = {
+                    "role": "user",
+                    "content": {"text": prompt},
+                    "context": {
+                        'local_time': datetime.now().astimezone().isoformat(),
+                        'user_name': session.user_name
+                    }
+                }
+                
+                # Create assistant message
+                assistant_message = {
+                    "role": "assistant",
+                    "content": {
+                        "text": ''.join(accumulated_text),
+                        "files": accumulated_files
+                    },
+                    "metadata": response_metadata if response_metadata else None
+                }
+                
+                # Add both messages to session history
+                session.add_interaction(user_message)
+                session.add_interaction(assistant_message)
+                
+                # Persist to session store
+                await self.session_store.save_session(session)
+                logger.debug(f"Saved chat interaction to session {session.session_id}")
+                
+        except Exception as e:
+            logger.error(f"Error in streaming reply with history: {str(e)}", exc_info=True)
+            yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
 
     async def gen_text_stream(
         self, 

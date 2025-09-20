@@ -1,12 +1,14 @@
 from typing import Dict, List, Optional
 from datetime import datetime
-from common.logger import logger
+from common.logger import setup_logger
 from core.session import Session, SessionStore
 from core.module_config import module_config
 from genai.models.model_manager import model_manager
 from genai.models import LLMParameters, GenImageParameters
 from genai.models.providers import LLMAPIProvider, LLMProviderError, create_model_provider 
 from genai.models.providers.bedrock_invoke import BedrockInvoke, create_creative_provider
+
+logger = setup_logger('service')
 
 
 class BaseService:

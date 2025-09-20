@@ -1,9 +1,8 @@
 """Service for creative content generation"""
 from typing import Dict, Optional
-from common.logger import logger
 from core.session import Session
 from genai.models.providers import LLMMessage, LLMProviderError
-from . import BaseService
+from . import BaseService, logger
 
 
 class CreativeService(BaseService):

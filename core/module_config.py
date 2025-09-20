@@ -5,7 +5,7 @@ from typing import Dict, Optional, Any, List
 from decimal import Decimal
 from botocore.exceptions import ClientError
 from core.config import env_config
-from common.logger import logger
+from common.logger import setup_logger, logger
 from utils.aws import get_aws_session
 
 
@@ -83,27 +83,27 @@ class ModuleConfig:
             return self._config_cache[cache_key]
 
         try:
-            logger.debug(f"[ModuleConfig] Getting config for module: {module_name}")
+            logger.debug(f"Getting config for module: {module_name}")
             response = self.table.get_item(
                 Key={
                     'setting_name': module_name,
                     'type': 'module'
                 }
             )
-            logger.debug(f"[ModuleConfig] Raw response from DB: {response}")
+            logger.debug(f"Raw response from DB: {response}")
 
             if 'Item' in response:
                 config = self._decimal_to_numeric(response['Item'])
                 self._config_cache[cache_key] = config
                 return config
             else:
-                logger.debug(f"[ModuleConfig] No config found for {module_name}, initializing default")
+                logger.debug(f"No config found for {module_name}, initializing default")
                 if config := self.init_module_config(module_name):
                     self._config_cache[cache_key] = config
                 return config
 
         except ClientError as e:
-            logger.error(f"[ModuleConfig] Error getting module config: {str(e)}")
+            logger.error(f"Error getting module config: {str(e)}")
             return None
 
     def update_module_config(self, module_name: str, config: Dict) -> bool:
@@ -132,10 +132,10 @@ class ModuleConfig:
             for key in cache_keys_to_remove:
                 self._config_cache.pop(key, None)
                 
-            logger.info(f"[ModuleConfig] Updated config for module: {module_name}")
+            logger.info(f"Updated config for module: {module_name}")
             return True
         except Exception as e:
-            logger.error(f"[ModuleConfig] Error updating module config: {str(e)}")
+            logger.error(f"Error updating module config: {str(e)}")
             raise
 
     def get_default_model(self, module_name: str) -> str:
@@ -154,10 +154,10 @@ class ModuleConfig:
                 return config['default_model']
             else:
                 # Fallback to Claude 3.5 Sonnet as the default model
-                logger.warning(f"[ModuleConfig] No default model found for module {module_name}, using fallback model")
+                logger.warning(f"No default model found for module {module_name}, using fallback model")
                 return 'anthropic.claude-3-5-sonnet-20241022-v2:0'
         except Exception as e:
-            logger.error(f"[ModuleConfig] Error getting default model for module {module_name}: {str(e)}")
+            logger.error(f"Error getting default model for module {module_name}: {str(e)}")
             return 'anthropic.claude-3-5-sonnet-20241022-v2:0'
 
     def get_inference_params(self, module_name: str) -> Optional[Dict]:
@@ -183,7 +183,7 @@ class ModuleConfig:
                 return config.get('enabled_tools', [])
             return []
         except Exception as e:
-            logger.error(f"[ModuleConfig] Error getting enabled tools for module {module_name}: {str(e)}")
+            logger.error(f"Error getting enabled tools for module {module_name}: {str(e)}")
             return []
 
 
@@ -315,10 +315,10 @@ class ModuleConfig:
             config = default_configs[module_name]
             try:
                 self.table.put_item(Item=config)
-                logger.info(f"[ModuleConfig] Initialized config for module: {module_name}")
+                logger.info(f"Initialized config for module: {module_name}")
                 return self._decimal_to_numeric(config)
             except Exception as e:
-                logger.error(f"[ModuleConfig] Error initializing module config: {str(e)}")
+                logger.error(f"Error initializing module config: {str(e)}")
                 return None
         return None
 

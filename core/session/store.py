@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException
 from core.config import env_config
-from common.logger import logger
+from common.logger import setup_logger, logger
 from utils.aws import get_aws_resource
 from .models import Session, SessionMetadata
 
@@ -23,7 +23,7 @@ class SessionStore:
             try:
                 cls._instance = cls()
             except Exception as e:
-                logger.error(f"[SessionStore] Failed to create session store: {str(e)}")
+                logger.error(f"Failed to create session store: {str(e)}")
                 raise
         return cls._instance
 
@@ -37,13 +37,13 @@ class SessionStore:
         try:
             self.table = get_aws_resource('dynamodb', region_name=region_name).Table(table_name)
             self.ttl_days = ttl_days
-            logger.debug(f"[SessionStore] Initialized session store with table: {table_name}")
+            logger.debug(f"Initialized session store with table: {table_name}")
         except Exception as e:
             self._handle_error(e, 'Store initialization failed')
 
     def _handle_error(self, error: Exception, message: str):
         """Handle errors for SessionStore"""
-        logger.error(f"[SessionStore] {message}: {str(error)}")
+        logger.error(f"{message}: {str(error)}")
         raise HTTPException(
             status_code=500,
             detail=str(error)
@@ -75,7 +75,7 @@ class SessionStore:
             }
             self.table.put_item(Item=item)
             
-            logger.debug(f"[SessionStore] Created session {session.session_id} for user {user_name}")
+            logger.debug(f"Created session {session.session_id} for user {user_name}")
             return session
             
         except Exception as e:
@@ -95,7 +95,7 @@ class SessionStore:
                 'ttl': int(datetime.now().timestamp() + (self.ttl_days * 86400))
             }
             self.table.put_item(Item=item)
-            logger.debug(f"[SessionStore] Updated session {session.session_id}")
+            logger.debug(f"Updated session {session.session_id}")
 
         except Exception as e:
             self._handle_error(e, 'Failed to update session')
@@ -184,7 +184,7 @@ class SessionStore:
             # Verify ownership first
             await self.get_session_by_id(session_id)
             self.table.delete_item(Key={'session_id': session_id})
-            logger.info(f"[SessionStore] Deleted session {session_id}")
+            logger.info(f"Deleted session {session_id}")
             return True
             
         except Exception as e:

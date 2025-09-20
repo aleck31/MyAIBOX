@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, AsyncIterator, Optional, List
-from common.logger import logger
+from common.logger import setup_logger, logger
 from core.config import env_config
 from strands import Agent
 from strands.models import BedrockModel

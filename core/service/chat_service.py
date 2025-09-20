@@ -1,11 +1,10 @@
 from datetime import datetime
 from itertools import groupby
 from typing import Dict, List, Optional, AsyncIterator
-from common.logger import logger
 from core.session import Session
 from genai.models.providers import LLMMessage, LLMProviderError
 from genai.models.model_manager import model_manager
-from . import BaseService
+from . import BaseService, logger
 
 
 class ChatService(BaseService):
@@ -154,14 +153,14 @@ class ChatService(BaseService):
         try:
             # Get persona role from session context
             if style := session.context.get('persona_role'):
-                logger.debug(f"[ChatService] Get session persona role: {style}")
+                logger.debug(f"Get session persona role: {style}")
                 return style
             else:
-                logger.debug(f"[ChatService] No persona role found, using default")
+                logger.debug(f"No persona role found, using default")
                 return 'default'
 
         except Exception as e:
-            logger.error(f"[ChatService] Failed to get persona role for session {session.session_id}: {str(e)}")
+            logger.error(f"Failed to get persona role for session {session.session_id}: {str(e)}")
             return 'default'
             
     async def update_session_role(self, session: Session, style: str) -> None:
@@ -174,9 +173,9 @@ class ChatService(BaseService):
         try:
             session.context['persona_role'] = style
             await self.session_store.save_session(session)
-            logger.debug(f"[ChatService] Updated persona role to {style} in session {session.session_id}")
+            logger.debug(f"Updated persona role to {style} in session {session.session_id}")
         except Exception as e:
-            logger.error(f"[ChatService] Failed to update session style: {str(e)}")
+            logger.error(f"Failed to update session style: {str(e)}")
             raise
             
     async def clear_history(self, session: Session) -> None:
@@ -194,7 +193,7 @@ class ChatService(BaseService):
         session.history = []  # Clear message history
         # session.context['total_interactions'] = 0  # Reset interaction count
         await self.session_store.save_session(session)
-        logger.debug(f"[ChatService] Cleared history for session {session.session_id}")
+        logger.debug(f"Cleared history for session {session.session_id}")
 
     async def streaming_reply(
         self,
@@ -228,16 +227,16 @@ class ChatService(BaseService):
                     'user_name': session.user_name
                 }
             )
-            logger.debug(f"[ChatService] User message sent to LLM Provider: {user_message}")
+            logger.debug(f"User message sent to LLM Provider: {user_message}")
 
             # Convert history messages to chat Message format with truncation
             history_messages = self._prepare_history(ui_history)
                 
-            logger.debug(f"[ChatService] History messages sent to LLM Provider: {len(history_messages)} messages")
+            logger.debug(f"History messages sent to LLM Provider: {len(history_messages)} messages")
 
             # Get LLM provider
             provider = self._get_model_provider(model_id)
-            logger.debug(f"[ChatService] Using LLM provider: {provider.__class__.__name__}")
+            logger.debug(f"Using LLM provider: {provider.__class__.__name__}")
 
             # Track response state
             accumulated_text = []
@@ -245,7 +244,7 @@ class ChatService(BaseService):
             response_metadata = {}
             
             # Stream from LLM
-            logger.debug(f"[ChatService] Streaming with model {model_id} and params: {style_params}")
+            logger.debug(f"Streaming with model {model_id} and params: {style_params}")
             try:
                 for chunk in provider.multi_turn_generate(
                     message=user_message,
@@ -254,7 +253,7 @@ class ChatService(BaseService):
                     **(style_params or {})
                 ):
                     if not isinstance(chunk, dict):
-                        logger.warning(f"[ChatService] Unexpected chunk type: {type(chunk)}")
+                        logger.warning(f"Unexpected chunk type: {type(chunk)}")
                         continue
 
                     # Pass through thinking or content chunks
@@ -292,11 +291,11 @@ class ChatService(BaseService):
 
             except LLMProviderError as e:
                 # Log error with code and details
-                logger.error(f"[ChatService] LLM error in session {session.session_id}: {e.error_code}")
+                logger.error(f"LLM error in session {session.session_id}: {e.error_code}")
                 # Yield user-friendly message from provider
                 yield {"text": f"I apologize, {e.message}"}
 
         except Exception as e:
             # Log session-level errors
-            logger.error(f"[ChatService] Session error in {session.session_id}: {str(e)}")
+            logger.error(f"Session error in {session.session_id}: {str(e)}")
             yield {"text": "I apologize, but I encountered a session error. Please try again."}

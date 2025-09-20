@@ -4,11 +4,10 @@ import json
 import base64
 from PIL import Image
 from typing import Dict, Optional, Any
-from common.logger import logger
 from core.session import Session
 from core.module_config import module_config
 from genai.models.providers import LLMProviderError
-from . import BaseService
+from . import BaseService, logger
 
 
 class DrawService(BaseService):

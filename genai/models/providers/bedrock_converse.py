@@ -3,7 +3,6 @@ import json
 import asyncio
 from typing import Dict, List, Optional, Iterator, Any, Union
 from botocore.exceptions import ClientError, ParamValidationError
-from common.logger import logger
 from core.config import env_config
 from utils.aws import get_aws_client
 from utils.file import FileProcessor
@@ -11,6 +10,7 @@ from genai.models.model_manager import model_manager
 from genai.tools.legacy.tool_registry import legacy_tool_registry
 from genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
 from . import LLMAPIProvider, LLMProviderError
+from .. import logger
 
 
 # Define the content types to include in the output message
@@ -616,11 +616,27 @@ class BedrockConverse(LLMAPIProvider):
                 })
   
                 try:
-                    # Execute tool using asyncio.run to call async method from sync context
-                    result = asyncio.run(legacy_tool_registry.execute_tool(
-                        tool_use['name'],
-                        **tool_use['input']
-                    ))
+                    # Execute tool using run_coroutine_threadsafe in background thread
+                    import concurrent.futures
+                    from threading import Thread
+                    
+                    # Create background event loop if not exists
+                    if not hasattr(self, '_background_loop'):
+                        self._background_loop = asyncio.new_event_loop()
+                        def start_background_loop():
+                            asyncio.set_event_loop(self._background_loop)
+                            self._background_loop.run_forever()
+                        t = Thread(target=start_background_loop, daemon=True)
+                        t.start()
+                    
+                    future = asyncio.run_coroutine_threadsafe(
+                        legacy_tool_registry.execute_tool(
+                            tool_use['name'],
+                            **tool_use['input']
+                        ),
+                        self._background_loop
+                    )
+                    result = future.result()
                     message_with_result = self._handle_tool_result(tool_use, result)
                 except Exception as e:
                     logger.error(f"Tool executing error: {str(e)}")
@@ -758,11 +774,26 @@ class BedrockConverse(LLMAPIProvider):
                         # logger.debug(f"[BRConverseProvider] Added Assistant message: {assistant_message}")
                         
                         try:
-                            # Execute tool with unpacked input using asyncio.run
-                            execute_result = asyncio.run(legacy_tool_registry.execute_tool(
-                                tool_use['name'],
-                                **tool_use['input']
-                            ))
+                            # Execute tool using run_coroutine_threadsafe in background thread
+                            from threading import Thread
+                            
+                            # Create background event loop if not exists
+                            if not hasattr(self, '_background_loop'):
+                                self._background_loop = asyncio.new_event_loop()
+                                def start_background_loop():
+                                    asyncio.set_event_loop(self._background_loop)
+                                    self._background_loop.run_forever()
+                                t = Thread(target=start_background_loop, daemon=True)
+                                t.start()
+                            
+                            future = asyncio.run_coroutine_threadsafe(
+                                legacy_tool_registry.execute_tool(
+                                    tool_use['name'],
+                                    **tool_use['input']
+                                ),
+                                self._background_loop
+                            )
+                            execute_result = future.result()
                             message_with_result = self._handle_tool_result(tool_use, execute_result)
                             
                             # Stream file_path immediately if present

@@ -1,10 +1,9 @@
 from typing import Dict, Optional, AsyncIterator
-from common.logger import logger
 from core.session import Session
 from core.module_config import module_config
 from genai.models.providers import LLMMessage, LLMProviderError
 from genai.models.model_manager import model_manager
-from . import BaseService
+from . import BaseService, logger
 
 
 class GenService(BaseService):
@@ -78,7 +77,7 @@ class GenService(BaseService):
             # Get provider with module's default configuration
             provider = self._get_model_provider(model_id)
             
-            logger.debug(f"[GenService] Content for stateless generation: {content}")
+            logger.debug(f"Content for stateless generation: {content}")
             
             # Create message with content filtering
             messages = [self._prepare_message(content, model_id)]
@@ -96,7 +95,7 @@ class GenService(BaseService):
             return response.content.get('text', '')
 
         except LLMProviderError as e:
-            logger.error(f"[GenService] Failed to generate text stateless: {e.error_code}")
+            logger.error(f"Failed to generate text stateless: {e.error_code}")
             # Return user-friendly message from provider
             return f"I apologize, {e.message}"
 
@@ -123,7 +122,7 @@ class GenService(BaseService):
             # Get LLM provider
             provider = self._get_model_provider(model_id)
             
-            logger.debug(f"[GenService] Content for session {session.session_id}: {content}")
+            logger.debug(f"Content for session {session.session_id}: {content}")
             
             # Create message with content filtering
             message = self._prepare_message(content, model_id)
@@ -157,7 +156,7 @@ class GenService(BaseService):
                 raise ValueError("Empty response from LLM Provider")
 
         except LLMProviderError as e:
-            logger.error(f"[GenService] Failed to generate text in session {session.session_id}: {e.error_code}")
+            logger.error(f"Failed to generate text in session {session.session_id}: {e.error_code}")
             # Return user-friendly message from provider
             return {'error': True, 'text': f"I apologize, {e.message}"}
 
@@ -185,7 +184,7 @@ class GenService(BaseService):
             # Get LLM provider
             provider = self._get_model_provider(model_id)
 
-            logger.debug(f"[GenService] Content for session {session.session_name}: {content}")
+            logger.debug(f"Content for session {session.session_name}: {content}")
 
             # Create message with content filtering
             message = self._prepare_message(content, model_id)
@@ -201,7 +200,7 @@ class GenService(BaseService):
                     **(option_params or {})
                 ):
                     if not isinstance(chunk, dict):
-                        logger.warning(f"[GenService] Unexpected chunk type: {type(chunk)}")
+                        logger.warning(f"Unexpected chunk type: {type(chunk)}")
                         continue
 
                     # Pass through thinking or content chunks
@@ -235,11 +234,11 @@ class GenService(BaseService):
                     await self.session_store.save_session(session)
 
             except LLMProviderError as e:
-                logger.error(f"[GenService] Failed to get response from LLM Provider: {e.error_code}")
+                logger.error(f"Failed to get response from LLM Provider: {e.error_code}")
                 # Yield user-friendly message from provider as a dictionary
                 yield {'error': True, 'text': f"I apologize, {e.message}"}
 
         except Exception as e:
-            logger.error(f"[GenService] Failed to generate text stream in session {session.session_id}: {str(e)}")
+            logger.error(f"Failed to generate text stream in session {session.session_id}: {str(e)}")
             # Yield error as a dictionary
             yield {'error': True, 'text': "I apologize, but I encountered an error. Please try again."}

@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from common.logger import logger
+from common.logger import setup_logger, logger
 
 def run_test(test_script: str) -> bool:
     """Run a single test script"""
