@@ -1,9 +1,9 @@
 import time
 import wikipedia
 from strands import tool
-from googlesearch import search as google_search
+from ddgs import DDGS
 from cachetools import TTLCache
-from common.logger import logger
+from .. import logger
 
 
 # Constants
@@ -147,7 +147,7 @@ def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
 
 @tool
 def search_internet(query: str, num_results: int = 6, language: str = "en"):
-    """Search the internet via Google and return relevant search results
+    """Search the internet via DuckDuckGo and return relevant search results
     
     Args:
         query: The search query
@@ -168,32 +168,22 @@ def search_internet(query: str, num_results: int = 6, language: str = "en"):
     num_results = min(num_results, MAX_SEARCH_RESULTS)
     
     try:
-        # Perform the search synchronously
-        search_results = list(google_search(
-            query, 
-            num_results=num_results, 
-            lang=language,
-            advanced=True
-        ))
+        # Perform the search using DuckDuckGo
+        with DDGS() as ddgs:
+            search_results = list(ddgs.text(
+                query, 
+                max_results=num_results,
+                region=f"wt-{language}" if language != "en" else "wt-wt"
+            ))
         
         # Format results
         formatted_results = []
         for result in search_results:
-            # Handle different result types from google_search
-            if isinstance(result, str):
-                # If result is just a URL string
-                formatted_results.append({
-                    "title": result,
-                    "url": result,
-                    "description": ""
-                })
-            else:
-                # If result is an object with attributes
-                formatted_results.append({
-                    "title": getattr(result, 'title', None) or getattr(result, 'url', str(result)),
-                    "url": getattr(result, 'url', str(result)),
-                    "description": getattr(result, 'description', "")
-                })
+            formatted_results.append({
+                "title": result.get('title', ''),
+                "url": result.get('href', ''),
+                "description": result.get('body', '')
+            })
         
         # Create response
         result = {
@@ -207,10 +197,10 @@ def search_internet(query: str, num_results: int = 6, language: str = "en"):
         return result
             
     except Exception as e:
-        logger.error(f"Google search error: {e}")
+        logger.error(f"DuckDuckGo search error: {e}")
         return {
             "query": query,
-            "error": f"Failed to search Google: {str(e)}"
+            "error": f"Failed to search DuckDuckGo: {str(e)}"
         }
 
 # Tool specification in Bedrock format

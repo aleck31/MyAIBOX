@@ -1,7 +1,7 @@
 import inspect
 import importlib
 from typing import Dict, Any, List, Optional, Callable
-from common.logger import logger
+from .. import logger
 
 
 class LegacyToolRegistry:
@@ -48,7 +48,7 @@ class LegacyToolRegistry:
                 for spec in tool_module.list_of_tools_specs:
                     if spec.get('toolSpec', {}).get('name') == tool_name:
                         self.tool_specs[tool_name] = spec
-                        logger.debug(f"[LegacyToolRegistry] Loaded tool: {tool_name}")
+                        logger.debug(f"Loaded tool: {tool_name}")
                         break
                 else:
                     logger.warning(f"No tool specification found for {tool_name} in {package_name}")
@@ -111,7 +111,7 @@ class LegacyToolRegistry:
     
     def reload_tools(self):
         """Reload all tools"""
-        logger.info("[LegacyToolRegistry] Reloading all tools...")
+        logger.info("Reloading all tools...")
         self.tools.clear()
         self.tool_specs.clear()
         self._load_all_tools()

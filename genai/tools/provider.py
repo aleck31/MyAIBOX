@@ -3,7 +3,7 @@ Simplified Tool Provider for MyAIBOX
 Leverages Strands native mixed tool support for unified tool management
 """
 from typing import Dict, List, Tuple
-from common.logger import logger
+from . import logger
 
 
 class ToolProvider:
@@ -44,7 +44,7 @@ class ToolProvider:
             of tools that can be directly passed to Agent(tools=tools_list)
         """
         if not tool_config.get('enabled', True):
-            logger.debug("[ToolProvider] Tools disabled by configuration")
+            logger.debug("Tools disabled by configuration")
             return [], []
             
         tools = []
@@ -55,21 +55,21 @@ class ToolProvider:
         if legacy_tool_names:
             legacy_tools = self._get_specific_legacy_tools(legacy_tool_names)
             tools.extend(legacy_tools)
-            logger.debug(f"[ToolProvider] Added {len(legacy_tools)} legacy tools")
+            logger.debug(f"Added {len(legacy_tools)} legacy tools")
         
         # Strands builtin tools
         if tool_config.get('strands_tools_enabled', True):
             strands_tools = self._get_strands_tools()
             tools.extend(strands_tools)
-            logger.debug(f"[ToolProvider] Added {len(strands_tools)} Strands tools")
+            logger.debug(f"Added {len(strands_tools)} Strands tools")
         
         # MCP tools (require context management)
         if tool_config.get('mcp_tools_enabled', False):
             mcp_clients = self._get_mcp_clients()
             context_managers.extend(mcp_clients)
-            logger.debug(f"[ToolProvider] Added {len(mcp_clients)} MCP clients")
+            logger.debug(f"Added {len(mcp_clients)} MCP clients")
         
-        logger.debug(f"[ToolProvider] Total: {len(tools)} direct tools, {len(context_managers)} MCP clients")
+        logger.debug(f"Total: {len(tools)} direct tools, {len(context_managers)} MCP clients")
         return tools, context_managers
 
     def _get_specific_legacy_tools(self, tool_names: List[str]) -> List:
@@ -89,9 +89,9 @@ class ToolProvider:
                 # Convert to Strands tool using @tool decorator
                 strands_tool = tool(self.legacy_registry.tools[tool_name])
                 tools.append(strands_tool)
-                logger.debug(f"[ToolProvider] Loaded legacy tool: {tool_name}")
+                logger.debug(f"Loaded legacy tool: {tool_name}")
             else:
-                logger.warning(f"[ToolProvider] Legacy tool not found: {tool_name}")
+                logger.warning(f"Legacy tool not found: {tool_name}")
         
         return tools
     
@@ -102,7 +102,7 @@ class ToolProvider:
             # Load all Strands tools by default
             return load_builtin_tools()
         except ImportError:
-            logger.warning("[ToolProvider] Strands builtin tools not available")
+            logger.warning("Strands builtin tools not available")
             return []
     
     def _get_mcp_clients(self) -> List:
@@ -113,16 +113,16 @@ class ToolProvider:
         
         for server_name, server_config in servers.items():
             if server_config.get('disabled', False):
-                logger.debug(f"[ToolProvider] Skipping disabled MCP server: {server_name}")
+                logger.debug(f"Skipping disabled MCP server: {server_name}")
                 continue
             
             try:
                 client = self._create_mcp_client(server_config)
                 if client:
                     clients.append(client)
-                    logger.debug(f"[ToolProvider] Created MCP client: {server_name}")
+                    logger.debug(f"Created MCP client: {server_name}")
             except Exception as e:
-                logger.warning(f"[ToolProvider] Failed to create MCP client {server_name}: {e}")
+                logger.warning(f"Failed to create MCP client {server_name}: {e}")
         
         return clients
     
@@ -148,7 +148,7 @@ class ToolProvider:
             from mcp.client.sse import sse_client
             return MCPClient(lambda: sse_client(server_config['url']))
         else:
-            logger.error(f"[ToolProvider] Unsupported MCP server type: {server_type}")
+            logger.error(f"Unsupported MCP server type: {server_type}")
             return None
     
     def list_tools(self, enabled_only: bool = True) -> List[Dict]:
@@ -195,7 +195,7 @@ class ToolProvider:
     
     async def reload_tools(self):
         """Reload tools (legacy compatibility)"""
-        logger.info("[ToolProvider] Reload tools called")
+        logger.info("Reload tools called")
         # In simplified version, tools are loaded on-demand, so no action needed
         pass
 
