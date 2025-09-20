@@ -3,10 +3,9 @@
 import asyncio
 import gradio as gr
 from typing import Dict, Optional, AsyncIterator, Union
-from common.logger import logger
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import ARCHITECT_PROMPT, CODER_PROMPT
 
 
@@ -25,13 +24,13 @@ class CodingHandlers(BaseHandler):
         try:
             # Filter for models with text generation capability
             if models := model_manager.get_models(filter={'api_provider': 'Bedrock'}):
-                logger.debug(f"[CodingHandlers] Get {len(models)} available models")
+                logger.debug(f"Get {len(models)} available models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[CodingHandlers] No text-capable models available")
+                logger.warning("No text-capable models available")
                 return []
         except Exception as e:
-            logger.error(f"[CodingHandlers] Failed to fetch models: {str(e)}", exc_info=True)
+            logger.error(f"Failed to fetch models: {str(e)}", exc_info=True)
             return []
 
 

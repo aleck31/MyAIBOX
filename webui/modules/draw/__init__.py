@@ -5,11 +5,10 @@ import random
 import gradio as gr
 from PIL import Image
 from typing import Optional, Tuple, cast
-from common.logger import logger
 from core.service.service_factory import ServiceFactory
 from core.service.gen_service import GenService
 from core.service.draw_service import DrawService
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import PROMPT_OPTIMIZER_TEMPLATE, NEGATIVE_PROMPTS
 
 
@@ -45,7 +44,7 @@ class DrawHandlers(BaseHandler):
         """Get or initialize gen services"""
 
         if cls._gen_service is None:
-            logger.info("[DrawHandlers] Initializing gen service for prompt optimization")
+            logger.info("Initializing gen service for prompt optimization")
             cls._gen_service = ServiceFactory.create_gen_service('text')
             
         return cls._gen_service
@@ -57,13 +56,13 @@ class DrawHandlers(BaseHandler):
             # Filter for models with image output capability
             from genai.models.model_manager import model_manager
             if models := model_manager.get_models(filter={'category': 'image'}):
-                logger.debug(f"[DrawHandlers] Get {len(models)} available image models")
+                logger.debug(f"Get {len(models)} available image models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[DrawHandlers] No image generation models available")
+                logger.warning("No image generation models available")
                 return []
         except Exception as e:
-            logger.error(f"[DrawHandlers] Failed to fetch models: {str(e)}", exc_info=True)
+            logger.error(f"Failed to fetch models: {str(e)}", exc_info=True)
             return []
 
     @classmethod
@@ -89,11 +88,11 @@ class DrawHandlers(BaseHandler):
             result = json.loads(response)
             optimized_prompt = result.get("prompt", original_prompt)
             negative_prompt = result.get("negative_prompt", default_negative)
-            logger.info("[DrawHandlers] Successfully parsed JSON response")
+            logger.info("Successfully parsed JSON response")
             return optimized_prompt, negative_prompt
         except json.JSONDecodeError:
             # Fallback if response is not valid JSON
-            logger.warning(f"[DrawHandlers] Failed to parse JSON response: {response[:100]}...")
+            logger.warning(f"Failed to parse JSON response: {response[:100]}...")
             
             # Try to extract from text format (if response has multiple lines)
             lines = response.strip().split('\n')
@@ -128,7 +127,7 @@ class DrawHandlers(BaseHandler):
 
             # Validate input
             if not prompt or len(prompt.strip()) == 0:
-                logger.warning("[DrawHandlers] Empty prompt received")
+                logger.warning("Empty prompt received")
                 return "a beautiful scene, highly detailed", ", ".join(NEGATIVE_PROMPTS)
 
             # Get style-specific optimized template prompt
@@ -145,11 +144,11 @@ class DrawHandlers(BaseHandler):
             # Parse the response to extract optimized prompt and negative prompt
             optimized_prompt, negative_prompt = cls._parse_response(response, prompt)
             
-            logger.info(f"[DrawHandlers] Optimized prompt for style: {style_name}")
+            logger.info(f"Optimized prompt for style: {style_name}")
             return optimized_prompt, negative_prompt
 
         except Exception as e:
-            logger.error(f"[DrawHandlers] Failed to optimize prompt: {str(e)}", exc_info=True)
+            logger.error(f"Failed to optimize prompt: {str(e)}", exc_info=True)
             # Return original prompt and default negative prompt if optimization fails
             return prompt, ", ".join(NEGATIVE_PROMPTS)
 
@@ -186,11 +185,11 @@ class DrawHandlers(BaseHandler):
         try:
             # Check required parameters
             if not model_id:
-                logger.error("[DrawHandlers] Model ID is required")
+                logger.error("Model ID is required")
                 return None, used_seed
             
             if not request:
-                logger.error("[DrawHandlers] Request is required")
+                logger.error("Request is required")
                 return None, used_seed
                 
             # Get services
@@ -201,12 +200,12 @@ class DrawHandlers(BaseHandler):
             if negative:
                 negative_prompts = negative
             else:
-                logger.debug(f"[DrawHandlers] No negative prompts are specified, using default prompts")
+                logger.debug(f"No negative prompts are specified, using default prompts")
                 negative_prompts = ", ".join(NEGATIVE_PROMPTS)
 
             # Validate aspect ratio
             if ratio not in IMAGE_RATIOS:
-                logger.warning(f"[DrawHandlers] Invalid ratio {ratio}, using default 1:1")
+                logger.warning(f"Invalid ratio {ratio}, using default 1:1")
                 ratio = "1:1"
 
             # Generate image
@@ -221,6 +220,6 @@ class DrawHandlers(BaseHandler):
             return image, used_seed
 
         except Exception as e:
-            logger.error(f"[DrawHandlers] Failed to generate image: {str(e)}", exc_info=True)
+            logger.error(f"Failed to generate image: {str(e)}", exc_info=True)
             gr.Error(f"{str(e)}", duration=9)
             return None, used_seed

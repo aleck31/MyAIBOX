@@ -1,10 +1,9 @@
 import asyncio
 import gradio as gr
 from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
-from common.logger import logger
 from core.service.chat_service import ChatService
 from genai.models.model_manager import model_manager
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import PERSONA_ROLES
 
 
@@ -24,14 +23,14 @@ class ChatbotHandlers(BaseHandler):
         try:
             # Filter for models by output modality
             if models := model_manager.get_models(filter={'output_modality': ['text']}):
-                logger.debug(f"[ChatbotHandlers] Get {len(models)} available models")
+                logger.debug(f"Get {len(models)} available models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[ChatbotHandlers] No Text modality models available")
+                logger.warning("No Text modality models available")
                 return []
 
         except Exception as e:
-            logger.error(f"[ChatbotHandlers] Failed to fetch models: {e}", exc_info=True)
+            logger.error(f"Failed to fetch models: {e}", exc_info=True)
             return []
 
     @classmethod
@@ -71,7 +70,7 @@ class ChatbotHandlers(BaseHandler):
             return latest_history, model_id, persona_role
 
         except Exception as e:
-            logger.error(f"[ChatbotHandlers] Failed to load history: {e}", exc_info=True)
+            logger.error(f"Failed to load history: {e}", exc_info=True)
             return [], None, None
 
     @classmethod
@@ -90,11 +89,11 @@ class ChatbotHandlers(BaseHandler):
 
             # Clear history in session
             await service.clear_history(session)
-            logger.debug(f"[ChatbotHandlers] Cleared history for user: {session.user_name}")
+            logger.debug(f"Cleared history for user: {session.user_name}")
             gr.Info(f"Cleared history for session {session.session_name}", duration=3)
 
         except Exception as e:
-            logger.error(f"[ChatbotHandlers] Failed to clear history: {e}", exc_info=True)
+            logger.error(f"Failed to clear history: {e}", exc_info=True)
             
     @classmethod
     async def undo_last_message(
@@ -116,13 +115,13 @@ class ChatbotHandlers(BaseHandler):
                 session.history = session.history[:-2]
                 # Update session in database
                 await service.session_store.save_session(session)
-                logger.debug(f"[ChatbotHandlers] Removed last message pair for user: {session.user_name}")
+                logger.debug(f"Removed last message pair for user: {session.user_name}")
             else:
                 # No messages to remove
                 gr.Info(f"No messages to undo for this session.", duration=3)
             
         except Exception as e:
-            logger.error(f"[ChatbotHandlers] Failed to undo last message: {e}", exc_info=True)
+            logger.error(f"Failed to undo last message: {e}", exc_info=True)
 
     @classmethod
     async def update_persona_role(cls, chat_style: str, request: gr.Request):
@@ -174,7 +173,7 @@ class ChatbotHandlers(BaseHandler):
         if not unified_input:
             yield {"text": "Please provide a message or file."}
             return
-        logger.debug(f"[ChatbotHandlers] User message from Gradio UI: {ui_input}")
+        logger.debug(f"User message from Gradio UI: {ui_input}")
 
         try:
             # Initialize session
@@ -185,7 +184,7 @@ class ChatbotHandlers(BaseHandler):
             session.context['system_prompt'] = style_config["prompt"]
             style_params = {k: v for k, v in style_config["options"].items() if v is not None}
 
-            logger.debug(f"[ChatbotHandlers] Processing message: {unified_input}")
+            logger.debug(f"Processing message: {unified_input}")
 
             # Stream response
             accumulated_text = ""
@@ -223,5 +222,5 @@ class ChatbotHandlers(BaseHandler):
                 await asyncio.sleep(0)  # Add sleep for Gradio UI streaming echo
 
         except Exception as e:
-            logger.error(f"[ChatbotHandlers] Failed to send message: {e}", exc_info=True)
+            logger.error(f"Failed to send message: {e}", exc_info=True)
             yield {"text": "I apologize, but I encountered an error. Please try again."}

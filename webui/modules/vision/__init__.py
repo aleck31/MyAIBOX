@@ -3,10 +3,9 @@
 import asyncio
 import gradio as gr
 from typing import Optional, AsyncIterator
-from common.logger import logger
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import VISION_SYSTEM_PROMPT
 
 
@@ -67,7 +66,7 @@ class VisionHandlers(BaseHandler):
             session.context['system_prompt'] = VISION_SYSTEM_PROMPT
             # Persist updated context
             # await service.session_store.save_session(session)
-            logger.info(f"[VisionHandlers] Vision analysis request - Model: {model_id}")
+            logger.info(f"Vision analysis request - Model: {model_id}")
 
             # Build content
             user_requirement = text or "Describe the media or document in detail."
@@ -75,7 +74,7 @@ class VisionHandlers(BaseHandler):
                 "text": f"<requirement>{user_requirement}</requirement>",
                 "files": [file_path]
             }
-            logger.debug(f"[VisionHandlers] Analysis content: {content}")
+            logger.debug(f"Analysis content: {content}")
 
             # Generate streaming response
             buffered_text = ""
@@ -97,5 +96,5 @@ class VisionHandlers(BaseHandler):
                 await asyncio.sleep(0)  # Add sleep for Gradio UI streaming echo
 
         except Exception as e:
-            logger.error(f"[VisionHandlers] Failed to analyze image: {str(e)}", exc_info=True)
+            logger.error(f"Failed to analyze image: {str(e)}", exc_info=True)
             yield f"An error occurred while analyzing the image. \n str(e.detail)"

@@ -2,11 +2,11 @@ import gradio as gr
 from .account import AccountHandlers
 from .module import ModuleHandlers
 from .model import ModelHandlers
-from .tool import ToolHandlers
+from .mcp_tool import ToolHandlers
 from .account.tab import create_account_tab
 from .module.tab import create_module_tab
 from .model.tab import create_model_tab
-from .tool.tab import create_tool_tab
+from .mcp_tool.tab import create_tool_tab
 
 
 with gr.Blocks() as tab_setting:

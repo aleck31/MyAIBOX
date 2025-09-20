@@ -1,7 +1,7 @@
 """Handler implementation for Model Management tab"""
 import gradio as gr
 from typing import List, Tuple, Optional
-from common.logger import logger
+from common.logger import setup_logger, logger
 from genai.models import LLMModel, LLM_CAPABILITIES
 from genai.models.model_manager import model_manager
 

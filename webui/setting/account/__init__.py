@@ -2,7 +2,7 @@
 import gradio as gr
 from typing import List, Optional
 from core.session.store import SessionStore
-from common.logger import logger
+from common.logger import setup_logger, logger
 
 
 class AccountHandlers:

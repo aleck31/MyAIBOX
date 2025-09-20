@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, HTTPException, Form
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from common.auth import cognito_auth
-from common.logger import logger
+from common.logger import setup_logger, logger
 
 
 # Create router

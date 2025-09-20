@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: MIT-0
 import gradio as gr
 from typing import Optional, Union, Dict, Any, TYPE_CHECKING
-from common.logger import logger
 from core.service.service_factory import ServiceFactory
-
+from common.logger import setup_logger
 # Import for type checking only to avoid circular imports
 if TYPE_CHECKING:
     from core.service import BaseService
+
+logger = setup_logger('webui')
 
 
 class BaseHandler:

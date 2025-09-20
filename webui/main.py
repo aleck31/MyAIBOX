@@ -1,6 +1,6 @@
 # UI module for Gradio components
 import gradio as gr
-from common.logger import logger
+from common.logger import setup_logger, logger
 from .modules.assistant.ui import tab_assistant
 from .modules.persona.ui import tab_persona
 from .modules.text.ui import tab_text
@@ -13,7 +13,7 @@ from .setting.ui import tab_setting
 
 
 # The Svelte-generated class name that might change between versions
-main_class = 'svelte-1tnkvm8'
+main_class = 'svelte-nokcq6'
 
 css = f""" 
     footer {{visibility: hidden}}

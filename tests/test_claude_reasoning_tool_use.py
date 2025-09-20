@@ -14,7 +14,7 @@ import sys
 # Add parent directory to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from common.logger import logger
+from common.logger import setup_logger, logger
 from genai.models.model_manager import model_manager
 from genai.models.providers import LLMMessage
 from genai.models.providers.bedrock_converse import BedrockConverse

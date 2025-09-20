@@ -2,7 +2,7 @@
 import json
 from typing import Dict, List, Optional, Any
 import gradio as gr
-from common.logger import logger
+from common.logger import setup_logger, logger
 from core.module_config import module_config
 
 

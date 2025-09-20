@@ -3,10 +3,9 @@
 import asyncio
 import gradio as gr
 from typing import Dict, Optional, AsyncIterator, List, Union
-from common.logger import logger
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import SYSTEM_PROMPT
 
 
@@ -23,13 +22,13 @@ class AskingHandlers(BaseHandler):
         try:
             # Filter for models with reasoning capability
             if models := model_manager.get_models(filter={'reasoning': True}):
-                logger.debug(f"[AskingHandlers] Get {len(models)} available models")
+                logger.debug(f"Get {len(models)} available models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[AskingHandlers] No extended thinking models available")
+                logger.warning("No extended thinking models available")
                 return []
         except Exception as e:
-            logger.error(f"[AskingHandlers] Failed to fetch models: {str(e)}", exc_info=True)
+            logger.error(f"Failed to fetch models: {str(e)}", exc_info=True)
             return []
 
     @classmethod

@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.session import Session
 from core.service.gen_service import GenService
-from common.logger import logger
+from common.logger import setup_logger, logger
 
 # Configure logging
 logger.setLevel(logging.DEBUG)

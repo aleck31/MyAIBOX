@@ -3,10 +3,9 @@
 import asyncio
 import gradio as gr
 from typing import AsyncIterator
-from common.logger import logger
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import SYSTEM_PROMPT, build_user_prompt
 
 
@@ -23,13 +22,13 @@ class SummaryHandlers(BaseHandler):
         try:
             # Filter for models with tool use capability
             if models := model_manager.get_models(filter={'tool_use': True}):
-                logger.debug(f"[SummaryHandlers] Get {len(models)} available models")
+                logger.debug(f"Get {len(models)} available models")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[SummaryHandlers] No text-capable models available")
+                logger.warning("No text-capable models available")
                 return []
         except Exception as e:
-            logger.error(f"[SummaryHandlers] Failed to fetch models: {str(e)}", exc_info=True)
+            logger.error(f"Failed to fetch models: {str(e)}", exc_info=True)
             return []
 
     @classmethod
@@ -66,13 +65,13 @@ class SummaryHandlers(BaseHandler):
             session.context['system_prompt'] = SYSTEM_PROMPT
             # Persist updated context
             # await service.session_store.save_session(session)
-            logger.info(f"[SummaryHandlers] Summary text request - Model: {model_id}")
+            logger.info(f"Summary text request - Model: {model_id}")
 
             # Build content with system prompt
             content = {
                 "text": build_user_prompt(text, target_lang)
             }
-            logger.debug(f"[SummaryHandlers] Build content: {content}")
+            logger.debug(f"Build content: {content}")
 
             # Stream response with accumulated display
             buffered_text = ""
@@ -94,5 +93,5 @@ class SummaryHandlers(BaseHandler):
                 await asyncio.sleep(0)  # Add sleep for Gradio UI streaming echo
 
         except Exception as e:
-            logger.error(f"[SummaryHandlers] Failed to summarize text: {str(e)}", exc_info=True)
+            logger.error(f"Failed to summarize text: {str(e)}", exc_info=True)
             yield f"An error occurred while summarize the text. \n str(e.detail)"

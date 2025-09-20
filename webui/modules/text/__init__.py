@@ -2,9 +2,8 @@
 # SPDX-License-Identifier: MIT-0
 import gradio as gr
 from typing import Dict, Optional
-from common.logger import logger
 from core.service.gen_service import GenService
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import SYSTEM_PROMPTS, STYLES
 
 

@@ -1,10 +1,9 @@
 import asyncio
 import gradio as gr
 from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
-from common.logger import logger
 from core.service.agent_service import AgentService
 from genai.models.model_manager import model_manager
-from .. import BaseHandler
+from .. import BaseHandler, logger
 from .prompts import ASSISTANT_PROMPT
 
 
@@ -24,7 +23,7 @@ class AssistantHandlers(BaseHandler):
         if user_name := request.session.get('auth_user', {}).get('username'):
             return user_name
         else:
-            logger.warning("[AssistantHandlers] No authenticated user found")
+            logger.warning("No authenticated user found")
             return None
 
     @classmethod
@@ -33,14 +32,14 @@ class AssistantHandlers(BaseHandler):
         try:
             # Filter for models with tool use capabilities
             if models := model_manager.get_models(filter={'tool_use': True}):
-                logger.debug(f"[AssistantHandlers] Get {len(models)} available models with tool use")
+                logger.debug(f"Get {len(models)} available models with tool use")
                 return [(f"{m.name}, {m.api_provider}", m.model_id) for m in models]
             else:
-                logger.warning("[AssistantHandlers] No matching models found.")
+                logger.warning("No matching models found.")
                 return []
 
         except Exception as e:
-            logger.error(f"[AssistantHandlers] Failed to fetch models: {e}", exc_info=True)
+            logger.error(f"Failed to fetch models: {e}", exc_info=True)
             return []
 
     @classmethod
@@ -76,7 +75,7 @@ class AssistantHandlers(BaseHandler):
             return latest_history, model_id
 
         except Exception as e:
-            logger.error(f"[AssistantHandlers] Failed to load history: {e}", exc_info=True)
+            logger.error(f"Failed to load history: {e}", exc_info=True)
             return [], None
 
     @classmethod
@@ -90,11 +89,11 @@ class AssistantHandlers(BaseHandler):
 
             # Clear history in session
             await service.clear_history(session)
-            logger.debug(f"[AssistantHandlers] Cleared history for user: {session.user_name}")
+            logger.debug(f"Cleared history for user: {session.user_name}")
             gr.Info(f"Cleared history for session {session.session_name}", duration=3)
             
         except Exception as e:
-            logger.error(f"[AssistantHandlers] Failed to clear history: {e}", exc_info=True)
+            logger.error(f"Failed to clear history: {e}", exc_info=True)
 
     @classmethod
     async def undo_last_message(
@@ -111,13 +110,13 @@ class AssistantHandlers(BaseHandler):
                 session.history = session.history[:-2]
                 # Update session in database
                 await service.session_store.save_session(session)
-                logger.debug(f"[AssistantHandlers] Removed last message pair for user: {session.user_name}")
+                logger.debug(f"Removed last message pair for user: {session.user_name}")
             else:
                 # No messages to remove
                 gr.Info(f"No messages to undo for this session.", duration=3)
             
         except Exception as e:
-            logger.error(f"[AssistantHandlers] Failed to undo last message: {e}", exc_info=True)
+            logger.error(f"Failed to undo last message: {e}", exc_info=True)
 
     @classmethod
     async def send_message(
@@ -196,7 +195,7 @@ class AssistantHandlers(BaseHandler):
                     thinking_msg = gr.ChatMessage(
                         role="assistant",
                         content=f"💭 {thinking}",
-                        metadata={"title": "🤔 思考过程", "status": "pending"}
+                        metadata={"title": "🤔 思考中...", "status": "pending"}
                     )
 
                     messages.append(thinking_msg)
@@ -220,17 +219,17 @@ class AssistantHandlers(BaseHandler):
                     
                     # Build status message content based on status
                     if tool_status == 'running':
-                        tool_content = f"🔧 正在调用工具: **{tool_name}**\n参数: `{params_str}`"
+                        tool_content = f"⛭ 参数: `{params_str}`"
                         title = f"🔧 工具调用: {tool_name}"
                         status = "pending"
                         
                     elif tool_status in ['completed', 'success']:
-                        tool_content = f"✅ 工具执行完成: **{tool_name}**\n参数: `{params_str}`"
+                        tool_content = f"⛭ 参数: `{params_str}`"
                         if tool_result:
                             result_preview = str(tool_result)[:TOOL_RESULT_MAX_LENGTH]
                             if len(str(tool_result)) > TOOL_RESULT_MAX_LENGTH:
                                 result_preview += "..."
-                            tool_content += f"\n结果: {result_preview}"
+                            tool_content += f"\n🧾 结果: {result_preview}"
                         title = f"✅ 工具完成: {tool_name}"
                         status = "done"
                         
@@ -333,7 +332,7 @@ class AssistantHandlers(BaseHandler):
                 await asyncio.sleep(0)
 
         except Exception as e:
-            logger.error(f"[AssistantHandlers] Error: {e}", exc_info=True)
+            logger.error(f"Error: {e}", exc_info=True)
             error_msg = gr.ChatMessage(
                 role="assistant", 
                 content="I encountered an error. Please try again.",
