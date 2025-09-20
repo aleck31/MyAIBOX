@@ -3,10 +3,10 @@
 """Helper utilities for processing media files such as image and pdf"""
 import re
 import base64
-import logging
 from io import BytesIO
 from typing import Tuple, Optional
 from PIL import Image
+from . import logger
 
 
 # Default size constants
@@ -158,7 +158,7 @@ class FileProcessor:
             
             # If small enough or reached minimum quality, return this version
             if size <= self.target_file_size or quality == quality_levels[-1]:
-                logging.debug(f"Optimized image with {quality}% quality: {size / 1024:.1f} KB")
+                logger.debug(f"Optimized image with {quality}% quality: {size / 1024:.1f} KB")
                 buffer.seek(0)
                 return Image.open(buffer)
 

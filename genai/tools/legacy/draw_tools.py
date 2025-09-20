@@ -7,8 +7,8 @@ import random
 from pathlib import Path
 from typing import Dict
 from PIL import Image
-from common.logger import logger
 from webui.modules.draw.prompts import NEGATIVE_PROMPTS
+from .. import logger
 
 
 def generate_image(

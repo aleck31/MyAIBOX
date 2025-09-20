@@ -3,7 +3,7 @@ Strands Built-in Tools
 Simple builtin tools list containing only verified working tools
 """
 from typing import List, Optional
-from common.logger import logger
+from .. import logger
 
 
 # Only include verified working tools

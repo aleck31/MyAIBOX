@@ -3,13 +3,12 @@
 """General helper utilities here"""
 # Python Built-Ins:
 import re
-import os
 import sys
 import textwrap
 from io import StringIO
-from typing import Literal
-from utils import file
+from common.logger import setup_logger
 
+logger = setup_logger('utils')
 
 FORMAT_IMG = ['png', 'jpeg', 'gif', 'webp']
 FORMAT_DOC = ['pdf', 'csv', 'doc', 'docx', 'xls', 'xlsx', 'html', 'txt', 'md']

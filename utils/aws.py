@@ -7,7 +7,7 @@ import boto3
 from typing import Optional, Dict, Any
 from botocore.config import Config
 from core.config import env_config
-from common.logger import logger
+from . import logger
 
 
 # Global session cache - dictionary to store sessions by region and role

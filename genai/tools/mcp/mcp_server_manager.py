@@ -3,10 +3,9 @@ MCP server management and configuration
 """
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
-from botocore.exceptions import ClientError
 from core.config import env_config
-from common.logger import logger
 from utils.aws import get_aws_resource
+from .. import logger
 
 
 class MCPServerManager:

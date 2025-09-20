@@ -1,7 +1,5 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
-import os
-from io import BytesIO
 from contextlib import closing
 from boto3 import Session
 from botocore.exceptions import BotoCoreError, ClientError
