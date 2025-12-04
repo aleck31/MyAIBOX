@@ -71,7 +71,7 @@ class VisionHandlers(BaseHandler):
             # Build content
             user_requirement = text or "Describe the media or document in detail."
             content = {
-                "text": f"<requirement>{user_requirement}</requirement>",
+                "text": user_requirement,
                 "files": [file_path]
             }
             logger.debug(f"Analysis content: {content}")

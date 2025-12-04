@@ -1,18 +1,25 @@
 """Prompts for the summary module"""
 
-SYSTEM_PROMPT = """
-You are a text summarization expert. Output ONLY the summary content - no explanations, no meta-commentary about what you're going to do.
+# Language mapping for natural language prompts
+LANG_MAP = {
+    "original": "the original language",
+    "Chinese": "Chinese",
+    "English": "English",
+    "zh_CN": "Simplified Chinese",
+    "zh_TW": "Traditional Chinese",
+    "en_US": "English"
+}
+
+SYSTEM_PROMPT = """You are a text summarization expert. Output only the summary content without meta-commentary.
 
 Guidelines:
 - If input contains URL starting with @, use get_text_from_url tool first
-- Begin with overview sentence
-- Use clear structure with sections/bullet points as needed
-- Keep ~20-25% of original length
-- Preserve technical terms
-- Maintain factual accuracy and tone
-- Use target language as specified while preserving technical terms
-
-IMPORTANT: Output ONLY the final summary content. Do not include any explanatory text about your process.
+- Begin with a concise overview sentence
+- Use clear structure: headings for sections, bullet points for key details
+- Target length: 20-30% of original for long texts, 40-50% for short texts
+- Preserve technical terms and key terminology exactly
+- Maintain factual accuracy and original tone
+- Output in {target_lang}
 """
 
 def build_user_prompt(text: str, target_lang: str) -> str:
@@ -25,14 +32,10 @@ def build_user_prompt(text: str, target_lang: str) -> str:
     Returns:
         str: Formatted user prompt
     """
-    lang_instruction = "Maintain the original language" if target_lang == "original" else f"Output the summary in {target_lang}"
+    lang = LANG_MAP.get(target_lang, target_lang)
     
-    return f"""
-    Analyze and summarize the following input. {lang_instruction}.
+    return f"""Summarize the following text in {lang}:
 
-    <input>
-    {text}
-    </input>
-
-    Provide a well-structured summary, ensure the output is in {target_lang} language while keeping technical terms accurate.
-    """
+<text>
+{text}
+</text>"""

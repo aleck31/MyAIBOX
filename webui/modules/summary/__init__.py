@@ -6,7 +6,7 @@ from typing import AsyncIterator
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
-from .prompts import SYSTEM_PROMPT, build_user_prompt
+from .prompts import SYSTEM_PROMPT, build_user_prompt, LANG_MAP
 
 
 class SummaryHandlers(BaseHandler):
@@ -61,8 +61,9 @@ class SummaryHandlers(BaseHandler):
             # Initialize session
             service, session = await cls._init_session(request)
 
-            # Update session with system prompt
-            session.context['system_prompt'] = SYSTEM_PROMPT
+            # Format system prompt with target language
+            lang = LANG_MAP.get(target_lang, target_lang)
+            session.context['system_prompt'] = SYSTEM_PROMPT.format(target_lang=lang)
             # Persist updated context
             # await service.session_store.save_session(session)
             logger.info(f"Summary text request - Model: {model_id}")

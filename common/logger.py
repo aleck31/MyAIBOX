@@ -18,12 +18,12 @@ class AutoPrefixLogger:
     def _get_caller_name(self):
         """Get caller name for automatic prefix"""
         try:
-            # Stack: _get_caller_name -> log_method -> __getattr__ -> actual_caller
-            frame = inspect.currentframe()
-            caller_frame = frame.f_back.f_back.f_back
-            
-            if caller_frame is None:
+            # Get call stack: [current, log_method, __getattr__, actual_caller, ...]
+            stack = inspect.stack()
+            if len(stack) < 4:
                 return None
+            # Get the 4th frame (index 3) which is the actual caller
+            caller_frame = stack[3].frame
             
             # Class method: use class name
             if 'self' in caller_frame.f_locals:
@@ -75,6 +75,8 @@ def setup_logger(layer_name: str = 'app') -> AutoPrefixLogger:
     Returns:
         AutoPrefixLogger instance with automatic prefix functionality
     """
+    import os
+    
     base_logger = logging.getLogger(layer_name)
     
     # Avoid duplicate handlers if logger already exists
@@ -85,9 +87,8 @@ def setup_logger(layer_name: str = 'app') -> AutoPrefixLogger:
     debug_mode = app_config.server_config['debug']
     base_logger.setLevel(logging.DEBUG if debug_mode else logging.INFO)
     
-    # Create logs directory if it doesn't exist
-    log_dir = Path(__file__).parent.parent / 'logs'
-    log_dir.mkdir(exist_ok=True)
+    # Check if file logging is enabled (default: true for backward compatibility)
+    log_to_file = os.getenv('LOG_TO_FILE', 'true').lower() == 'true'
     
     # Create formatters
     formatter = logging.Formatter(
@@ -101,30 +102,36 @@ def setup_logger(layer_name: str = 'app') -> AutoPrefixLogger:
     base_logger.propagate = False  # Prevent propagation to avoid duplicate logs
     base_logger.addHandler(console_handler)
     
-    # Regular application log file (INFO and above)
-    app_handler = RotatingFileHandler(
-        log_dir / 'app.log',
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    app_handler.setFormatter(formatter)
-    app_handler.setLevel(logging.INFO)
-    base_logger.addHandler(app_handler)
-    
-    # Debug log file (DEBUG level only)
-    if debug_mode:
-        debug_handler = RotatingFileHandler(
-            log_dir / 'debug.log',
+    # File handlers (only if LOG_TO_FILE=true)
+    if log_to_file:
+        # Create logs directory
+        log_dir = Path(__file__).parent.parent / 'logs'
+        log_dir.mkdir(exist_ok=True)
+        
+        # Regular application log file (INFO and above)
+        app_handler = RotatingFileHandler(
+            log_dir / 'app.log',
             maxBytes=10*1024*1024,  # 10MB
             backupCount=5,
             encoding='utf-8'
         )
-        debug_handler.setFormatter(formatter)
-        debug_handler.setLevel(logging.DEBUG)
-        # Only write DEBUG level messages to debug.log
-        debug_handler.addFilter(lambda record: record.levelno == logging.DEBUG)
-        base_logger.addHandler(debug_handler)
+        app_handler.setFormatter(formatter)
+        app_handler.setLevel(logging.INFO)
+        base_logger.addHandler(app_handler)
+        
+        # Debug log file (DEBUG level only)
+        if debug_mode:
+            debug_handler = RotatingFileHandler(
+                log_dir / 'debug.log',
+                maxBytes=10*1024*1024,  # 10MB
+                backupCount=5,
+                encoding='utf-8'
+            )
+            debug_handler.setFormatter(formatter)
+            debug_handler.setLevel(logging.DEBUG)
+            # Only write DEBUG level messages to debug.log
+            debug_handler.addFilter(lambda record: record.levelno == logging.DEBUG)
+            base_logger.addHandler(debug_handler)
     
     return AutoPrefixLogger(base_logger)
 

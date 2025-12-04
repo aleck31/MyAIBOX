@@ -4,7 +4,7 @@ import gradio as gr
 from typing import Dict, Optional
 from core.service.gen_service import GenService
 from .. import BaseHandler, logger
-from .prompts import SYSTEM_PROMPTS, STYLES
+from .prompts import SYSTEM_PROMPTS, STYLES, LANG_MAP
 
 
 # Language options
@@ -48,27 +48,22 @@ class TextHandlers(BaseHandler):
     @classmethod
     async def _build_content(cls, text: str, operation: str, options: Dict) -> Dict[str, str]:
         """Build content for text processing"""
-        target_lang = options.get('target_lang', 'en_US')
-        system_prompt = SYSTEM_PROMPTS[operation].format(target_lang=target_lang)
+        target_lang_code = options.get('target_lang', 'en_US')
+        target_lang = LANG_MAP.get(target_lang_code, 'English')
         
-        tag = 'original_text'
+        # Build system prompt
         if operation == 'rewrite':
             style_key = options.get('style', '正常')
-            style_prompt = STYLES[style_key]['prompt']
-            user_prompt = f"""Rewrite the text within <{tag}> </{tag}> tags following this style instruction:
-                {style_prompt}
-                Ensuring the output is in {target_lang} language:
-                <{tag}>
-                {text}
-                </{tag}>
-                """
+            style_instruction = f"Follow this style: {STYLES[style_key]['prompt']}"
+            system_prompt = SYSTEM_PROMPTS[operation].format(
+                target_lang=target_lang,
+                style_instruction=style_instruction
+            )
         else:
-            user_prompt = f"""Process the text within <{tag}></{tag}> tags according to the given instructions:
-            Ensuring the output is in {target_lang} language:
-            <{tag}>
-            {text}
-            </{tag}>
-            """
+            system_prompt = SYSTEM_PROMPTS[operation].format(target_lang=target_lang)
+        
+        # Simple user prompt
+        user_prompt = f"<text>\n{text}\n</text>"
                 
         return {
             "text": user_prompt,
