@@ -143,16 +143,31 @@ class BedrockConverse(LLMAPIProvider):
         # Add standard parameters only if they're not None
         if max_tokens := kwargs.get('max_tokens', self.llm_params.max_tokens):
             inference_config["maxTokens"] = max_tokens
-        if temperature := kwargs.get('temperature', self.llm_params.temperature):
-            inference_config["temperature"] = temperature
-        if top_p := kwargs.get('top_p', self.llm_params.top_p):
-            inference_config["topP"] = top_p
+        
+        # Handle temperature and top_p for Claude 4.5 models
+        # Claude 4.5 models only support one of temperature or top_p, not both
+        is_claude_45 = 'claude-haiku-4-5' in self.model_id or 'claude-sonnet-4-5' in self.model_id
+        
+        if is_claude_45:
+            # For Claude 4.5, prioritize temperature over top_p
+            if temperature := kwargs.get('temperature', self.llm_params.temperature):
+                inference_config["temperature"] = temperature
+            elif top_p := kwargs.get('top_p', self.llm_params.top_p):
+                inference_config["topP"] = top_p
+        else:
+            # For other models, include both if available
+            if temperature := kwargs.get('temperature', self.llm_params.temperature):
+                inference_config["temperature"] = temperature
+            if top_p := kwargs.get('top_p', self.llm_params.top_p):
+                inference_config["topP"] = top_p
+        
         if stop_sequences := kwargs.get('stop_sequences', self.llm_params.stop_sequences):
             inference_config["stopSequences"] = stop_sequences
 
         # Check for thinking config early to avoid redundant operations
         thinking_config = kwargs.get('thinking', self.llm_params.thinking)
-        is_claude_thinking = thinking_config and 'claude-3-7' in self.model_id
+        # Claude 3.7, 4, and 4.5 models support thinking
+        is_claude_thinking = thinking_config and any(x in self.model_id for x in ['claude-3-7', 'claude-4', 'claude-sonnet-4', 'claude-haiku-4', 'claude-opus-4'])
         
         # Prepare additional model request fields if needed
         additional_fields = {}
