@@ -1,6 +1,6 @@
 import asyncio
 import gradio as gr
-from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
+from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple, cast
 from core.service.agent_service import AgentService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
@@ -86,6 +86,7 @@ class AssistantHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(AgentService, service)
 
             # Clear history in session
             await service.clear_history(session)
@@ -161,6 +162,7 @@ class AssistantHandlers(BaseHandler):
                 return
 
             service, session = await cls._init_session(request)
+            service = cast(AgentService, service)
             
             # Load tool configuration from database
             from core.module_config import module_config

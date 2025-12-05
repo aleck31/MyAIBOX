@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 import asyncio
 import gradio as gr
-from typing import AsyncIterator
+from typing import AsyncIterator, cast
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
@@ -60,6 +60,7 @@ class SummaryHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(GenService, service)
 
             # Format system prompt with target language
             lang = LANG_MAP.get(target_lang, target_lang)
@@ -83,12 +84,12 @@ class SummaryHandlers(BaseHandler):
                 # Handle structured chunks from GenService
                 if isinstance(chunk, dict):
                     # Only process text content (ignore thinking content)
-                    if text := chunk.get('text'):
+                    if text := chunk.get('text', ''):
                         buffered_text += text
                         yield buffered_text
                 else:
                     # Legacy format handling (string chunks)
-                    buffered_text += chunk
+                    buffered_text += str(chunk)
                     yield buffered_text
                 
                 await asyncio.sleep(0)  # Add sleep for Gradio UI streaming echo

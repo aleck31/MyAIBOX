@@ -194,6 +194,7 @@ class DrawHandlers(BaseHandler):
                 
             # Get services
             draw_service, session = await cls._init_session(request)
+            draw_service = cast(DrawService, draw_service)
 
             # Process parameters
             used_seed = cls._random_seed() if is_random else (seed or 0)

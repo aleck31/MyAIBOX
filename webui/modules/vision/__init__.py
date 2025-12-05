@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 import asyncio
 import gradio as gr
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, cast
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
@@ -61,6 +61,7 @@ class VisionHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(GenService, service)
  
             # Update session with system prompt
             session.context['system_prompt'] = VISION_SYSTEM_PROMPT

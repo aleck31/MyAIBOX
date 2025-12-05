@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import gradio as gr
-from typing import Dict, Optional
+from typing import Dict, Optional, cast
 from core.service.gen_service import GenService
 from .. import BaseHandler, logger
 from .prompts import SYSTEM_PROMPTS, STYLES, LANG_MAP
@@ -85,6 +85,7 @@ class TextHandlers(BaseHandler):
         try:
             # Get services
             service, session = await cls._init_session(request)
+            service = cast(GenService, service)
 
             # Build prompt with operation-specific configuration
             options = options or {}
@@ -106,7 +107,7 @@ class TextHandlers(BaseHandler):
                 raise ValueError("Empty response from service")
 
             if isinstance(response, dict):
-                return response.get('text')
+                return response.get('text', '')
             else:
                 # returns the content string directly
                 return response

@@ -1,6 +1,6 @@
 import asyncio
 import gradio as gr
-from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple
+from typing import List, Dict, AsyncGenerator, Union, Optional, Tuple, cast
 from core.service.chat_service import ChatService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
@@ -52,6 +52,7 @@ class ChatbotHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(ChatService, service)
 
             history_future = service.load_session_history(
                 session=session,
@@ -86,6 +87,7 @@ class ChatbotHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(ChatService, service)
 
             # Clear history in session
             await service.clear_history(session)
@@ -134,6 +136,7 @@ class ChatbotHandlers(BaseHandler):
                 
             # Initialize service and session
             service, session = await cls._init_session(request)
+            service = cast(ChatService, service)
 
             # Update persona role using service method
             await service.update_session_role(session, chat_style)
@@ -178,6 +181,7 @@ class ChatbotHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(ChatService, service)
 
             # Configure chat style
             style_config = PERSONA_ROLES.get(chat_style) or PERSONA_ROLES['default']

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 import asyncio
 import gradio as gr
-from typing import Dict, Optional, AsyncIterator, Union
+from typing import Dict, Optional, AsyncIterator, Union, cast
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
@@ -63,6 +63,7 @@ class CodingHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(GenService, service)
             
             # Phase 1: Architecture design
             session.context['system_prompt'] = ARCHITECT_PROMPT
@@ -112,6 +113,7 @@ class CodingHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(GenService, service)
             
             # Phase 2: code generation
             session.context['system_prompt'] = CODER_PROMPT

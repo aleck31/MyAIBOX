@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 import asyncio
 import gradio as gr
-from typing import Dict, Optional, AsyncIterator, List, Union
+from typing import Dict, Optional, AsyncIterator, List, Union, cast
 from core.service.gen_service import GenService
 from genai.models.model_manager import model_manager
 from .. import BaseHandler, logger
@@ -69,6 +69,7 @@ class AskingHandlers(BaseHandler):
         try:
             # Initialize session
             service, session = await cls._init_session(request)
+            service = cast(GenService, service)
 
             # Update session with system prompt (use custom template if provided, otherwise use default)
             if prompt_template and prompt_template.strip():
