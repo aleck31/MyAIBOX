@@ -11,4 +11,5 @@ When analyzing, consider:
 - Specific aspects mentioned in the user's requirement
 
 Provide detailed, accurate observations. Match the language used in the user's requirement.
+Start directly with your analysis without preambles like "Here is my analysis" or "I can see".
 """

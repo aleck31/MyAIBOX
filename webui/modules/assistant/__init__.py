@@ -201,12 +201,13 @@ class AssistantHandlers(BaseHandler):
                     messages.append(thinking_msg)
                     yield messages
                     
-                # Handle tool use - simplified logic
+                # Handle tool use - use tool_use_id for deduplication
                 if tool_use := chunk.get('tool_use'):
                     tool_name = tool_use.get('name', 'unknown')
                     tool_status = tool_use.get('status', 'running')
                     tool_params = tool_use.get('params', {})
                     tool_result = tool_use.get('result', '')
+                    tool_use_id = tool_use.get('tool_use_id', '')
                     
                     # Configuration constants
                     TOOL_RESULT_MAX_LENGTH = 200
@@ -246,6 +247,10 @@ class AssistantHandlers(BaseHandler):
                         # Unknown status, skip
                         continue
                     
+                    # Encode tool_use_id in title for deduplication
+                    if tool_use_id:
+                        title = f"{title}#{tool_use_id}"
+                    
                     # Create tool status message
                     tool_msg = gr.ChatMessage(
                         role="assistant",
@@ -253,13 +258,12 @@ class AssistantHandlers(BaseHandler):
                         metadata={"title": title, "status": status}
                     )
                     
-                    # For completed/failed status, remove previous pending messages for the same tool
-                    if status == "done":
+                    # Use tool_use_id from title for precise deduplication
+                    if tool_use_id:
+                        # Remove any existing message with same tool_use_id in title
                         messages = [m for m in messages if not (
-                            m.role == "assistant" and 
                             m.metadata and 
-                            m.metadata.get("title", "").endswith(f": {tool_name}") and
-                            m.metadata.get("status") == "pending"
+                            m.metadata.get("title", "").endswith(f"#{tool_use_id}")
                         )]
                     
                     messages.append(tool_msg)

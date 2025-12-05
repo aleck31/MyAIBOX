@@ -23,21 +23,6 @@ DEFAULT_MODELS = [
         )
     ),
     LLMModel(
-        name='claude3.6-sonnet',
-        model_id='anthropic.claude-3-5-sonnet-20241022-v2:0',
-        api_provider='Bedrock',
-        category='vision',
-        description='Claude 3.5 Sonnet v2 model for general use',
-        vendor='Anthropic',
-        capabilities=LLM_CAPABILITIES(
-            input_modality=['text', 'image', 'document'],
-            output_modality=['text'],
-            streaming=True,
-            tool_use=True,
-            context_window=200*1024
-        )
-    ),
-    LLMModel(
         name='gemini 1.5 pro',
         model_id='gemini-1.5-pro',
         api_provider='Gemini',

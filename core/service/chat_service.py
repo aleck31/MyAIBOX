@@ -230,7 +230,7 @@ class ChatService(BaseService):
             logger.debug(f"User message sent to LLM Provider: {user_message}")
 
             # Convert history messages to chat Message format with truncation
-            history_messages = self._prepare_history(ui_history)
+            history_messages = self._prepare_history(ui_history or [])
                 
             logger.debug(f"History messages sent to LLM Provider: {len(history_messages)} messages")
 

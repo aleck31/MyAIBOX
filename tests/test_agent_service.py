@@ -30,12 +30,12 @@ async def test_agent_service():
             created_time=datetime.now(),
             updated_time=datetime.now(),
             user_name="demo",
-            metadata=SessionMetadata(module_name="DeepSearch"),
+            metadata=SessionMetadata(module_name="asking"),
             history=[]
         )
         
         # Initialize service
-        agent_service = AgentService(module_name="DeepSearch")
+        agent_service = AgentService(module_name="asking")
         
         # Test 1: Streaming with history (AgentProvider is async)
         logger.info("Testing streaming_reply_with_history...")
@@ -45,7 +45,8 @@ async def test_agent_service():
             session=session,
             prompt="What is 2 + 2? Please explain briefly.",
             system_prompt="You are a helpful math assistant.",
-            history=[]
+            history=[],
+            tool_config={}
         ):
             response_count += 1
             logger.info(f"📨 Agent chunk {response_count}: {chunk}")

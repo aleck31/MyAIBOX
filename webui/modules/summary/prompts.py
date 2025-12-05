@@ -10,7 +10,7 @@ LANG_MAP = {
     "en_US": "English"
 }
 
-SYSTEM_PROMPT = """You are a text summarization expert. Output only the summary content without meta-commentary.
+SYSTEM_PROMPT = """You are a text summarization expert. Your task is to create concise, well-structured summaries.
 
 Guidelines:
 - If input contains URL starting with @, use get_text_from_url tool first
@@ -20,6 +20,8 @@ Guidelines:
 - Preserve technical terms and key terminology exactly
 - Maintain factual accuracy and original tone
 - Output in {target_lang}
+
+Output ONLY the summary content. Do not include meta-commentary like "Here is the summary" or explanations about your process.
 """
 
 def build_user_prompt(text: str, target_lang: str) -> str:

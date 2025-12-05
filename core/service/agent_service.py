@@ -94,7 +94,7 @@ class AgentService(BaseService):
 
             except Exception as e:
                 logger.error(f"[AgentService] Failed to initialize AgentProvider: {str(e)}")
-                self._agent_provider = None
+                raise  # Re-raise instead of returning None
 
     def _get_default_tool_config(self) -> Dict[str, Any]:
         """Get default tool configuration for the service
@@ -261,7 +261,7 @@ class AgentService(BaseService):
         session: Session, 
         prompt: str, 
         system_prompt: str, 
-        tool_config: Dict[str, Any] = None
+        tool_config: Optional[Dict[str, Any]] = None
     ) -> AsyncIterator[Dict]:
         """
         Generate text with streaming response (single-turn)
