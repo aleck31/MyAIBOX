@@ -22,8 +22,7 @@ def create_interface() -> gr.Blocks:
     )
     
     chatbot = gr.Chatbot(
-        type='messages',
-        show_copy_button=True,
+        buttons=["copy"],
         min_height='60vh',
         max_height='80vh',
         avatar_images=(None, "assets/avatars/assistant.png"),
@@ -49,7 +48,6 @@ def create_interface() -> gr.Blocks:
         # Create optimized chat interface
         chat = gr.ChatInterface(
             fn=AssistantHandlers.send_message,
-            type='messages',
             multimodal=True,
             chatbot=chatbot,
             textbox=mtextbox,

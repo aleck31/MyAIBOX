@@ -24,8 +24,7 @@ def create_interface() -> gr.Blocks:
             )
 
     chatbot=gr.Chatbot(
-        type='messages',
-        show_copy_button=True,
+        buttons=["copy"],
         min_height='60vh',
         max_height='80vh',
         avatar_images=(None, "assets/avatars/chatbot.png"),
@@ -65,7 +64,6 @@ def create_interface() -> gr.Blocks:
         # Create chat interface with history loading
         chat = gr.ChatInterface(
             fn=ChatbotHandlers.send_message,
-            type='messages',
             multimodal=True,
             chatbot=chatbot,
             textbox=mtextbox,

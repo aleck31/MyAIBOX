@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 from decimal import Decimal
 from botocore.exceptions import ClientError
 from core.config import env_config
-from common.logger import setup_logger, logger
+from common.logger import logger
 from utils.aws import get_aws_resource
 from .model_list import DEFAULT_MODELS
 from . import LLMModel
@@ -18,7 +18,7 @@ class ModelManager:
             self.dynamodb = get_aws_resource('dynamodb')
             self.table_name = env_config.database_config['setting_table']
             self.ensure_table_exists()
-            self.table = self.dynamodb.Table(self.table_name)
+            self.table = self.dynamodb.Table(self.table_name)  # type: ignore
             logger.debug(f"Initialized ModelManager with table: {self.table_name}")
             # Cache for models
             self._models_cache = None
@@ -31,10 +31,10 @@ class ModelManager:
     def ensure_table_exists(self):
         """Ensure the DynamoDB table exists, create if it doesn't"""
         try:
-            existing_tables = self.dynamodb.meta.client.list_tables()['TableNames']
+            existing_tables = self.dynamodb.meta.client.list_tables()['TableNames']  # type: ignore
             if self.table_name not in existing_tables:
                 logger.info(f"Creating DynamoDB table: {self.table_name}")
-                self.dynamodb.create_table(
+                self.dynamodb.create_table(  # type: ignore
                     TableName=self.table_name,
                     KeySchema=[
                         {'AttributeName': 'setting_name', 'KeyType': 'HASH'},
@@ -47,7 +47,7 @@ class ModelManager:
                     BillingMode='PAY_PER_REQUEST'
                 )
                 # Wait for table to be created
-                waiter = self.dynamodb.meta.client.get_waiter('table_exists')
+                waiter = self.dynamodb.meta.client.get_waiter('table_exists')  # type: ignore
                 waiter.wait(TableName=self.table_name)
         except Exception as e:
             logger.error(f"Error ensuring table exists: {str(e)}")
@@ -105,7 +105,7 @@ class ModelManager:
 
             # Convert stored data to LLMModel instances
             models_data = self._decimal_to_float(response['Item'].get('models', []))
-            models = [LLMModel.from_dict(model_data) for model_data in models_data]
+            models = [LLMModel.from_dict(model_data) for model_data in models_data]  # type: ignore
 
             # Update cache
             self._models_cache = sorted(models, key=lambda m: m.name)

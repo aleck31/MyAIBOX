@@ -29,7 +29,7 @@ def create_interface() -> gr.Blocks:
         output_text = gr.Textbox(
             label="Processed Result",
             lines=8,
-            show_copy_button=True,
+            buttons=["copy"],
             render=False
         )
 
@@ -86,7 +86,7 @@ def create_interface() -> gr.Blocks:
                     label="Original Text",
                     lines=8,
                     placeholder="Enter your text here...",
-                    show_copy_button=True
+                    buttons=["copy"]
                 )
 
                 # Action buttons

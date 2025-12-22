@@ -27,7 +27,7 @@ def create_interface() -> gr.Blocks:
             show_label=False,
             line_breaks=True,
             min_height=300,
-            show_copy_button=True,
+            buttons=["copy"],
             header_links=True,
             render=False
         )
@@ -41,7 +41,7 @@ def create_interface() -> gr.Blocks:
                     label="Describe your requirements:",
                     placeholder="What would you like me to help you code?",
                     lines=5,
-                    show_copy_button=True
+                    buttons=["copy"]
                 )
 
                 # Options accordion

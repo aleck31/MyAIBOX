@@ -23,7 +23,7 @@ def create_interface() -> gr.Blocks:
             value="",
             line_breaks=True,
             container=True,
-            show_copy_button=True,
+            buttons=["copy"],
             min_height=320,
             render=False
         )
@@ -36,7 +36,7 @@ def create_interface() -> gr.Blocks:
                             label='Image Preview', 
                             type='filepath',
                             sources=['upload', 'webcam', 'clipboard'],
-                            show_download_button=False,
+                            buttons=[],
                             elem_id="vision_image_input"
                         )
                         input_img.change(lambda x: x, input_img, saved_path)

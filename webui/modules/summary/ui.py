@@ -16,7 +16,7 @@ def create_interface() -> gr.Blocks:
         output_text = gr.Markdown(
             value="",  # Initialize with empty value for streaming
             label="Summary",
-            show_copy_button=True,
+            buttons=["copy"],
             header_links=True,
             line_breaks=True,
             container=True,

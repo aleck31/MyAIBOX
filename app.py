@@ -83,13 +83,20 @@ async def health_check():
 # Create main interface
 main_ui = create_main_interface()
 
+# Load and process CSS with Svelte class name
+SVELTE_CLASS = 'svelte-nokcq6'
+with open('webui/styles.css', 'r') as f:
+    css_content = f.read().replace('{SVELTE_CLASS}', SVELTE_CLASS)
+
 # Mount Gradio app with auth_dependency
 app = gr.mount_gradio_app(
     app, 
     main_ui, 
     path="/main",
     auth_dependency=get_auth_user,
-    show_api=False
+    footer_links=['settings'],
+    css=css_content,
+    theme="Ocean"
 )
 
 if __name__ == "__main__":

@@ -12,55 +12,6 @@ from .modules.draw.ui import tab_draw
 from .setting.ui import tab_setting
 
 
-# The Svelte-generated class name that might change between versions
-main_class = 'svelte-nokcq6'
-
-css = f""" 
-    footer {{visibility: hidden}}
-
-    /* Reset base styles */
-    .app.{main_class}.{main_class} {{
-        padding: var(--size-3) var(--size-2);
-        transition: width 0.3s, max-width 0.3s, padding 0.3s;
-        max-width: none;
-    }}
-
-    /* Small screens (<=767px) */
-    @media (min-width: 640px) {{
-        .fillable.{main_class}.{main_class}:not(.fill_width) {{
-            padding: var(--size-3) var(--size-0-5);
-            width: 100% !important;
-        }}
-    }}
-
-    /* Medium screens (768px-1023px) */
-    @media (min-width: 768px) {{
-        .fillable.{main_class}.{main_class}:not(.fill_width) {{
-            padding: var(--size-3) var(--size-0-5);
-            width: 100% !important;
-            max-width: 920px !important;
-        }}
-    }}
-
-    /* Large screens (1024px-1199px) */
-    @media (min-width: 1024px) {{
-        .fillable.{main_class}.{main_class}:not(.fill_width) {{
-            padding: var(--size-3) var(--size-2);
-            width: 90% !important;
-            max-width: 960px !important;
-        }}
-    }}
-
-    /* Extra large screens (≥1200px) */
-    @media (min-width: 1200px) {{
-        .fillable.{main_class}.{main_class}:not(.fill_width) {{
-            padding: var(--size-3) var(--size-3);
-            width: 80% !important;
-            max-width: 1024px !important;
-        }}
-    }}
-    """
-
 def create_main_interface():
     """Create the main Gradio interface with all tabs"""
     # Log when interface is being created
@@ -80,8 +31,6 @@ def create_main_interface():
             "Setting ⚙️"
         ],
         title="MyAIBOX - GenAI百宝箱",
-        theme="Ocean",
-        css=css,
         analytics_enabled=False,  # Disable analytics to prevent session issues
     ).queue(
         default_concurrency_limit=8

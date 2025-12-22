@@ -1,6 +1,6 @@
 [project]
 name = "my-aibox"
-version = "2.0.0"
+version = "2.1.0"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 dependencies = [
     # Fundamental
     "fastapi>=0.100.0",
-    "gradio>=5.0.0",
+    "gradio>=6.2.0",
     "gradio_pdf>=0.0.22",
     "boto3>=1.28.0",
     "google-genai>=1.7.0",
