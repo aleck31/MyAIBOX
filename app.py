@@ -84,7 +84,7 @@ async def health_check():
 main_ui = create_main_interface()
 
 # Load and process CSS with Svelte class name
-SVELTE_CLASS = 'svelte-nokcq6'
+SVELTE_CLASS = 'svelte-99kmwu'
 with open('webui/styles.css', 'r') as f:
     css_content = f.read().replace('{SVELTE_CLASS}', SVELTE_CLASS)
 

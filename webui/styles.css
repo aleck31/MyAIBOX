@@ -3,6 +3,11 @@ footer {
     visibility: hidden;
 }
 
+/* Navbar alignment - left align */
+/* .nav-holder nav {
+    justify-content: flex-start !important;
+} */
+
 /* Reset base styles */
 .app.{SVELTE_CLASS}.{SVELTE_CLASS} {
     padding: var(--size-3) var(--size-2);

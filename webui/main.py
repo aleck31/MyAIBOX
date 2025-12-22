@@ -14,27 +14,31 @@ from .setting.ui import tab_setting
 
 def create_main_interface():
     """Create the main Gradio interface with all tabs"""
-    # Log when interface is being created
     logger.debug("Creating main Gradio interface")
     
-    interface = gr.TabbedInterface(
-        [
-            tab_assistant, tab_persona, tab_text,
-            tab_summary, tab_vision, tab_asking,
-            tab_coding, tab_draw, 
-            tab_setting
-        ],
-        tab_names=[
-            "Assistant 🤖", "Persona 🎭", "Text 📝", 
-            "Summary 📰", "Vision 👀", "Asking 🤔",
-            "Coding 💻", "Draw 🎨", 
-            "Setting ⚙️"
-        ],
-        title="MyAIBOX - GenAI百宝箱",
-        analytics_enabled=False,  # Disable analytics to prevent session issues
-    ).queue(
-        default_concurrency_limit=8
-    )
+    home = gr.Blocks(title="MyAIBOX 🧰", analytics_enabled=False)
     
+    with home:
+        gr.Navbar(main_page_name="MyAIBOX - GenAI百宝箱")  # type: ignore
+        
+        # Main functional tabs (8 modules)
+        gr.TabbedInterface(
+            [
+                tab_assistant, tab_persona, tab_text,
+                tab_summary, tab_vision, tab_asking,
+                tab_coding, tab_draw
+            ],
+            tab_names=[
+                "Assistant 🤖", "Persona 🎭", "Text 📝", 
+                "Summary 📰", "Vision 👀", "Asking 🤔",
+                "Coding 💻", "Draw 🎨"
+            ]
+        )
+    
+    # Settings as separate page
+    with home.route("Settings ⚙️", "/settings"):
+        tab_setting.render()
+    
+    home.queue(default_concurrency_limit=8)
     logger.debug("Main Gradio interface created successfully")
-    return interface
+    return home
