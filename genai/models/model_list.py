@@ -7,11 +7,11 @@ from . import LLMModel, LLM_CAPABILITIES
 # Default model list
 DEFAULT_MODELS = [
     LLMModel(
-        name='claude3.7-sonnet-thinking',
-        model_id='us.anthropic.claude-3-7-sonnet-20250219-v1:0',
+        name='claude-sonnet-4-6',
+        model_id='global.anthropic.claude-sonnet-4-6',
         api_provider='Bedrock',
         category='vision',
-        description='Claude 3.7 Sonnet model offer extended thinking—the ability to solve complex problems with careful, step-by-step reasoning.',
+        description='Claude Sonnet 4.6 model with extended thinking and vision capabilities.',
         vendor='Anthropic',
         capabilities=LLM_CAPABILITIES(
             input_modality=['text', 'image', 'document'],
@@ -38,11 +38,11 @@ DEFAULT_MODELS = [
         )
     ),
     LLMModel(
-        name='gemini 2.0 flash',
-        model_id='gemini-2.0-flash',
+        name='gemini flash latest',
+        model_id='gemini-flash-latest',
         api_provider='Gemini',
         category='vision',
-        description='Gemini Flash model for text and vision',
+        description='Gemini Flash latest model for text and vision',
         vendor='Google',
         capabilities=LLM_CAPABILITIES(
             input_modality=['text', 'image', 'document'],

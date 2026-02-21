@@ -1,6 +1,5 @@
 import time
 import wikipedia
-from strands import tool
 from ddgs import DDGS
 from cachetools import TTLCache
 from .. import logger
@@ -48,7 +47,6 @@ def _get_wikipedia_page_and_summary(title, sentences=6):
         logger.error(f"Error getting Wikipedia page: {e}")
         return None, None
 
-@tool
 def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
     """Search Wikipedia and return relevant information
     
@@ -145,7 +143,6 @@ def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
             "error": f"Failed to search Wikipedia: {str(e)}"
         }
 
-@tool
 def search_internet(query: str, num_results: int = 6, language: str = "en"):
     """Search the internet via DuckDuckGo and return relevant search results
     

@@ -155,10 +155,10 @@ class ModuleConfig:
             else:
                 # Fallback to Claude 3.5 Sonnet as the default model
                 logger.warning(f"No default model found for module {module_name}, using fallback model")
-                return 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+                return 'global.anthropic.claude-sonnet-4-6'
         except Exception as e:
             logger.error(f"Error getting default model for module {module_name}: {str(e)}")
-            return 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+            return 'global.anthropic.claude-sonnet-4-6'
 
     def get_inference_params(self, module_name: str) -> Optional[Dict]:
         """Get inference parameters from module configuration"""
@@ -194,7 +194,7 @@ class ModuleConfig:
                 'setting_name': 'assistant',
                 'type': 'module',
                 'description': 'Assistant Module',
-                'default_model': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'max_tokens': 4096,
                     'temperature': Decimal('0.7'),
@@ -213,7 +213,7 @@ class ModuleConfig:
                 'setting_name': 'persona',
                 'type': 'module',
                 'description': 'Persona Module Settings',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 1000,
@@ -225,7 +225,7 @@ class ModuleConfig:
                 'setting_name': 'coding',
                 'type': 'module',
                 'description': 'Coding Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'temperature': Decimal('0.2'),
                     'max_tokens': 2000
@@ -235,7 +235,7 @@ class ModuleConfig:
                 'setting_name': 'text',
                 'type': 'module',
                 'description': 'Text Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 2000,
@@ -246,7 +246,7 @@ class ModuleConfig:
                 'setting_name': 'summary',
                 'type': 'module',
                 'description': 'Summary Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'temperature': Decimal('0.2'),
                     'max_tokens': 2000
@@ -259,7 +259,7 @@ class ModuleConfig:
                 'setting_name': 'vision',
                 'type': 'module',
                 'description': 'Vision Module',
-                'default_model': 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 2048,
@@ -271,7 +271,7 @@ class ModuleConfig:
                 'setting_name': 'asking',
                 'type': 'module',
                 'description': 'Asking Module',
-                'default_model': 'us.anthropic.claude-3-7-sonnet-20250219-v1:0',
+                'default_model': 'global.anthropic.claude-sonnet-4-6',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 4096

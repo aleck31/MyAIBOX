@@ -13,7 +13,6 @@ develop-eggs/
 dist/
 node_modules
 assets/generated/
-build-push.sh
 
 # vscode
 .vscode
@@ -29,6 +28,7 @@ venv/
 
 flagged
 devguide
+.bedrock_agentcore.yaml
 config.json
 logs/*
 *.log

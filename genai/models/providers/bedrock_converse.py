@@ -146,7 +146,7 @@ class BedrockConverse(LLMAPIProvider):
         
         # Handle temperature and top_p for Claude 4.5 models
         # Claude 4.5 models only support one of temperature or top_p, not both
-        is_claude_45 = 'claude-haiku-4-5' in self.model_id or 'claude-sonnet-4-5' in self.model_id
+        is_claude_45 = any(v in self.model_id for v in ('claude-haiku-4-5', 'claude-sonnet-4-5', 'claude-sonnet-4-6', 'claude-opus-4-5', 'claude-opus-4-6'))
         
         if is_claude_45:
             # For Claude 4.5, prioritize temperature over top_p

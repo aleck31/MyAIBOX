@@ -1,5 +1,4 @@
 import requests
-from strands import tool
 from cachetools import TTLCache
 from typing import Optional, Dict, Any
 
@@ -168,7 +167,6 @@ def get_location_coords(place: str) -> Dict[str, Any]:
     location_cache[place] = result
     return result
 
-@tool
 def get_weather(place: str, target_date: Optional[str] = None) -> Dict[str, Any]:
     """Cached wrapper for get_weather_with_cache"""
     cache_key = f"{place}_{target_date if target_date else 'current'}"

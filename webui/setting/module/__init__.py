@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Any
 import gradio as gr
 from common.logger import setup_logger, logger
 from core.module_config import module_config
+from genai.tools.legacy.tool_registry import legacy_tool_registry
 
 
 # List of available modules
@@ -79,9 +80,11 @@ class ModuleHandlers:
                     }
 
             # Return lists of values for each field type
+            available_tools = set(legacy_tool_registry.tools.keys())
             models = [result[m]['default_model'] for m in MODULE_LIST]
             params = [result[m]['parameters'] for m in MODULE_LIST]
-            tools = [result[m]['enabled_tools'] for m in MODULE_LIST]
+            # Filter to only tools currently in the registry to avoid Gradio validation errors
+            tools = [[t for t in result[m]['enabled_tools'] if t in available_tools] for m in MODULE_LIST]
 
             return models + params + tools
 

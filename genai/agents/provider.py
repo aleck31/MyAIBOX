@@ -7,8 +7,9 @@ from core.config import env_config
 from strands import Agent
 from strands.models import BedrockModel
 from strands.models.openai import OpenAIModel
+from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
-from utils.aws import get_aws_session
+from utils.aws import get_aws_session, get_secret
 from genai.models.model_manager import model_manager
 from genai.tools.provider import tool_provider
 from genai.agents.chunk_builder import create_text_chunk, create_tool_chunk
@@ -26,16 +27,36 @@ class AgentProvider:
         model = model_manager.get_model_by_id(self.model_id)
         if not model:
             raise ValueError(f"Model {self.model_id} not found")
-        
-        if model.api_provider.upper() == 'BEDROCK':
+
+        api_provider = model.api_provider.upper()
+
+        if api_provider == 'BEDROCK':
             session = get_aws_session(region_name=env_config.bedrock_config['region_name'])
             return BedrockModel(model_id=self.model_id, boto_session=session)
-        elif model.api_provider.upper() == 'OPENAI':
+
+        elif api_provider == 'OPENAI':
+            # Get OpenAI API key from secrets
+            openai_secret_id = env_config.openai_config.get('secret_id')
+            api_key = get_secret(openai_secret_id).get('api_key') if openai_secret_id else None
             return OpenAIModel(
-                client_args={"api_key": "<KEY>"},
+                client_args={"api_key": api_key},
                 model_id=self.model_id,
                 params={"max_tokens": 1000, "temperature": 0.7}
             )
+
+        elif api_provider == 'GEMINI':
+            # Get Gemini API key from secrets
+            gemini_secret_id = env_config.gemini_config.get('secret_id')
+            api_key = get_secret(gemini_secret_id).get('api_key') if gemini_secret_id else None
+            if not api_key:
+                raise ValueError("Gemini API key not configured")
+            return GeminiModel(
+                client_args={"api_key": api_key},
+                model_id=self.model_id,
+                max_tokens=8192,
+                temperature=0.7
+            )
+
         raise ValueError(f"Unsupported provider: {model.api_provider}")
 
     async def generate_stream(
