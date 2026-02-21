@@ -8,7 +8,11 @@ It provides a modular architecture that makes it easy to add new features and AI
 
 Its user-friendly Gradio-based web interface provides an intuitive experience.
 
-🎉 **What's New in v2.0**
+🎉 **What's New in v2.1**
+- **AgentCore Runtime**: Assistant module can now run as serverless AI Agent on AWS Bedrock AgentCore Runtime (up to 8 hours execution, SSE streaming)
+- **Multi-provider Agent**: Agent supports Bedrock, Gemini, and OpenAI models via Strands SDK
+
+**v2.0**
 - Optimized performance and reliability
 - Enhanced Settings & Configuration
 - Improved session management
@@ -95,50 +99,47 @@ The project follows a clean, layered architecture:
 
 ```
 my-aibox/
-├── app.py          # Main application entry point
-├── core/           # Core components
-│   ├── config.py      # Configuration settings
-│   ├── module_config.py    # Module configuration
-│   ├── service/         # Service integration
-│   │   ├── gen_service.py      # General content generation service
-│   │   ├── chat_service.py     # Chat service implementation
-│   │   ├── draw_service.py     # Image generation service
-│   │   └── service_factory.py    # Service creation factory
-│   └── session/        # Session management
-│       ├── models.py         # Data models for Session
-│       └── store.py          # DynamoDB-based session storage
-├── common/            # Common modules
-│   ├── auth.py        # Authentication handling (cognito)
-│   └── logger.py      # Logging configuration
-├── genai/               # Genai integration
-│   ├── models               # Models implementations
-│   │   ├── init.py               # Base LLM interfaces
-│   │   ├── providers/            # Model provider integration
-│   │   └── model_manager.py      # Model management
-│   ├── agents               # Agents implementations
-│   │   └── provider.py      #
-│   └── tools/              # tools implementations
-│       ├── legacy           # Legacy tools for models on Bedrock
-│       ├── mcp              # MCP tools for AI Agents
-│       └── provider.py      # Unified tool provider
-├── utils/             # Utility functions
-├── webui/             # Gradio Web UI
-│   ├── login/            # Login UI
-│   ├── modules/          # Feature modules
-│   │   ├── assistant/        # AI Assistant with tools 
-│   │   ├── persona/          # Chatbot with personality profiles
-│   │   ├── text/             # Text processing
-│   │   ├── summary/          # Text summarization
-│   │   ├── vision/           # Image analysis
-│   │   ├── asking/           # Q&A with thinking
-│   │   ├── coding/           # Code-related features
-│   │   └── draw/             # Image generation
-│   └── settings/         # Settings UI
-│       ├── account           # Account settings
-│       ├── module            # Module configuration
-│       ├── model             # Model configuration
-│       └── tool              # MCP tool configuration
-└── README.md/
+├── app.py                    # Main application entry point
+├── core/                     # Core components
+│   ├── config.py                 # Configuration settings
+│   ├── module_config.py          # Module configuration
+│   ├── service/                  # Service layer
+│   │   ├── agent_service.py          # AI Agent service (local or AgentCore)
+│   │   ├── gen_service.py            # General content generation
+│   │   ├── chat_service.py           # Chat service
+│   │   ├── draw_service.py           # Image generation service
+│   │   └── service_factory.py        # Service creation factory
+│   └── session/                  # Session management
+│       ├── models.py                 # Session data models
+│       └── store.py                  # DynamoDB-based session storage
+├── common/                   # Common modules
+│   ├── auth.py                   # Cognito authentication
+│   └── logger.py                 # Logging configuration
+├── genai/                    # GenAI integration
+│   ├── models/                   # LLM model implementations
+│   │   ├── providers/                # BedrockConverse, Gemini, OpenAI providers
+│   │   └── model_manager.py          # Model management
+│   ├── agents/                   # AI Agent implementations
+│   │   ├── provider.py               # Strands Agent (local execution)
+│   │   └── agentcore_client.py       # AgentCore Runtime client (remote)
+│   └── tools/                    # Tool implementations
+│       ├── legacy/                   # Legacy tools (weather, search, etc.)
+│       ├── mcp/                      # MCP tools
+│       └── provider.py               # Unified tool provider
+├── utils/                    # Utility functions
+├── webui/                    # Gradio Web UI
+│   ├── modules/                  # Feature modules
+│   │   ├── assistant/                # AI Assistant (uses AgentService)
+│   │   ├── persona/                  # Chatbot with personality profiles
+│   │   ├── text/                     # Text processing
+│   │   ├── summary/                  # Text summarization
+│   │   ├── vision/                   # Image analysis
+│   │   ├── asking/                   # Q&A with reasoning
+│   │   ├── coding/                   # Code generation
+│   │   └── draw/                     # Image generation
+│   └── settings/                 # Settings UI
+├── agentcore_app.py          # AgentCore Runtime entry point
+└── requirements-agentcore.txt # Dependencies for AgentCore container
 ```
 
 ## Tool System
@@ -204,8 +205,6 @@ tool_config = {
 }
 ```
 
-For detailed documentation, see [Tool System Architecture](./docs/tool-system-architecture.md).
-
 ## Setup
 
 1. Install dependencies:
@@ -228,10 +227,10 @@ cp .env.example .env
 ```
 
 4. Update environment with your settings:
-- AWS region
-- Cognito user pool details
+- AWS region and Cognito user pool details
 - DynamoDB table names
-- Model configurations
+- LLM provider API keys (stored in AWS Secrets Manager)
+- (Optional) AgentCore Runtime ARN to enable serverless agent execution
 
 5. Run the application:
 
@@ -244,6 +243,26 @@ uv run uvicorn app:app --host 127.0.0.1 --port 8080 --reload
 ```
 
 The server will start on http://localhost:8080 .
+
+## Deployment Options
+
+### Local / EC2
+Default mode. Run the full application with Gradio Web UI and all modules.
+
+### AgentCore Runtime (Serverless Agent)
+
+Deploy the AI Agent backend to AWS Bedrock AgentCore Runtime for serverless execution (up to 8 hours, SSE streaming). The Gradio Web UI still runs on EC2/Lambda and calls AgentCore remotely.
+
+```bash
+# Deploy agent to AgentCore Runtime
+.venv/bin/agentcore deploy
+
+# Enable remote mode in .env
+USE_AGENTCORE=true
+AGENTCORE_RUNTIME_ARN=arn:aws:bedrock-agentcore:...
+```
+
+See [AgentCore Deployment Guide](./deploy/agentcore/deployment-guide.md) for full details.
 
 ## License
 

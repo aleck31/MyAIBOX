@@ -1,23 +1,37 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
-from typing import Dict, AsyncIterator, Any, List, Optional
+from typing import Dict, AsyncIterator, Any, List, Optional, Union
 from core.service import BaseService
 from core.session.models import Session
+from core.config import env_config
 from genai.agents.provider import AgentProvider
 from . import logger
 
 
 class AgentService(BaseService):
-    """Strands Agent service implementation with streaming capabilities"""
-    
+    """Strands Agent service implementation with streaming capabilities.
+
+    Supports two execution modes:
+    - Local mode: Uses AgentProvider to run agent locally
+    - Remote mode: Uses AgentCoreClient to call AgentCore Runtime
+
+    Mode is controlled by USE_AGENTCORE environment variable.
+    """
+
     def __init__(self, module_name: str):
         """Initialize Agent service
-        
+
         Args:
             module_name: Name of the module using this service
         """
         super().__init__(module_name)
         self._agent_providers: Dict[str, AgentProvider] = {}
+        self._agentcore_client = None
+
+        # Check if AgentCore mode is enabled
+        self._use_agentcore = env_config.agentcore_config.get('enabled', False)
+        if self._use_agentcore:
+            logger.info(f"[AgentService] AgentCore mode enabled for module: {module_name}")
     
     def _convert_to_strands_format(self, ui_history: List[Dict]) -> List:
         """Convert UI history messages to Strands Message format
@@ -64,37 +78,66 @@ class AgentService(BaseService):
             logger.error(f"[AgentService] Error converting UI messages to Strands format: {str(e)}")
             return []
     
-    async def _get_agent_provider(self, model_id, system_prompt: str):
-        """Get or initialize AgentProvider
-        
+    def _get_agentcore_client(self):
+        """Get or initialize AgentCoreClient for remote execution.
+
+        Returns:
+            AgentCoreClient instance
+        """
+        if self._agentcore_client is None:
+            from genai.agents.agentcore_client import AgentCoreClient
+
+            config = env_config.agentcore_config
+            runtime_arn = config.get('runtime_arn')
+
+            if not runtime_arn:
+                raise ValueError("AGENTCORE_RUNTIME_ARN not configured")
+
+            self._agentcore_client = AgentCoreClient(
+                runtime_arn=runtime_arn,
+                region=config.get('region'),
+                endpoint_name=config.get('endpoint_name', 'DEFAULT')
+            )
+            logger.info(f"[AgentService] Initialized AgentCoreClient: {runtime_arn}")
+
+        return self._agentcore_client
+
+    async def _get_agent_provider(
+        self, model_id: str, system_prompt: str
+    ) -> Union[AgentProvider, "AgentCoreClient"]:
+        """Get agent provider (local or remote based on config).
+
         Args:
             model_id: ID of the model to get provider for
             system_prompt: System prompt for the agent
 
         Returns:
-            AgentProvider instance
+            AgentProvider (local) or AgentCoreClient (remote)
         """
-        # Use cached provider if available
+        # Use AgentCore client if enabled
+        if self._use_agentcore:
+            return self._get_agentcore_client()
+
+        # Use cached local provider if available
         if model_id in self._agent_providers:
             logger.debug(f"[AgentService] Using cached provider for model {model_id}")
             return self._agent_providers[model_id]
 
-        else:
-            try:
-                # Create provider
-                provider = AgentProvider(
-                    model_id=model_id,
-                    system_prompt=system_prompt
-                )                
-                logger.info(f"[AgentService] Initialized AgentProvider with model {model_id}")
-                # Cache provider
-                self._agent_providers[model_id] = provider
+        try:
+            # Create local provider
+            provider = AgentProvider(
+                model_id=model_id,
+                system_prompt=system_prompt
+            )
+            logger.info(f"[AgentService] Initialized AgentProvider with model {model_id}")
+            # Cache provider
+            self._agent_providers[model_id] = provider
 
-                return provider
+            return provider
 
-            except Exception as e:
-                logger.error(f"[AgentService] Failed to initialize AgentProvider: {str(e)}")
-                raise  # Re-raise instead of returning None
+        except Exception as e:
+            logger.error(f"[AgentService] Failed to initialize AgentProvider: {str(e)}")
+            raise
 
     def _get_default_tool_config(self) -> Dict[str, Any]:
         """Get default tool configuration for the service
@@ -115,22 +158,24 @@ class AgentService(BaseService):
         return tool_config
 
     async def _generate_stream_async(
-        self, 
-        session: Session, 
-        prompt: str, 
-        system_prompt: str, 
+        self,
+        session: Session,
+        prompt: str,
+        system_prompt: str,
         history: Optional[List[Dict]] = None,
         tool_config: Optional[Dict[str, Any]] = None
     ) -> AsyncIterator[Dict]:
-        """Internal method for streaming generation with common logic
-        
+        """Internal method for streaming generation with common logic.
+
+        Supports both local (AgentProvider) and remote (AgentCoreClient) execution.
+
         Args:
             session: User session
             prompt: Current user prompt
             system_prompt: System prompt for the agent
             history: Optional list of previous messages in UI format
             tool_config: Optional tool configuration override
-            
+
         Returns:
             AsyncIterator yielding standardized agent response dictionaries
         """
@@ -142,13 +187,8 @@ class AgentService(BaseService):
             # Get model_id with fallback to module default
             model_id = await self.get_session_model(session)
 
-            # Get provider instance
+            # Get provider instance (local or remote)
             provider = await self._get_agent_provider(model_id, system_prompt)
-
-            # Convert UI history to Strands format if provided
-            strands_history = None
-            if history:
-                strands_history = self._convert_to_strands_format(history)
 
             # Use provided tool config or get default
             if tool_config is None:
@@ -156,14 +196,31 @@ class AgentService(BaseService):
             else:
                 logger.debug(f"Using provided tool config: {tool_config}")
 
-            # Stream standardized responses
-            async for chunk in provider.generate_stream(prompt, strands_history, tool_config):
-                if not isinstance(chunk, dict):
-                    logger.warning(f"Unexpected chunk type: {type(chunk)}")
-                    continue
+            # Handle differently based on provider type
+            if self._use_agentcore:
+                # AgentCoreClient: pass model_id and system_prompt, history in UI format
+                async for chunk in provider.generate_stream(
+                    prompt=prompt,
+                    history_messages=history,  # AgentCore handles conversion
+                    tool_config=tool_config,
+                    model_id=model_id,
+                    system_prompt=system_prompt
+                ):
+                    if not isinstance(chunk, dict):
+                        logger.warning(f"Unexpected chunk type: {type(chunk)}")
+                        continue
+                    yield chunk
+            else:
+                # Local AgentProvider: convert history to Strands format
+                strands_history = None
+                if history:
+                    strands_history = self._convert_to_strands_format(history)
 
-                # Direct pass-through of standardized format
-                yield chunk
+                async for chunk in provider.generate_stream(prompt, strands_history, tool_config):
+                    if not isinstance(chunk, dict):
+                        logger.warning(f"Unexpected chunk type: {type(chunk)}")
+                        continue
+                    yield chunk
 
         except Exception as e:
             logger.error(f"Error in streaming generation: {str(e)}", exc_info=True)
@@ -286,10 +343,10 @@ class AgentService(BaseService):
 
     async def clear_history(self, session: Session) -> None:
         """Clear chat history for a session
-        
+
         Args:
             session: Active chat session to clear history for
-            
+
         Note:
             - Clears the history list
             - Updates timestamp
@@ -298,3 +355,36 @@ class AgentService(BaseService):
         session.history = []  # Clear message history
         await self.session_store.save_session(session)
         logger.debug(f"[AgentService] Cleared history for session {session.session_id}")
+
+    def is_agentcore_enabled(self) -> bool:
+        """Check if AgentCore remote mode is enabled.
+
+        Returns:
+            True if using AgentCore Runtime, False for local execution
+        """
+        return self._use_agentcore
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Check agent service health.
+
+        Returns:
+            Health status dict with mode and status
+        """
+        result = {
+            "mode": "agentcore" if self._use_agentcore else "local",
+            "module": self.module_name
+        }
+
+        if self._use_agentcore:
+            try:
+                client = self._get_agentcore_client()
+                health = await client.health_check()
+                result["status"] = health.get("status", "unknown")
+                result["agentcore"] = health
+            except Exception as e:
+                result["status"] = "error"
+                result["error"] = str(e)
+        else:
+            result["status"] = "healthy"
+
+        return result

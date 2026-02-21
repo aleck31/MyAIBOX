@@ -1,9 +1,16 @@
 [project]
 name = "my-aibox"
-version = "2.1.0"
+version = "2.2.0"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
 requires-python = ">=3.12"
+dependencies = [
+    "strands-agents>=1.20.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["core*", "genai*", "webui*", "common*", "utils*"]
+exclude = ["tests*", "logs*", "tmp*", "assets*"]
 
 dependencies = [
     # Fundamental
@@ -16,6 +23,8 @@ dependencies = [
     # Strands Agents
     "strands-agents",
     "strands-agents-tools>=0.1.7",
+    # AgentCore Runtime
+    "bedrock-agentcore>=1.1.0",
     # Utilities
     "uvicorn[standard]>=0.23.0",
     "python-dotenv>=1.0.0",

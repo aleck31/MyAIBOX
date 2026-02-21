@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache
+
+# Virtual environments
+.venv
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+.pid
+
+# Documentation
+README.md
+docs/
+assets/
+
+# Tests
+tests/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Environment files (will be provided via ConfigMap/Secret)
+.env
+.env.local
+.env.example
+
+# Docker
+Dockerfile*
+docker-compose*
+build-push.sh

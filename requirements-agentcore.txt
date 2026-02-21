@@ -1,0 +1,21 @@
+# Core dependencies
+boto3
+bedrock-agentcore
+strands-agents
+strands-agents-tools
+
+# App dependencies
+fastapi
+gradio
+python-dotenv
+aiohttp
+cachetools
+itsdangerous
+
+# AI providers
+google-genai
+openai
+
+# Tools
+wikipedia
+duckduckgo-search

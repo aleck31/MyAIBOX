@@ -68,15 +68,28 @@ class ENVConfig:
     def gemini_config(self) -> Dict[str, str]:
         """Get Gemini API configuration"""
         return {
-            'secret_id': os.getenv('GEMINI_SECRET_ID', '')
+            # Default secret ID for AgentCore deployment
+            'secret_id': os.getenv('GEMINI_SECRET_ID', 'dev_gemini_api')
         }
 
     @property
     def openai_config(self) -> Dict[str, str]:
         """Get OpenAI API configuration"""
         return {
-            'secret_id': os.getenv('OPENAI_SECRET_ID', ''),
+            # Default secret ID for AgentCore deployment
+            'secret_id': os.getenv('OPENAI_SECRET_ID', 'dev_openai_api'),
         }
+
+    @property
+    def agentcore_config(self) -> Dict[str, Any]:
+        """Get AgentCore Runtime configuration"""
+        return {
+            'enabled': os.getenv('USE_AGENTCORE', 'false').lower() == 'true',
+            'runtime_arn': os.getenv('AGENTCORE_RUNTIME_ARN', ''),
+            'region': os.getenv('AGENTCORE_REGION', os.getenv('AWS_REGION', 'ap-southeast-1')),
+            'endpoint_name': os.getenv('AGENTCORE_ENDPOINT_NAME', 'DEFAULT'),
+        }
+
 
 class AppConfig:
     """Application-level configuration settings"""

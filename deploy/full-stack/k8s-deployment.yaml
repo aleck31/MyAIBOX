@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-aibox
+  labels:
+    app: my-aibox
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: my-aibox
+  template:
+    metadata:
+      labels:
+        app: my-aibox
+    spec:
+      serviceAccountName: my-aibox-sa
+      containers:
+      - name: my-aibox
+        image: 222829864634.dkr.ecr.ap-southeast-1.amazonaws.com/my-aibox:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AWS_DEFAULT_REGION
+          value: "ap-southeast-1"
+        envFrom:
+        - configMapRef:
+            name: my-aibox-config
+        - secretRef:
+            name: my-aibox-secrets
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-aibox-service
+spec:
+  selector:
+    app: my-aibox
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-aibox-sa
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::222829864634:role/MyAIBoxPodRole
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-aibox-config
+data:
+  AWS_REGION: "ap-southeast-1"
+  SETTING_TABLE: "aibox_setting"
+  SESSION_TABLE: "aibox_session"
+  RETENTION_DAYS: "90"
+  SERVER_HOST: "0.0.0.0"
+  SERVER_PORT: "8080"
+  DEBUG: "False"
+  SSL_ENABLED: "False"
+  CORS_ORIGINS: "*"
+  CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_HEADERS: "*"
+  BEDROCK_REGION: "us-west-2"
+  LOG_LEVEL: "INFO"
+  LOG_TO_FILE: "false"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-aibox-secrets
+type: Opaque
+data:
+  # Base64 encoded values - update these with actual values
+  USER_POOL_ID: YXAtc291dGhlYXN0LTFfV0JIbFpGMVpm  # ap-southeast-1_WBHlZF1Zf
+  CLIENT_ID: MTRqMnBmaHZxaXZnM3NsdHNsY2M5ZHBvMGY=  # 14j2pfhvqivg3sltslcc9dpo0f
+  SECRET_KEY: YWlib3gtcHJvZHVjdGlvbi1zZWNyZXQta2V5LTIwMjQ=  # aibox-production-secret-key-2024
+  TOKEN_EXPIRATION: MzYwMDA=  # 36000
+  GEMINI_SECRET_ID: ZGV2X2dlbWluaV9hcGk=  # dev_gemini_api
