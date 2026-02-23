@@ -1,0 +1,126 @@
+/* ── Asking Processor ─────────────────────────────────────────────────────── */
+
+.asking-processor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.asking-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 1px;
+  background: hsl(var(--border));
+}
+
+.asking-input-panel,
+.asking-output-panel {
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--background));
+  padding: 16px;
+}
+
+.asking-input-panel {
+  flex: 2;
+  min-width: 280px;
+}
+
+.asking-output-panel {
+  flex: 3;
+  min-width: 320px;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.asking-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.asking-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+/* Collapsible sections */
+.asking-details {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.asking-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  background: hsl(var(--muted) / 0.3);
+}
+
+.asking-summary::-webkit-details-marker {
+  margin-right: 8px;
+}
+
+.asking-content {
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: hsl(var(--foreground));
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.asking-thinking {
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* Options section */
+.asking-options {
+  margin-top: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.asking-options > summary {
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.asking-options-content {
+  padding: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.asking-prompt-input {
+  margin-top: 4px;
+  min-height: 60px;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .asking-main {
+    flex-direction: column;
+  }
+
+  .asking-input-panel,
+  .asking-output-panel {
+    flex: none;
+  }
+
+  .asking-output-panel {
+    min-height: 300px;
+  }
+}

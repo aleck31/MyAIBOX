@@ -1,0 +1,216 @@
+/* ─── Chat Window — assistant-ui thread ─────────────────────────────────── */
+.aui-thread-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── User action bar: horizontal row below the bubble ── */
+.aui-user-message-content-wrapper > .aui-user-action-bar-root {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-top: 1px;
+}
+
+/* ── Assistant message: subtle background bubble ── */
+.aui-assistant-message-content {
+  background: hsl(var(--muted) / 0.5);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px !important;
+}
+
+.aui-assistant-message-footer {
+  padding-top: 1px;
+}
+
+/* Typing indicator — shown when assistant message is empty (waiting for first token) */
+.aui-assistant-message-content:has(> :empty:only-child)::after,
+.aui-assistant-message-content:empty::after {
+  content: '▪▪▪';
+  letter-spacing: 3px;
+  color: hsl(var(--muted-foreground) / 0.5);
+  animation: typing-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes typing-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* ── Thinking / Chain-of-thought block ── */
+.thinking-block {
+  margin-bottom: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: hsl(var(--muted) / 0.35);
+}
+
+.thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.thinking-summary::-webkit-details-marker { display: none; }
+.thinking-summary:hover { color: hsl(var(--foreground)); }
+
+.thinking-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+details[open] .thinking-chevron { transform: rotate(180deg); }
+
+.thinking-text {
+  padding: 8px 10px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  white-space: pre-wrap;
+  border-top: 1px solid hsl(var(--border));
+  word-break: break-word;
+}
+
+/* ── Action bar icon buttons (Copy, Reload, Edit) ── */
+.aui-action-bar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  transition: color 0.12s, background 0.12s;
+  padding: 0;
+}
+
+.aui-action-bar-button:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted));
+}
+
+/* Hide disabled action bar buttons (e.g. Reload on non-last messages) */
+.aui-action-bar-button:disabled {
+  display: none;
+}
+
+/* ── Edit composer footer buttons ── */
+.aui-edit-composer-btn {
+  padding: 5px 14px;
+  border-radius: var(--radius);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.12s;
+}
+
+.aui-edit-composer-btn--cancel {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.aui-edit-composer-btn--cancel:hover { opacity: 0.75; }
+
+.aui-edit-composer-btn--send {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.aui-edit-composer-btn--send:hover { opacity: 0.85; }
+
+/* Markdown prose styling for assistant messages */
+.aui-md {
+  @apply prose prose-sm max-w-none;
+  color: hsl(var(--foreground));
+}
+.aui-md strong { color: hsl(var(--foreground)); }
+.aui-md h1, .aui-md h2, .aui-md h3, .aui-md h4 { color: hsl(var(--foreground)); }
+
+/* ── Composer: attachment button ── */
+.composer-add-attachment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  border-radius: var(--radius);
+  transition: color 0.12s, background 0.12s;
+}
+.composer-add-attachment:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted));
+}
+
+/* ── Composer: attachment preview chips ── */
+.composer-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: hsl(var(--muted));
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: hsl(var(--foreground));
+}
+.composer-attachment-name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-attachment-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  padding: 0 2px;
+  line-height: 1;
+}
+.composer-attachment-remove:hover {
+  color: hsl(var(--destructive));
+}
+
+/* ── User message: attachment thumbnails ── */
+.user-attachment-img {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin-bottom: 6px;
+}
+.user-attachment-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: hsl(var(--muted));
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: hsl(var(--foreground));
+  margin-bottom: 6px;
+}

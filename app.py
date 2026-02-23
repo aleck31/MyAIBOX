@@ -1,17 +1,46 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
+import os
 import uvicorn
 import gradio as gr
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+class SPAStaticFiles(StaticFiles):
+    """Serve index.html for any path that doesn't match a real file.
+
+    Required for React Router (client-side routing): requests like
+    /ui/persona don't correspond to files on disk, so we fall back to
+    index.html and let the browser-side router handle the path.
+    """
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            if e.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise
 from core.config import app_config
 from common.logger import setup_logger, logger
 from genai.models.model_manager import model_manager
-from webui.login import router as login_router, get_auth_user
+from api.auth import get_auth_user
 from webui.main import create_main_interface
+from api.auth import router as auth_api_router
+from api.assistant import router as assistant_router
+from api.persona import router as persona_router
+from api.text import router as text_router
+from api.summary import router as summary_router
+from api.asking import router as asking_router
+from api.vision import router as vision_router
+from api.draw import router as draw_router
+from api.settings import router as settings_router
+from api.upload import router as upload_router
 
 
 # Get configurations from app_config
@@ -61,24 +90,22 @@ app.add_middleware(
     max_age=3600
 )
 
-# Include login routes
-app.include_router(login_router)
-
-@app.get('/')
-def root(request: Request):
-    """Root route handler"""
-    try:
-        get_auth_user(request)
-        logger.debug("User found, redirecting to main")
-        return RedirectResponse(url='/main')
-    except HTTPException:
-        logger.debug("No user found, redirecting to login")
-        return RedirectResponse(url='/login')
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "OK!"}
+
+# Include API routes
+app.include_router(auth_api_router, prefix="/api")
+app.include_router(assistant_router, prefix="/api")
+app.include_router(persona_router, prefix="/api")
+app.include_router(text_router, prefix="/api")
+app.include_router(summary_router, prefix="/api")
+app.include_router(asking_router, prefix="/api")
+app.include_router(vision_router, prefix="/api")
+app.include_router(draw_router, prefix="/api")
+app.include_router(settings_router, prefix="/api")
+app.include_router(upload_router, prefix="/api")
 
 # Create main interface
 main_ui = create_main_interface()
@@ -98,6 +125,11 @@ app = gr.mount_gradio_app(
     css=css_content,
     theme="Ocean"
 )
+
+# Mount React SPA at root — MUST be after all other mounts (API, Gradio)
+# so that /api/*, /main, /auth, /logout are handled first.
+if os.path.exists("frontend/dist"):
+    app.mount("/", SPAStaticFiles(directory="frontend/dist", html=True), name="react-ui")
 
 if __name__ == "__main__":
     # Start server with configuration from app_config

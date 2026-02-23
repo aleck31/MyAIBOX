@@ -43,8 +43,8 @@ async def test_chat_service():
         
         async for chunk in chat_service.streaming_reply(
             session=session,
-            ui_input={"text": "Hello! Please respond with a simple greeting."},
-            ui_history=[]
+            message={"text": "Hello! Please respond with a simple greeting."},
+            history=[]
         ):
             response_count += 1
             logger.info(f"📨 Chat chunk {response_count}: {chunk}")

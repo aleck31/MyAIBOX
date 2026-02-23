@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from core.config import app_config
 from common.auth import cognito_auth
-from webui.login import get_auth_user
+from api.auth import get_auth_user
 
 
 class TestAuth(unittest.TestCase):

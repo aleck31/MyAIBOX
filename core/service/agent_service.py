@@ -1,11 +1,14 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
-from typing import Dict, AsyncIterator, Any, List, Optional, Union
+from typing import Dict, AsyncIterator, Any, List, Optional, Union, TYPE_CHECKING, cast
 from core.service import BaseService
 from core.session.models import Session
 from core.config import env_config
 from genai.agents.provider import AgentProvider
 from . import logger
+
+if TYPE_CHECKING:
+    from genai.agents.agentcore_client import AgentCoreClient
 
 
 class AgentService(BaseService):
@@ -199,7 +202,8 @@ class AgentService(BaseService):
             # Handle differently based on provider type
             if self._use_agentcore:
                 # AgentCoreClient: pass model_id and system_prompt, history in UI format
-                async for chunk in provider.generate_stream(
+                client = cast("AgentCoreClient", provider)
+                async for chunk in client.generate_stream(
                     prompt=prompt,
                     history_messages=history,  # AgentCore handles conversion
                     tool_config=tool_config,
@@ -229,86 +233,47 @@ class AgentService(BaseService):
     async def streaming_reply_with_history(
         self, 
         session: Session, 
-        prompt: str, 
+        message: str, 
         system_prompt: str, 
         history: List[Dict],
-        tool_config: Dict[str, Any]
+        tool_config: Dict[str, Any],
+        persist: bool = False
     ) -> AsyncIterator[Dict]:
         """
         Generate streaming response with conversation history (multi-turn)
         
         Args:
             session: User session
-            prompt: Current user prompt
+            message: Current user message
             system_prompt: System prompt for the agent
             history: List of previous messages in UI format
-                - Format: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
             tool_config: Optional tool configuration override
+            persist: If True, save conversation to DynamoDB after response completes
             
         Returns:
             AsyncIterator yielding standardized agent response dictionaries
         """
-        # Track response state for saving to session
         accumulated_text = []
-        accumulated_files = []
-        response_metadata = {}
-        
         try:
             async for chunk in self._generate_stream_async(
                 session=session,
-                prompt=prompt,
+                prompt=message,
                 system_prompt=system_prompt,
                 history=history,
                 tool_config=tool_config
             ):
-                # Collect response content for session saving
                 if text := chunk.get('text'):
                     accumulated_text.append(text)
-                
-                if files := chunk.get('files'):
-                    if isinstance(files, list):
-                        accumulated_files.extend(files)
-                    else:
-                        accumulated_files.append(files)
-                
-                if metadata := chunk.get('metadata'):
-                    response_metadata.update(metadata)
-                
-                # Yield chunk to caller
                 yield chunk
 
-            # Save chat history after successful streaming (similar to ChatService)
-            if accumulated_text or accumulated_files:
-                from datetime import datetime
-                
-                # Create user message
-                user_message = {
-                    "role": "user",
-                    "content": {"text": prompt},
-                    "context": {
-                        'local_time': datetime.now().astimezone().isoformat(),
-                        'user_name': session.user_name
-                    }
-                }
-                
-                # Create assistant message
-                assistant_message = {
-                    "role": "assistant",
-                    "content": {
-                        "text": ''.join(accumulated_text),
-                        "files": accumulated_files
-                    },
-                    "metadata": response_metadata if response_metadata else None
-                }
-                
-                # Add both messages to session history
-                session.add_interaction(user_message)
-                session.add_interaction(assistant_message)
-                
-                # Persist to session store
+            if persist and accumulated_text:
+                session.history = history + [
+                    {"role": "user", "content": message},
+                    {"role": "assistant", "content": ''.join(accumulated_text)},
+                ]
                 await self.session_store.save_session(session)
-                logger.debug(f"Saved chat interaction to session {session.session_id}")
-                
+                logger.debug(f"Auto-saved session {session.session_id} (cloud_sync)")
+
         except Exception as e:
             logger.error(f"Error in streaming reply with history: {str(e)}", exc_info=True)
             yield {"text": f"I apologize, but I encountered an error while processing your request: {str(e)}"}
@@ -316,7 +281,7 @@ class AgentService(BaseService):
     async def gen_text_stream(
         self, 
         session: Session, 
-        prompt: str, 
+        message: str, 
         system_prompt: str, 
         tool_config: Optional[Dict[str, Any]] = None
     ) -> AsyncIterator[Dict]:
@@ -325,7 +290,7 @@ class AgentService(BaseService):
         
         Args:
             session: User session
-            prompt: The user prompt
+            message: The user message
             system_prompt: System prompt for the agent
             tool_config: Optional tool configuration override
             
@@ -334,7 +299,7 @@ class AgentService(BaseService):
         """
         async for chunk in self._generate_stream_async(
             session=session,
-            prompt=prompt,
+            prompt=message,
             system_prompt=system_prompt,
             history=None,  # No history for single-turn
             tool_config=tool_config
@@ -370,7 +335,7 @@ class AgentService(BaseService):
         Returns:
             Health status dict with mode and status
         """
-        result = {
+        result: Dict[str, Any] = {
             "mode": "agentcore" if self._use_agentcore else "local",
             "module": self.module_name
         }

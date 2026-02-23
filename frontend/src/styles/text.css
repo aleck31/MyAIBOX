@@ -1,0 +1,147 @@
+/* ── Text Processor ──────────────────────────────────────────────────────── */
+
+.text-processor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Top bar controls — base layout via .module-options-bar in index.css */
+
+.text-operations {
+  display: flex;
+  gap: 4px;
+}
+
+.text-op-btn {
+  padding: 4px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+  white-space: nowrap;
+}
+
+.text-op-btn:hover {
+  border-color: hsl(var(--foreground) / 0.4);
+  background: hsl(var(--muted));
+}
+
+.text-op-btn.active {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  border-color: hsl(var(--foreground));
+}
+
+.text-options {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Panels — split by 1px divider */
+.text-panels {
+  display: flex;
+  gap: 1px;
+  flex: 1;
+  min-height: 0;
+  background: hsl(var(--border));
+}
+
+.text-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--background));
+}
+
+.text-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  flex-shrink: 0;
+}
+
+.text-panel-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.text-area {
+  flex: 1;
+  padding: 0 16px 16px;
+  border: none;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  font-family: inherit;
+  outline: none;
+}
+
+/* Bottom actions — match persona icon-btn style */
+.text-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 8px 16px;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+  flex-shrink: 0;
+}
+
+.text-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.text-btn:hover:not(:disabled) {
+  border-color: hsl(var(--foreground) / 0.4);
+  background: hsl(var(--muted));
+}
+
+.text-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.text-btn--primary {
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  border-color: hsl(var(--foreground));
+}
+
+.text-btn--primary:hover:not(:disabled) {
+  background: hsl(var(--foreground) / 0.85);
+}
+
+/* Mobile: stack panels vertically */
+@media (max-width: 768px) {
+  .text-panels {
+    flex-direction: column;
+  }
+
+  .text-operations {
+    flex-wrap: wrap;
+  }
+
+  .text-options {
+    margin-left: 0;
+  }
+}

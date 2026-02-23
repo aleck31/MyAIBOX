@@ -1,0 +1,410 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@import "@assistant-ui/styles/index.css";
+@import "./styles/login.css";
+@import "./styles/topbar.css";
+@import "./styles/chat.css";
+@import "./styles/text.css";
+@import "./styles/asking.css";
+@import "./styles/vision.css";
+@import "./styles/draw.css";
+@import "./styles/settings.css";
+@import "./styles/tools.css";
+
+/* Scan @assistant-ui component dist files so Tailwind generates all referenced utilities */
+@source "../node_modules/@assistant-ui/react/dist/**/*.{js,mjs}";
+@source "../node_modules/@assistant-ui/react-markdown/dist/**/*.{js,mjs}";
+
+/* ─── shadcn/ui HSL token definitions ───────────────────────────────────────
+   @assistant-ui/styles maps: --color-foreground → hsl(var(--foreground)), etc.
+   These raw HSL triplets must be present so those mappings resolve.
+   Palette: warm cream (background) · warm near-black (ink) · red (accent)     */
+@layer base {
+  :root {
+    --background:               0 0% 100%;       /* pure white */
+    --foreground:               220 14% 10%;     /* cool near-black */
+    --card:                     0 0% 100%;
+    --card-foreground:          220 14% 10%;
+    --popover:                  0 0% 100%;
+    --popover-foreground:       220 14% 10%;
+    --primary:                  220 14% 10%;
+    --primary-foreground:       0 0% 100%;
+    --secondary:                220 14% 96%;     /* cool light gray */
+    --secondary-foreground:     220 14% 10%;
+    --muted:                    220 14% 96%;
+    --muted-foreground:         220 10% 46%;
+    --accent:                   220 14% 96%;
+    --accent-foreground:        220 14% 10%;
+    --destructive:              0 72% 51%;
+    --destructive-foreground:   0 0% 100%;
+    --border:                   220 13% 91%;
+    --input:                    220 13% 91%;
+    --ring:                     221 83% 53%;     /* blue accent */
+    --radius:                   0.5rem;
+    /* sidebar */
+    --sidebar:                  220 14% 10%;
+    --sidebar-foreground:       220 14% 70%;
+    --sidebar-primary:          221 83% 53%;     /* blue accent */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:           220 14% 15%;
+    --sidebar-accent-foreground: 220 14% 90%;
+    --sidebar-border:           220 14% 15%;
+    --sidebar-ring:             221 83% 53%;
+    /* assistant-ui thread width */
+    --thread-max-width:         48rem;
+  }
+}
+
+/* ─── Tailwind v4 color theme ────────────────────────────────────────────────
+   @assistant-ui/styles dist uses var(--color-*); the dist's @layer theme is
+   empty (packaging quirk), so we define the mappings here.                  */
+@theme inline {
+  --color-background:                  hsl(var(--background));
+  --color-foreground:                  hsl(var(--foreground));
+  --color-card:                        hsl(var(--card));
+  --color-card-foreground:             hsl(var(--card-foreground));
+  --color-popover:                     hsl(var(--popover));
+  --color-popover-foreground:          hsl(var(--popover-foreground));
+  --color-primary:                     hsl(var(--primary));
+  --color-primary-foreground:          hsl(var(--primary-foreground));
+  --color-secondary:                   hsl(var(--secondary));
+  --color-secondary-foreground:        hsl(var(--secondary-foreground));
+  --color-muted:                       hsl(var(--muted));
+  --color-muted-foreground:            hsl(var(--muted-foreground));
+  --color-accent:                      hsl(var(--accent));
+  --color-accent-foreground:           hsl(var(--accent-foreground));
+  --color-destructive:                 hsl(var(--destructive));
+  --color-destructive-foreground:      hsl(var(--destructive-foreground));
+  --color-border:                      hsl(var(--border));
+  --color-input:                       hsl(var(--input));
+  --color-ring:                        hsl(var(--ring));
+  --color-sidebar:                     hsl(var(--sidebar));
+  --color-sidebar-foreground:          hsl(var(--sidebar-foreground));
+  --color-sidebar-primary:             hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground:  hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent:              hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground:   hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border:              hsl(var(--sidebar-border));
+  --color-sidebar-ring:                hsl(var(--sidebar-ring));
+  /* Radius — shadcn/ui pattern */
+  --radius-sm:  calc(var(--radius) - 2px);
+  --radius-md:  var(--radius);
+  --radius-lg:  calc(var(--radius) + 2px);
+  --radius-xl:  calc(var(--radius) + 6px);
+}
+
+/* ─── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 14px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+/* ─── App Layout ──────────────────────────────────────────────────────────── */
+.shell-root {
+  display: flex;
+  height: 100%;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 196px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--foreground));
+  overflow: hidden;
+}
+
+.sidebar-brand {
+  padding: 18px 14px 14px;
+  border-bottom: 1px solid hsl(var(--background) / 0.07);
+}
+
+.sidebar-brand-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: hsl(var(--background));
+  line-height: 1;
+}
+
+.sidebar-brand-name em {
+  font-style: normal;
+  color: hsl(var(--ring));
+}
+
+.sidebar-brand-sub {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 11px;
+  color: hsl(var(--background) / 0.32);
+  margin-top: 3px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 10px 0;
+  overflow-y: auto;
+}
+
+.sidebar-nav-section {
+  padding: 0 8px;
+  margin-bottom: 2px;
+}
+
+.sidebar-nav-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: hsl(var(--background) / 0.22);
+  padding: 6px 8px 3px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  color: hsl(var(--background) / 0.5);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  transition: color 0.12s, background 0.12s, border-color 0.12s;
+  background: none;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  width: 100%;
+  text-align: left;
+}
+
+.nav-item:hover {
+  color: hsl(var(--background) / 0.88);
+  background: hsl(var(--background) / 0.06);
+}
+
+.nav-item.active {
+  color: hsl(var(--background));
+  background: hsl(var(--background) / 0.09);
+  border-left-color: hsl(var(--ring));
+}
+
+.nav-item-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+
+.nav-item.active .nav-item-icon { opacity: 1; }
+
+.nav-item-badge {
+  margin-left: auto;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: hsl(var(--ring));
+  color: hsl(var(--background));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-footer {
+  padding: 10px 8px;
+  border-top: 1px solid hsl(var(--background) / 0.07);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 5px;
+}
+
+.sidebar-user-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: hsl(var(--ring));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: hsl(var(--background));
+  flex-shrink: 0;
+}
+
+.sidebar-user-name {
+  flex: 1;
+  font-size: 12px;
+  color: hsl(var(--background) / 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  color: hsl(var(--background) / 0.28);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition: color 0.12s;
+  flex-shrink: 0;
+}
+
+.sidebar-logout:hover { color: hsl(var(--background) / 0.65); }
+
+/* ── Main content ── */
+.shell-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  background: hsl(var(--background));
+}
+
+/* ── Gradio iframe ── */
+.gradio-frame-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gradio-frame {
+  flex: 1;
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Loading / error states ─────────────────────────────────────────────── */
+.state-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: hsl(var(--background));
+}
+
+.state-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.spinner-ring {
+  width: 22px;
+  height: 22px;
+  border: 2px solid hsl(var(--border));
+  border-top-color: hsl(var(--foreground));
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.state-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  letter-spacing: 0.04em;
+}
+
+/* ─── Mobile: hamburger toggle (hidden on desktop) ───────────────────────── */
+.sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 110;
+  background: hsl(var(--foreground));
+  color: hsl(var(--background));
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px;
+  cursor: pointer;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Login: stack vertically, hide brand panel */
+  .login-root {
+    grid-template-columns: 1fr;
+  }
+  .login-panel {
+    display: none;
+  }
+
+  /* Shell: sidebar as overlay drawer */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  /* Content: full width, add top padding for hamburger */
+  .shell-content {
+    width: 100%;
+  }
+
+  /* Module options bar: left padding for hamburger */
+  .module-options-bar {
+    padding: 8px 12px 8px 44px;
+  }
+}

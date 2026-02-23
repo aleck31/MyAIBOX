@@ -98,15 +98,6 @@ def get_auth_user(request: Request):
         )
 
 
-@router.get('/login')
-async def login_page(request: Request, error: str = None):
-    """Render login page"""
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request, "error": error}
-    )
-
-
 @router.post('/auth')
 async def auth(request: Request, username: str = Form(...), password: str = Form(...)):
     """Handle authentication"""
@@ -120,7 +111,7 @@ async def auth(request: Request, username: str = Form(...), password: str = Form
         logger.debug(f"[Auth] Authentication successful for {username}")
         
         # Create response with redirect
-        response = RedirectResponse(url='/main', status_code=303)
+        response = RedirectResponse(url='/', status_code=303)
         return response
 
     # Log failed authentication attempt

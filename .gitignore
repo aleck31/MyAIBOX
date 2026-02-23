@@ -12,7 +12,8 @@ build/
 develop-eggs/
 dist/
 node_modules
-assets/generated/
+assets/generated/*
+assets/uploads/*
 
 # vscode
 .vscode

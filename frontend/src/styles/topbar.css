@@ -1,0 +1,76 @@
+/* ─── Module options bar (shared top bar for all modules) ────────────────── */
+.module-options-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.top-bar-select {
+  appearance: none;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  padding: 4px 28px 4px 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23999' stroke-width='1.5'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.12s;
+  width: auto;
+  max-width: 260px;
+}
+
+.top-bar-select:focus { 
+  border-color: hsl(var(--foreground)); 
+}
+
+/* ── Shared select/button style within the options bar ── */
+
+.bar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: none;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  transition: border-color 0.12s, background 0.12s;
+  flex-shrink: 0;
+}
+
+.bar-icon-btn:hover:not(:disabled) {
+  border-color: hsl(var(--foreground) / 0.4);
+  background: hsl(var(--muted));
+}
+
+.bar-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bar-icon-btn.done {
+  border-color: hsl(142 60% 40%);
+  color: hsl(142 60% 40%);
+}
+
+.bar-icon-btn.active {
+  border-color: hsl(217 90% 55%);
+  color: hsl(217 90% 55%);
+  background: hsl(217 90% 55% / 0.08);
+}
+
+.bar-icon-btn--danger:hover:not(:disabled) {
+  border-color: hsl(var(--destructive) / 0.5);
+  background: hsl(var(--destructive) / 0.06);
+}

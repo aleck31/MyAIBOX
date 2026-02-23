@@ -53,8 +53,7 @@ class AgentProvider:
             return GeminiModel(
                 client_args={"api_key": api_key},
                 model_id=self.model_id,
-                max_tokens=8192,
-                temperature=0.7
+                params={"max_tokens": 8192, "temperature": 0.7},
             )
 
         raise ValueError(f"Unsupported provider: {model.api_provider}")
@@ -75,9 +74,9 @@ class AgentProvider:
             mcp_clients = []
             if tool_config.get('enabled', True):
                 base_tools, mcp_clients = tool_provider.get_tools_and_contexts({
-                    'include_legacy': tool_config.get('include_legacy', True),
-                    'mcp_tools_enabled': tool_config.get('mcp_tools_enabled', False),
-                    'strands_tools_enabled': tool_config.get('strands_tools_enabled', True)
+                    'legacy_tools': tool_config.get('legacy_tools', []),
+                    'strands_tools_enabled': tool_config.get('strands_tools_enabled', True),
+                    'mcp_tools_enabled': tool_config.get('mcp_tools_enabled', False)
                 })
                 all_tools = base_tools
             

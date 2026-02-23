@@ -163,6 +163,16 @@ class ChatService(BaseService):
             logger.error(f"Failed to get persona role for session {session.session_id}: {str(e)}")
             return 'default'
             
+    async def get_session_cloud_sync(self, session: Session) -> bool:
+        """Get cloud sync preference from session context."""
+        return bool(session.context.get('cloud_sync', False))
+
+    async def update_session_cloud_sync(self, session: Session, enabled: bool) -> None:
+        """Persist cloud sync preference to session store."""
+        session.context['cloud_sync'] = enabled
+        await self.session_store.save_session(session)
+        logger.debug(f"Updated cloud_sync to {enabled} in session {session.session_id}")
+
     async def update_session_role(self, session: Session, style: str) -> None:
         """Update persona role in session context
         
@@ -180,10 +190,10 @@ class ChatService(BaseService):
             
     async def clear_history(self, session: Session) -> None:
         """Clear chat history for a session
-        
+
         Args:
             session: Active chat session to clear history for
-            
+
         Note:
             - Clears the history list
             - Resets interaction count
@@ -195,20 +205,33 @@ class ChatService(BaseService):
         await self.session_store.save_session(session)
         logger.debug(f"Cleared history for session {session.session_id}")
 
+    async def sync_history(self, session: Session, messages: List[Dict]) -> None:
+        """Replace session history with the provided messages and persist to store.
+
+        Args:
+            session: Active chat session
+            messages: List of {role, content} dicts from the client
+        """
+        session.history = [{"role": m["role"], "content": m["content"]} for m in messages]
+        await self.session_store.save_session(session)
+        logger.debug(f"Synced {len(messages)} messages for session {session.session_id}")
+
     async def streaming_reply(
         self,
         session: Session,
-        ui_input: Dict,
-        ui_history: Optional[List[Dict]] = [],
-        style_params: Optional[Dict] = None
+        message: Dict,
+        history: Optional[List[Dict]] = [],
+        style_params: Optional[Dict] = None,
+        persist: bool = False
     ) -> AsyncIterator[Dict]:
         """Process user message and stream assistant's response
-        
+
         Args:
             session: Active chat session
-            ui_input: Dict with text and/or files
-            ui_history: List of message dictionaries with role and content fields from UI state
+            message: Message dict with text and/or files
+            history: List of message dictionaries with role and content fields from UI state
             style_params: LLM generation parameters
+            persist: If True, save conversation to DynamoDB after response completes
 
         Yields:
             Message chunks for handler
@@ -220,7 +243,7 @@ class ChatService(BaseService):
             # Convert new message to chat Message format
             user_message = self._prepare_chat_message(
                 role="user",
-                content=ui_input,
+                content=message,
                 model_id=model_id,  # Pass model_id for content filtering
                 context={
                     'local_time': datetime.now().astimezone().isoformat(),
@@ -230,7 +253,7 @@ class ChatService(BaseService):
             logger.debug(f"User message sent to LLM Provider: {user_message}")
 
             # Convert history messages to chat Message format with truncation
-            history_messages = self._prepare_history(ui_history or [])
+            history_messages = self._prepare_history(history or [])
                 
             logger.debug(f"History messages sent to LLM Provider: {len(history_messages)} messages")
 
@@ -286,8 +309,9 @@ class ChatService(BaseService):
                         metadata=response_metadata or None
                     )
                     session.add_interaction(assistant_message.to_dict())
-                    # Persist to session store
-                    await self.session_store.save_session(session)
+                    # Persist to session store only if requested
+                    if persist:
+                        await self.session_store.save_session(session)
 
             except LLMProviderError as e:
                 # Log error with code and details

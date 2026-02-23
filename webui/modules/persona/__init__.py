@@ -197,8 +197,8 @@ class ChatbotHandlers(BaseHandler):
 
             async for chunk in service.streaming_reply(
                 session=session,
-                ui_input=unified_input,
-                ui_history=ui_history,
+                message=unified_input,
+                history=ui_history,
                 style_params=style_params
             ):
                 # Handle streaming chunks for immediate UI updates
