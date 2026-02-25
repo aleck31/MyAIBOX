@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: MIT-0
 import os
 import uvicorn
-import gradio as gr
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
@@ -16,21 +14,21 @@ class SPAStaticFiles(StaticFiles):
     """Serve index.html for any path that doesn't match a real file.
 
     Required for React Router (client-side routing): requests like
-    /ui/persona don't correspond to files on disk, so we fall back to
+    /persona don't correspond to files on disk, so we fall back to
     index.html and let the browser-side router handle the path.
+
+    Excludes /api/ and /main paths — those are handled by FastAPI/Gradio.
     """
     async def get_response(self, path: str, scope):
         try:
             return await super().get_response(path, scope)
         except StarletteHTTPException as e:
-            if e.status_code == 404:
+            if e.status_code == 404 and not path.startswith("api/") and not path.startswith("main"):
                 return await super().get_response("index.html", scope)
             raise
 from core.config import app_config
 from common.logger import setup_logger, logger
 from genai.models.model_manager import model_manager
-from api.auth import get_auth_user
-from webui.main import create_main_interface
 from api.auth import router as auth_api_router
 from api.assistant import router as assistant_router
 from api.persona import router as persona_router
@@ -107,27 +105,7 @@ app.include_router(draw_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")
 app.include_router(upload_router, prefix="/api")
 
-# Create main interface
-main_ui = create_main_interface()
-
-# Load and process CSS with Svelte class name
-SVELTE_CLASS = 'svelte-99kmwu'
-with open('webui/styles.css', 'r') as f:
-    css_content = f.read().replace('{SVELTE_CLASS}', SVELTE_CLASS)
-
-# Mount Gradio app with auth_dependency
-app = gr.mount_gradio_app(
-    app, 
-    main_ui, 
-    path="/main",
-    auth_dependency=get_auth_user,
-    footer_links=['settings'],
-    css=css_content,
-    theme="Ocean"
-)
-
-# Mount React SPA at root — MUST be after all other mounts (API, Gradio)
-# so that /api/*, /main, /auth, /logout are handled first.
+# Mount React SPA at root — catch-all for client-side routing
 if os.path.exists("frontend/dist"):
     app.mount("/", SPAStaticFiles(directory="frontend/dist", html=True), name="react-ui")
 

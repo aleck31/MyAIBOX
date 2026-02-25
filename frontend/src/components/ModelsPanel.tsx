@@ -7,12 +7,12 @@ const MODALITIES = ['text', 'document', 'image', 'video', 'audio']
 
 interface ModelInfo {
   name: string; model_id: string; api_provider: string; vendor: string
-  category: string; description: string
+  category: string; description: string; region: string
   capabilities: { input_modality: string[]; output_modality: string[]; streaming: boolean; tool_use: boolean; reasoning: boolean; context_window: number }
 }
 
 const emptyForm = (): ModelInfo => ({
-  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '',
+  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '', region: '',
   capabilities: { input_modality: ['text'], output_modality: ['text'], streaming: true, tool_use: false, reasoning: false, context_window: 131072 },
 })
 
@@ -34,7 +34,7 @@ export default function ModelsPanel() {
     const payload = {
       name: editing.name, model_id: editing.model_id, api_provider: editing.api_provider,
       vendor: editing.vendor, category: editing.category, description: editing.description,
-      ...editing.capabilities,
+      region: editing.region, ...editing.capabilities,
     }
     if (isNew) await addModel(payload); else await updateModel(payload)
     setSaving(false); setEditing(null); load()
@@ -118,6 +118,11 @@ export default function ModelsPanel() {
                     onChange={e => setEditing({ ...editing, category: e.target.value })}>
                     {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                   </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label className="text-panel-label">Region</label>
+                  <input className="draw-seed-input" style={{ width: '100%' }} value={editing.region}
+                    onChange={e => setEditing({ ...editing, region: e.target.value })} placeholder="Override default" />
                 </div>
               </div>
 

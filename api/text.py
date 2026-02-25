@@ -13,7 +13,7 @@ from ag_ui.core import (
 from ag_ui.encoder import EventEncoder
 from core.service.service_factory import ServiceFactory
 from api.auth import get_auth_user
-from webui.modules.text.prompts import SYSTEM_PROMPTS, STYLES, LANG_MAP
+from api.prompts.text import SYSTEM_PROMPTS, STYLES, LANG_MAP
 from common.logger import setup_logger
 
 logger = setup_logger('api.text')

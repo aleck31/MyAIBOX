@@ -5,7 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [tailwindcss(), react()],
-  base: '/ui/',
+  base: '/',
   server: {
     port: 5173,
     proxy: {
@@ -32,5 +32,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-assistant': ['@assistant-ui/react', '@assistant-ui/react-markdown', '@assistant-ui/core'],
+          'vendor-agui': ['@ag-ui/client', '@ag-ui/core'],
+        },
+      },
+    },
   },
 })

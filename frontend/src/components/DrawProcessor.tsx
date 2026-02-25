@@ -27,13 +27,14 @@ export default function DrawProcessor() {
   const [seed, setSeed] = useState<number>(saved.seed ?? 0)
   const [randomSeed, setRandomSeed] = useState(saved.randomSeed ?? true)
   const [modelId, setModelId] = useState(saved.modelId ?? '')
+  const [resolution, setResolution] = useState(saved.resolution ?? '1K')
   const [imageUrl, setImageUrl] = useState<string | null>(saved.imageUrl ?? null)
   const [loading, setLoading] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
 
   useEffect(() => {
-    saveState({ prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, imageUrl })
-  }, [prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, imageUrl])
+    saveState({ prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl })
+  }, [prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl])
 
   useEffect(() => {
     getDrawConfig().then((cfg) => {
@@ -80,7 +81,7 @@ export default function DrawProcessor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt, negative_prompt: negative, style, ratio,
-          seed, random_seed: randomSeed, model_id: modelId,
+          seed, random_seed: randomSeed, model_id: modelId, resolution,
         }),
       })
       const data = await res.json()
@@ -90,12 +91,12 @@ export default function DrawProcessor() {
       } else {
         alert(data.error || 'Failed to generate image')
       }
-    } catch (err) {
-      console.error(err)
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Network error')
     } finally {
       setLoading(false)
     }
-  }, [prompt, negative, style, ratio, seed, randomSeed, modelId, loading])
+  }, [prompt, negative, style, ratio, seed, randomSeed, modelId, resolution, loading])
 
   const handleClear = useCallback(() => {
     setPrompt('')
@@ -159,8 +160,15 @@ export default function DrawProcessor() {
               <select className="top-bar-select" value={ratio} onChange={(e) => setRatio(e.target.value)}>
                 {config.ratios.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
+              <select className="top-bar-select" value={resolution} onChange={(e) => setResolution(e.target.value)}>
+                {config.resolutions?.map((r: string) => <option key={r} value={r}>{r}</option>)}
+              </select>
             </div>
             <div className="draw-option-row">
+              <label className="draw-checkbox-label">
+                <input type="checkbox" checked={randomSeed} onChange={(e) => setRandomSeed(e.target.checked)} />
+                🎲 Random
+              </label>
               <input
                 type="number"
                 className="draw-seed-input"
@@ -169,10 +177,6 @@ export default function DrawProcessor() {
                 disabled={randomSeed}
                 placeholder="Seed"
               />
-              <label className="draw-checkbox-label">
-                <input type="checkbox" checked={randomSeed} onChange={(e) => setRandomSeed(e.target.checked)} />
-                🎲 Random
-              </label>
             </div>
           </div>
         </div>
@@ -180,7 +184,14 @@ export default function DrawProcessor() {
         {/* Right: Output */}
         <div className="draw-output-panel">
           {imageUrl ? (
-            <img src={imageUrl} alt="Generated" className="draw-output-img" />
+            <div className="draw-output-wrapper">
+              <img src={imageUrl} alt="Generated" className="draw-output-img" />
+              <a href={imageUrl} download className="draw-download-btn" title="Download">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M3 17h14"/>
+                </svg>
+              </a>
+            </div>
           ) : loading ? (
             <div className="draw-output-placeholder">
               <div className="spinner-ring" />

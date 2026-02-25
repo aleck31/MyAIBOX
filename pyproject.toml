@@ -1,6 +1,6 @@
 [project]
 name = "my-aibox"
-version = "3.0.0"
+version = "3.1.0"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
 requires-python = ">=3.12"

@@ -102,3 +102,24 @@
     min-height: 300px;
   }
 }
+
+.draw-output-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+}
+.draw-download-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+}
+.draw-download-btn:hover {
+  background: rgba(0,0,0,0.75);
+}

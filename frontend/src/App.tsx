@@ -1,18 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import AppLayout from './components/AppLayout'
-import PersonaPage from './pages/PersonaPage'
-import TextPage from './pages/TextPage'
-import SummaryPage from './pages/SummaryPage'
-import AskingPage from './pages/AskingPage'
-import VisionPage from './pages/VisionPage'
-import DrawPage from './pages/DrawPage'
-import SettingsPage from './pages/SettingsPage'
-import ModelsPage from './pages/ModelsPage'
-import McpPage from './pages/McpPage'
-import AssistantPage from './pages/AssistantPage'
-import GradioPage from './pages/GradioPage'
+
+const AssistantPage = lazy(() => import('./pages/AssistantPage'))
+const PersonaPage = lazy(() => import('./pages/PersonaPage'))
+const TextPage = lazy(() => import('./pages/TextPage'))
+const SummaryPage = lazy(() => import('./pages/SummaryPage'))
+const AskingPage = lazy(() => import('./pages/AskingPage'))
+const VisionPage = lazy(() => import('./pages/VisionPage'))
+const DrawPage = lazy(() => import('./pages/DrawPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const ModelsPage = lazy(() => import('./pages/ModelsPage'))
+const McpPage = lazy(() => import('./pages/McpPage'))
 
 function AuthGuard({ children }: { children: (username: string) => React.ReactNode }) {
   const { username, loading } = useAuth()
@@ -51,19 +52,18 @@ export default function App() {
             </AuthGuard>
           }
         >
-          {/* Default: redirect to persona */}
+          {/* Default: redirect to assistant */}
           <Route index element={<Navigate to="/assistant" replace />} />
-          <Route path="assistant" element={<AssistantPage />} />
-          <Route path="persona" element={<PersonaPage />} />
-          <Route path="text" element={<TextPage />} />
-          <Route path="summary" element={<SummaryPage />} />
-          <Route path="asking" element={<AskingPage />} />
-          <Route path="vision" element={<VisionPage />} />
-          <Route path="draw" element={<DrawPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="models" element={<ModelsPage />} />
-          <Route path="mcp" element={<McpPage />} />
-          <Route path="legacy" element={<GradioPage />} />
+          <Route path="assistant" element={<Suspense><AssistantPage /></Suspense>} />
+          <Route path="persona" element={<Suspense><PersonaPage /></Suspense>} />
+          <Route path="text" element={<Suspense><TextPage /></Suspense>} />
+          <Route path="summary" element={<Suspense><SummaryPage /></Suspense>} />
+          <Route path="asking" element={<Suspense><AskingPage /></Suspense>} />
+          <Route path="vision" element={<Suspense><VisionPage /></Suspense>} />
+          <Route path="draw" element={<Suspense><DrawPage /></Suspense>} />
+          <Route path="settings" element={<Suspense><SettingsPage /></Suspense>} />
+          <Route path="models" element={<Suspense><ModelsPage /></Suspense>} />
+          <Route path="mcp" element={<Suspense><McpPage /></Suspense>} />
         </Route>
 
         {/* Fallback */}

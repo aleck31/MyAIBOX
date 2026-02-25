@@ -12,7 +12,7 @@ from core.service.service_factory import ServiceFactory
 from core.service.draw_service import DrawService
 from genai.models.model_manager import model_manager
 from api.auth import get_auth_user
-from webui.modules.draw.prompts import PROMPT_OPTIMIZER_TEMPLATE, NEGATIVE_PROMPTS
+from api.prompts.draw import PROMPT_OPTIMIZER_TEMPLATE, NEGATIVE_PROMPTS
 from common.logger import setup_logger
 import json
 import re
@@ -33,8 +33,8 @@ IMAGE_STYLES = [
     "线稿(line-art)", "等距插画(isometric)", "霓虹朋克(neon-punk)", "复合建模(modeling-compound)",
     "奇幻艺术(fantasy-art)", "像素艺术(pixel-art)", "折纸艺术(origami)", "瓷砖纹理(tile-texture)"
 ]
-
 IMAGE_RATIOS = ['16:9', '5:4', '3:2', '21:9', '1:1', '2:3', '4:5', '9:16', '9:21']
+IMAGE_RESOLUTIONS = ['1K', '2K', '4K']
 
 
 def get_draw_service() -> DrawService:
@@ -59,6 +59,7 @@ class DrawRequest(BaseModel):
     seed: int = 0
     random_seed: bool = True
     model_id: str | None = None
+    resolution: str = "1K"
 
 
 class OptimizeRequest(BaseModel):
@@ -77,6 +78,7 @@ async def get_config(username: str = Depends(get_auth_user)):
         ],
         "styles": IMAGE_STYLES,
         "ratios": IMAGE_RATIOS,
+        "resolutions": IMAGE_RESOLUTIONS,
     }
 
 
@@ -139,6 +141,8 @@ async def generate_image(
             negative_prompt=negative,
             seed=used_seed,
             aspect_ratio=body.ratio,
+            model_id=body.model_id,
+            resolution=body.resolution,
         )
 
         # Save to file
@@ -146,6 +150,7 @@ async def generate_image(
         path = os.path.join(UPLOAD_DIR, file_id)
         image.save(path, format="PNG")
 
+        logger.info(f"Draw OK for {username}: {file_id} seed={used_seed}")
         return {"ok": True, "url": f"/api/upload/file/{file_id}", "seed": used_seed}
 
     except Exception as e:

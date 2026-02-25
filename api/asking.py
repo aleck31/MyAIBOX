@@ -15,7 +15,7 @@ from core.module_config import module_config
 from genai.models.model_manager import model_manager
 from genai.models.providers import LLMMessage, LLMParameters, create_model_provider
 from api.auth import get_auth_user
-from webui.modules.asking.prompts import SYSTEM_PROMPT
+from api.prompts.asking import SYSTEM_PROMPT
 from common.logger import setup_logger
 
 logger = setup_logger('api.asking')

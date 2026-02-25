@@ -250,7 +250,8 @@ class BaseService:
             provider = create_creative_provider(
                 model.api_provider,
                 model_id,
-                gen_params
+                gen_params,
+                region=model.region or None
             )
 
             # Cache provider if using default params

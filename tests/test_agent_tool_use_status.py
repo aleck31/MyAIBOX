@@ -46,7 +46,7 @@ async def test_tool_status_full_stack():
         
         async for chunk in service.streaming_reply_with_history(
             session=session,
-            prompt="What is the current time in UTC+8? Use the current_time tool to get the exact time.",
+            message="What is the current time in UTC+8? Use the current_time tool to get the exact time.",
             system_prompt="You are a helpful assistant. Always use tools when available.",
             history=[],
             tool_config={

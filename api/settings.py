@@ -127,6 +127,7 @@ async def list_models(username: str = Depends(get_auth_user)):
         {
             "name": m.name, "model_id": m.model_id, "api_provider": m.api_provider,
             "vendor": m.vendor, "category": m.category, "description": m.description or "",
+            "region": m.region or "",
             "capabilities": {
                 "input_modality": m.capabilities.input_modality,
                 "output_modality": m.capabilities.output_modality,
@@ -147,6 +148,7 @@ class ModelRequest(BaseModel):
     vendor: str = ""
     category: str = "text"
     description: str = ""
+    region: str = ""
     input_modality: List[str] = ["text"]
     output_modality: List[str] = ["text"]
     streaming: bool = True
@@ -167,7 +169,7 @@ async def add_model(body: ModelRequest, username: str = Depends(get_auth_user)):
         model = LLMModel(
             name=body.name, model_id=body.model_id, api_provider=body.api_provider,
             vendor=body.vendor, category=body.category, description=body.description,
-            capabilities=caps,
+            region=body.region, capabilities=caps,
         )
         model_manager.add_model(model)
         return {"ok": True}
@@ -187,7 +189,7 @@ async def update_model(body: ModelRequest, username: str = Depends(get_auth_user
         model = LLMModel(
             name=body.name, model_id=body.model_id, api_provider=body.api_provider,
             vendor=body.vendor, category=body.category, description=body.description,
-            capabilities=caps,
+            region=body.region, capabilities=caps,
         )
         model_manager.update_model(model)
         return {"ok": True}

@@ -10,14 +10,9 @@ from .. import logger
 class BedrockInvoke(LLMAPIProvider):
     """Amazon Bedrock LLM provider powered by the invoke model API for single-turn generation."""
     
-    def __init__(self, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools=None):
-        """Initialize provider with model ID, parameters and tools
-        
-        Args:
-            model_id: Model identifier
-            llm_params: LLM inference parameters (either LLMParameters for text or GenImageParameters for images)
-            tools: Optional list of tool specifications
-        """
+    def __init__(self, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools=None, region: str = None):
+        """Initialize provider with model ID, parameters, optional tools and region"""
+        self._region_override = region
         super().__init__(model_id, llm_params, tools)
 
     def _validate_config(self) -> None:
@@ -30,7 +25,7 @@ class BedrockInvoke(LLMAPIProvider):
     def _initialize_client(self) -> None:
         """Initialize Bedrock client"""
         try:
-            region = env_config.bedrock_config['region_name']
+            region = self._region_override or env_config.bedrock_config['region_name']
             if not region:
                 raise boto_exceptions.ParamValidationError(
                     report="AWS region must be configured for Bedrock"
@@ -196,7 +191,7 @@ class BedrockInvoke(LLMAPIProvider):
         )
 
 
-def create_creative_provider(provider_name: str, model_id: str, image_params: GenImageParameters) -> 'BedrockInvoke':
+def create_creative_provider(provider_name: str, model_id: str, image_params: GenImageParameters, region: str = None) -> 'BedrockInvoke':
     """Factory function to create creative content generation provider instance"""
     from genai.models.providers.bedrock_invoke import BedrockInvoke
 
@@ -205,4 +200,4 @@ def create_creative_provider(provider_name: str, model_id: str, image_params: Ge
         raise ValueError(f"Creative content generation is only supported by BedrockInvoke provider, got: {provider_name}")
 
     # Create BedrockInvoke provider instance for creative content generation (no tools needed)
-    return BedrockInvoke(model_id, image_params, [])
+    return BedrockInvoke(model_id, image_params, [], region=region)

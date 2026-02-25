@@ -32,6 +32,7 @@ class LLMModel:
     category: str   #Legacy to compatibility with existing models
     vendor: str = ""      # Optional
     description: str = "" # Optional
+    region: str = ""      # Optional: override default region for this model
     capabilities: LLM_CAPABILITIES = field(default_factory=LLM_CAPABILITIES)
 
     def __post_init__(self):
@@ -96,6 +97,7 @@ class LLMModel:
             category=data.get('category', 'text'),
             vendor=data.get('vendor', ''),
             description=data.get('description', ''),
+            region=data.get('region', ''),
             capabilities=capabilities
         )
 

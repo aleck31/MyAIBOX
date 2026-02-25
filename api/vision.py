@@ -14,7 +14,7 @@ from core.module_config import module_config
 from genai.models.model_manager import model_manager
 from genai.models.providers import LLMMessage, LLMParameters, create_model_provider
 from api.auth import get_auth_user
-from webui.modules.vision.prompts import VISION_SYSTEM_PROMPT
+from api.prompts.vision import VISION_SYSTEM_PROMPT
 from common.logger import setup_logger
 
 logger = setup_logger('api.vision')

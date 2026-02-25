@@ -1,7 +1,7 @@
 {
   "name": "my-aibox-ui",
   "private": true,
-  "version": "0.8.1",
+  "version": "3.1.0",
   "type": "module",
   "overrides": {
     "@assistant-ui/core": "$@assistant-ui/core"

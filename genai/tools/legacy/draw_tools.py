@@ -7,7 +7,7 @@ import random
 from pathlib import Path
 from typing import Dict
 from PIL import Image
-from webui.modules.draw.prompts import NEGATIVE_PROMPTS
+from api.prompts.draw import NEGATIVE_PROMPTS
 from .. import logger
 
 

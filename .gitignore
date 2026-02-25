@@ -18,6 +18,8 @@ assets/uploads/*
 # vscode
 .vscode
 .idea
+.kiro
+.claude
 .DS_Store
 
 # Environments

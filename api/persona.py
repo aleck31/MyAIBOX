@@ -18,7 +18,7 @@ from ag_ui.encoder import EventEncoder
 from core.service.service_factory import ServiceFactory
 from genai.models.model_manager import model_manager
 from api.auth import get_auth_user
-from webui.modules.persona.prompts import PERSONA_ROLES
+from api.prompts.persona import PERSONA_ROLES
 from common.logger import setup_logger
 
 logger = setup_logger('api.persona')
