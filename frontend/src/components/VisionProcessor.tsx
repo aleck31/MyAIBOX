@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getVisionConfig } from '../api/client'
 import ModelSelector from './ModelSelector'
+import ResizablePreview from './ResizablePreview'
 import type { VisionConfig } from '../types/vision'
 
 const STORAGE_KEY = 'vision-processor-state'
@@ -145,18 +146,18 @@ export default function VisionProcessor() {
         {/* Left: Input */}
         <div className="vision-input-panel">
           {/* File preview */}
-          <div className="vision-preview">
+          <ResizablePreview height="50%" minHeight={200}>
             {preview && isPdf ? (
-              <iframe src={preview} className="vision-preview-iframe" title="PDF Preview" />
+              <iframe src={preview} className="file-preview-iframe" title="PDF Preview" />
             ) : preview ? (
-              <img src={preview} alt="Preview" className="vision-preview-img" />
+              <img src={preview} alt="Preview" className="file-preview-img" />
             ) : (
-              <div className="vision-preview-placeholder">No file selected</div>
+              <div className="file-preview-placeholder">No file selected</div>
             )}
-          </div>
+          </ResizablePreview>
 
           {/* File input */}
-          <div className="asking-file-row">
+          <div className="attach-file-row">
             <input
               ref={fileInputRef}
               type="file"

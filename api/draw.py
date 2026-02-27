@@ -5,7 +5,7 @@ import os
 import uuid
 import random
 import base64
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from core.service.service_factory import ServiceFactory
@@ -28,10 +28,10 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 IMAGE_STYLES = [
-    "增强(enhance)", "照片(photographic)", "模拟胶片(analog-film)", "电影(cinematic)",
+    "增强(enhance)", "照片(photographic)", "水墨(ink-wash)", "电影(cinematic)",
     "数字艺术(digital-art)", "美式漫画(comic-book)", "动漫(anime)", "3D模型(3d-model)", "低多边形(low-poly)",
-    "线稿(line-art)", "等距插画(isometric)", "霓虹朋克(neon-punk)", "复合建模(modeling-compound)",
-    "奇幻艺术(fantasy-art)", "像素艺术(pixel-art)", "折纸艺术(origami)", "瓷砖纹理(tile-texture)"
+    "扁平插画(flat-illustration)", "超现实(surrealism)", "赛博朋克(cyberpunk)", "素描(sketch)",
+    "奇幻艺术(fantasy-art)", "复古海报(retro-poster)", "水彩(watercolor)", "油画(oil-painting)"
 ]
 IMAGE_RATIOS = ['16:9', '5:4', '3:2', '21:9', '1:1', '2:3', '4:5', '9:16', '9:21']
 IMAGE_RESOLUTIONS = ['1K', '2K', '4K']
@@ -65,6 +65,7 @@ class DrawRequest(BaseModel):
 class OptimizeRequest(BaseModel):
     prompt: str
     style: str = "增强(enhance)"
+    model_id: str | None = None
 
 
 @router.get("/config")
@@ -97,8 +98,15 @@ async def optimize_prompt(
         match = re.findall(pattern, body.style)
         style_name = match[0] if match else body.style
 
+        # Resolve model name for prompt optimization
+        model_name = "AI image generation"
+        if body.model_id:
+            model = model_manager.get_model_by_id(body.model_id)
+            if model:
+                model_name = f"{model.name} ({model.api_provider})"
+
         gen_service = get_gen_service()
-        system_prompt = PROMPT_OPTIMIZER_TEMPLATE.format(style=style_name)
+        system_prompt = PROMPT_OPTIMIZER_TEMPLATE.format(style=style_name, model=model_name)
         response = await gen_service.gen_text_stateless(
             content={"text": body.prompt},
             system_prompt=system_prompt,
@@ -155,4 +163,38 @@ async def generate_image(
 
     except Exception as e:
         logger.error(f"Draw error for {username}: {e}", exc_info=True)
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@router.post("/edit")
+async def edit_image(
+    prompt: str = Form(...),
+    image: UploadFile = File(...),
+    model_id: str = Form(""),
+    ratio: str = Form("1:1"),
+    resolution: str = Form("1K"),
+    username: str = Depends(get_auth_user),
+):
+    """Edit image with text instruction."""
+    try:
+        service = get_draw_service()
+        image_data = await image.read()
+
+        result = await service.edit_image(
+            image_data=image_data,
+            prompt=prompt,
+            aspect_ratio=ratio,
+            model_id=model_id or None,
+            resolution=resolution,
+        )
+
+        file_id = f"{uuid.uuid4().hex}.png"
+        path = os.path.join(UPLOAD_DIR, file_id)
+        result.save(path, format="PNG")
+
+        logger.info(f"Edit OK for {username}: {file_id}")
+        return {"ok": True, "url": f"/api/upload/file/{file_id}"}
+
+    except Exception as e:
+        logger.error(f"Edit error for {username}: {e}", exc_info=True)
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)

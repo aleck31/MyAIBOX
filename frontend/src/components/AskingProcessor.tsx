@@ -185,7 +185,7 @@ export default function AskingProcessor() {
             </div>
           )}
           {/* File upload */}
-          <div className="asking-file-row">
+          <div className="attach-file-row">
             <input
               ref={fileInputRef}
               type="file"

@@ -34,7 +34,7 @@
   overflow-y: auto;
 }
 
-.asking-file-row {
+.attach-file-row {
   display: flex;
   align-items: center;
   gap: 8px;
