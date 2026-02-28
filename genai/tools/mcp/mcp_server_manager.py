@@ -389,18 +389,6 @@ class MCPServerManager:
 
         return info
 
-    def dynamic_add_tools(self):
-        # 动态添加 MCP 工具到现有 Agent 的工具注册表
-        # if hasattr(self.agent, 'tool_registry') and hasattr(self.agent.tool_registry, 'dynamic_tools'):
-        #     # 备份原有的动态工具
-        #     original_dynamic_tools = self.agent.tool_registry.dynamic_tools.copy()
-            
-        #     # 添加 MCP 工具
-        #     for mcp_tool in mcp_tools:
-        #         tool_name = getattr(mcp_tool, 'tool_name', f'mcp_tool_{id(mcp_tool)}')
-        #         self.agent.tool_registry.dynamic_tools[tool_name] = mcp_tool
-            
-        #     logger.info(f"动态添加了 {len(mcp_tools)} 个 MCP 工具")
 
 # Create a singleton instance
 mcp_server_manager = MCPServerManager()

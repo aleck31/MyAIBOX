@@ -117,6 +117,7 @@ def generate_image(
         # Return the file path and metadata with success status
         return {
             "status": "success",
+            "public_url": f"/api/draw/image/{filename}",
             "file_path": str(file_path),
             "metadata": {
                 "seed": used_seed,

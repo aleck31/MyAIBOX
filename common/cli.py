@@ -1,6 +1,8 @@
 import subprocess
 import os
 import sys
+import json
+import re
 
 SESSION = "my-aibox"
 DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
@@ -8,6 +10,27 @@ DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project roo
 
 def _running() -> bool:
     return subprocess.run(["tmux", "has-session", "-t", SESSION], capture_output=True).returncode == 0
+
+
+def _sync_version():
+    """Sync version from pyproject.toml to frontend/package.json."""
+    pyproject = os.path.join(DIR, "pyproject.toml")
+    pkg_json = os.path.join(DIR, "frontend", "package.json")
+
+    with open(pyproject) as f:
+        match = re.search(r'^version\s*=\s*"(.+?)"', f.read(), re.MULTILINE)
+    if not match:
+        return
+    version = match.group(1)
+
+    with open(pkg_json) as f:
+        pkg = json.load(f)
+    if pkg.get("version") != version:
+        pkg["version"] = version
+        with open(pkg_json, "w") as f:
+            json.dump(pkg, f, indent=2)
+            f.write("\n")
+        print(f"✓ synced version {version} → package.json")
 
 
 def main():
@@ -56,6 +79,7 @@ def main():
             print("\n".join(lines))
 
     elif cmd == "build":
+        _sync_version()
         subprocess.run(["npm", "run", "build"], cwd=os.path.join(DIR, "frontend"), check=True)
 
     elif cmd == "check":

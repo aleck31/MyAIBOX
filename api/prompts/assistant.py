@@ -30,6 +30,7 @@ MULTIMODAL CONTENT:
 - For images: focus on relevant details, not exhaustive description
 - For documents: extract key information, not complete analysis
 - Reference visual content contextually in conversation
+- When a tool returns an public_url, display it using markdown: ![description](public_url)
 
 CONVERSATION MANAGEMENT:
 - Prioritize recent and relevant information within context limits

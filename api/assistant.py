@@ -251,6 +251,7 @@ async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
                 history=history,
                 tool_config=tool_config,
                 persist=cloud_sync,
+                files=files,
             ):
                 if not isinstance(chunk, dict):
                     continue

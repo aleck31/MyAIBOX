@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: MIT-0
 import os
 import uuid
+import time
 import random
 from fastapi import APIRouter, Depends, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from core.service.service_factory import ServiceFactory
 from core.service.draw_service import DrawService
@@ -24,6 +25,9 @@ _gen_service = None
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+GENERATED_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/generated/images")
+os.makedirs(GENERATED_DIR, exist_ok=True)
 
 IMAGE_STYLES = [
     "增强(enhance)", "照片(photographic)", "水墨(ink-wash)", "电影(cinematic)",
@@ -152,12 +156,12 @@ async def generate_image(
         )
 
         # Save to file
-        file_id = f"{uuid.uuid4().hex}.png"
-        path = os.path.join(UPLOAD_DIR, file_id)
+        file_id = f"img_{int(time.time())}_{uuid.uuid4().hex[:8]}.png"
+        path = os.path.join(GENERATED_DIR, file_id)
         image.save(path, format="PNG")
 
         logger.info(f"Draw OK for {username}: {file_id} seed={used_seed}")
-        return {"ok": True, "url": f"/api/upload/file/{file_id}", "seed": used_seed}
+        return {"ok": True, "url": f"/api/draw/image/{file_id}", "seed": used_seed}
 
     except Exception as e:
         logger.error(f"Draw error for {username}: {e}", exc_info=True)
@@ -186,13 +190,22 @@ async def edit_image(
             resolution=resolution,
         )
 
-        file_id = f"{uuid.uuid4().hex}.png"
-        path = os.path.join(UPLOAD_DIR, file_id)
+        file_id = f"edit_{int(time.time())}_{uuid.uuid4().hex[:8]}.png"
+        path = os.path.join(GENERATED_DIR, file_id)
         result.save(path, format="PNG")
 
         logger.info(f"Edit OK for {username}: {file_id}")
-        return {"ok": True, "url": f"/api/upload/file/{file_id}"}
+        return {"ok": True, "url": f"/api/draw/image/{file_id}"}
 
     except Exception as e:
         logger.error(f"Edit error for {username}: {e}", exc_info=True)
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@router.get("/image/{file_id}")
+async def get_image(file_id: str, username: str = Depends(get_auth_user)):
+    """Serve generated image."""
+    path = os.path.join(GENERATED_DIR, file_id)
+    if not os.path.exists(path):
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return FileResponse(path, media_type="image/png")
