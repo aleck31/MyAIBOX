@@ -138,7 +138,7 @@ class AgentProvider:
                     try:
                         import json
                         params = json.loads(params)
-                    except:
+                    except Exception:
                         params = {'input': params}
                 
                 # Store state for completion event

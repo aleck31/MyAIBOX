@@ -156,7 +156,7 @@ class ChatService(BaseService):
                 logger.debug(f"Get session persona role: {style}")
                 return style
             else:
-                logger.debug(f"No persona role found, using default")
+                logger.debug("No persona role found, using default")
                 return 'default'
 
         except Exception as e:

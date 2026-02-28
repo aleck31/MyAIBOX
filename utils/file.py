@@ -43,7 +43,7 @@ class FileProcessor:
                     # Convert to lowercase to match Bedrock expectations
                     return format.lower()
             return None
-        except Exception as e:
+        except Exception:
             # If PIL detection fails, return None to fallback to extension-based detection
             return None
 

@@ -7,9 +7,8 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+*.egg-info/
 build/
-.eggs/
-develop-eggs/
 dist/
 node_modules
 assets/generated/*

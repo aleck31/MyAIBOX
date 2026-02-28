@@ -1,7 +1,7 @@
 """
 MCP server management and configuration
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 from decimal import Decimal
 from core.config import env_config
 from utils.aws import get_aws_resource
@@ -391,7 +391,6 @@ class MCPServerManager:
 
     def dynamic_add_tools(self):
         # 动态添加 MCP 工具到现有 Agent 的工具注册表
-        original_dynamic_tools = {}
         # if hasattr(self.agent, 'tool_registry') and hasattr(self.agent.tool_registry, 'dynamic_tools'):
         #     # 备份原有的动态工具
         #     original_dynamic_tools = self.agent.tool_registry.dynamic_tools.copy()

@@ -85,7 +85,7 @@ async def process_asking(
     # Parse history
     try:
         history_list = json.loads(history) if history else []
-    except:
+    except Exception:
         history_list = []
 
     # Save uploaded files

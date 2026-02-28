@@ -157,7 +157,7 @@ class AgentService(BaseService):
             'strands_tools_enabled': True,
         }
         
-        logger.debug(f"[AgentService] Using default tool config (no legacy tools)")
+        logger.debug("[AgentService] Using default tool config (no legacy tools)")
         return tool_config
 
     async def _generate_stream_async(

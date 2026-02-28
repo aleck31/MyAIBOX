@@ -6,7 +6,7 @@ import time
 from botocore.exceptions import ClientError
 from typing import Dict, Optional
 from core.config import env_config
-from common.logger import setup_logger, logger
+from common.logger import logger
 
 
 class CognitoAuth:

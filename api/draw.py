@@ -1,10 +1,8 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
-import io
 import os
 import uuid
 import random
-import base64
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel

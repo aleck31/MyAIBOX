@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from common.logger import setup_logger, logger
+from common.logger import logger
 
 def run_test(test_script: str) -> bool:
     """Run a single test script"""
@@ -63,7 +63,7 @@ def main():
     passed = sum(1 for result in results.values() if result)
     total = len(results)
     
-    logger.info(f"\n📊 Test Results Summary:")
+    logger.info("\n📊 Test Results Summary:")
     logger.info(f"✅ Passed: {passed}/{total}")
     
     for test_name, result in results.items():

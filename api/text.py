@@ -1,14 +1,12 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import uuid
-from typing import Literal
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from ag_ui.core import (
     RunStartedEvent, RunFinishedEvent, RunErrorEvent,
     TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
-    BaseEvent, EventType,
 )
 from ag_ui.encoder import EventEncoder
 from core.service.service_factory import ServiceFactory

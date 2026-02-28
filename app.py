@@ -3,31 +3,12 @@
 import os
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
-
-class SPAStaticFiles(StaticFiles):
-    """Serve index.html for any path that doesn't match a real file.
-
-    Required for React Router (client-side routing): requests like
-    /persona don't correspond to files on disk, so we fall back to
-    index.html and let the browser-side router handle the path.
-
-    Excludes /api/ and /main paths — those are handled by FastAPI/Gradio.
-    """
-    async def get_response(self, path: str, scope):
-        try:
-            return await super().get_response(path, scope)
-        except StarletteHTTPException as e:
-            if e.status_code == 404 and not path.startswith("api/") and not path.startswith("main"):
-                return await super().get_response("index.html", scope)
-            raise
+from common.spa import SPAStaticFiles
 from core.config import app_config
-from common.logger import setup_logger, logger
+from common.logger import logger
 from genai.models.model_manager import model_manager
 from api.auth import router as auth_api_router
 from api.assistant import router as assistant_router

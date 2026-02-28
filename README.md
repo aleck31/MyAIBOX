@@ -107,7 +107,7 @@ cd frontend && npm install && npm run build
 
 4. Run:
 ```bash
-uv run uvicorn app:app --host 127.0.0.1 --port 8080 --reload
+uv run python app.py
 ```
 
 ## Routes
@@ -124,7 +124,13 @@ uv run uvicorn app:app --host 127.0.0.1 --port 8080 --reload
 
 ### Local / EC2
 ```bash
-./run.sh start
+my-aibox start    # start in background (tmux)
+my-aibox stop     # stop
+my-aibox restart  # restart
+my-aibox status   # check status
+my-aibox attach   # view live output (Ctrl+B D to detach)
+my-aibox build    # build frontend
+my-aibox check    # lint Python code (ruff)
 ```
 
 ### AgentCore Runtime (Serverless Agent)

@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException
 from core.config import env_config
-from common.logger import setup_logger, logger
+from common.logger import logger
 from utils.aws import get_aws_resource
 from .models import Session, SessionMetadata
 

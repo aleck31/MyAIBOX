@@ -29,9 +29,24 @@ dependencies = [
     "ag-ui-protocol>=0.1.13",
 ]
 
+[dependency-groups]
+dev = [
+    "ruff>=0.15.4",
+]
+
+[project.scripts]
+my-aibox = "common.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["core*", "genai*", "webui*", "common*", "utils*"]
 exclude = ["tests*", "logs*", "tmp*", "assets*"]
 
 [tool.uv]
-# uv specific configurations can be added here
+package = true
+
+[tool.ruff]
+line-length = 120
+exclude = ["tests"]
+
+[tool.ruff.lint]
+ignore = ["E402", "E701"]

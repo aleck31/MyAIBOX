@@ -176,7 +176,7 @@ class BedrockConverse(LLMAPIProvider):
         if is_claude_thinking:
             # Apply all Claude thinking parameters at once
             additional_fields['thinking'] = thinking_config
-            logger.debug(f"[BRConverseProvider] Applied Claude thinking parameters")
+            logger.debug("[BRConverseProvider] Applied Claude thinking parameters")
 
             # Override inference parameters for thinking
             inference_config['temperature'] = 1.0
@@ -249,8 +249,7 @@ class BedrockConverse(LLMAPIProvider):
                     ])
                     logger.debug("--- image content w/metadata added successfully")
                 # Handle video content (placeholder for future implementation)
-                if video := result.pop('video', None):
-                    pass
+                result.pop('video', None)
                 # Handle remaining content as JSON
                 if result:
                     tool_result['content'].append({'json': result})
@@ -632,7 +631,6 @@ class BedrockConverse(LLMAPIProvider):
   
                 try:
                     # Execute tool using run_coroutine_threadsafe in background thread
-                    import concurrent.futures
                     from threading import Thread
                     
                     # Create background event loop if not exists
