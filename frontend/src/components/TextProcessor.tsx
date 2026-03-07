@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTextConfig } from '../api/client'
+import { readSSE } from '../api/sse'
 import type { TextConfig } from '../types/text'
 
 const STORAGE_KEY = 'text-processor-state'
@@ -47,30 +48,11 @@ export default function TextProcessor() {
         body: JSON.stringify({ text: input, operation, target_lang: targetLang, style }),
       })
 
-      const reader = res.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
       let result = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        // Parse SSE lines for TEXT_MESSAGE_CONTENT events
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const evt = JSON.parse(line.slice(6))
-            if (evt.type === 'TEXT_MESSAGE_CONTENT') {
-              result += evt.delta
-              setOutput(result)
-            } else if (evt.type === 'RUN_ERROR') {
-              setOutput(evt.message || 'An error occurred.')
-            }
-          } catch { /* skip non-JSON lines */ }
-        }
-      }
+      await readSSE(res, {
+        onText: (delta) => { result += delta; setOutput(result) },
+        onError: (msg) => setOutput(msg),
+      })
     } catch (err) {
       setOutput('An error occurred while processing your text.')
       console.error(err)

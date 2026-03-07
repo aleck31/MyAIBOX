@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getVisionConfig } from '../api/client'
+import { readSSE } from '../api/sse'
 import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
 import type { VisionConfig } from '../types/vision'
@@ -75,29 +76,11 @@ export default function VisionProcessor() {
         body: formData,
       })
 
-      const reader = res.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
       let result = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const evt = JSON.parse(line.slice(6))
-            if (evt.type === 'TEXT_MESSAGE_CONTENT') {
-              result += evt.delta
-              setOutput(result)
-            } else if (evt.type === 'RUN_ERROR') {
-              setOutput(evt.message || 'An error occurred.')
-            }
-          } catch { /* skip */ }
-        }
-      }
+      await readSSE(res, {
+        onText: (delta) => { result += delta; setOutput(result) },
+        onError: (msg) => setOutput(msg),
+      })
     } catch (err) {
       setOutput('An error occurred during analysis.')
       console.error(err)

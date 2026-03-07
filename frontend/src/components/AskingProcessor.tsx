@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { getAskingConfig } from '../api/client'
+import { readSSE } from '../api/sse'
 import ModelSelector from './ModelSelector'
 import type { AskingConfig, AskingHistory } from '../types/asking'
 
@@ -62,33 +63,13 @@ export default function AskingProcessor() {
         body: formData,
       })
 
-      const reader = res.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
       let thinkBuf = ''
       let respBuf = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const evt = JSON.parse(line.slice(6))
-            if (evt.type === 'REASONING_MESSAGE_CONTENT') {
-              thinkBuf += evt.delta
-              setThinking(thinkBuf)
-            } else if (evt.type === 'TEXT_MESSAGE_CONTENT') {
-              respBuf += evt.delta
-              setResponse(respBuf)
-            } else if (evt.type === 'RUN_ERROR') {
-              setResponse(evt.message || 'An error occurred.')
-            }
-          } catch { /* skip */ }
-        }
-      }
+      await readSSE(res, {
+        onText: (delta) => { respBuf += delta; setResponse(respBuf) },
+        onReasoning: (delta) => { thinkBuf += delta; setThinking(thinkBuf) },
+        onError: (msg) => setResponse(msg),
+      })
 
       // Update history after completion
       if (respBuf) {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSummaryConfig } from '../api/client'
+import { readSSE } from '../api/sse'
 import type { SummaryConfig } from '../types/summary'
 
 const STORAGE_KEY = 'summary-processor-state'
@@ -48,29 +49,11 @@ export default function SummaryProcessor() {
         body: JSON.stringify({ text: input, target_lang: targetLang, model_id: modelId }),
       })
 
-      const reader = res.body?.getReader()
-      if (!reader) return
-
-      const decoder = new TextDecoder()
       let result = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const evt = JSON.parse(line.slice(6))
-            if (evt.type === 'TEXT_MESSAGE_CONTENT') {
-              result += evt.delta
-              setOutput(result)
-            } else if (evt.type === 'RUN_ERROR') {
-              setOutput(evt.message || 'An error occurred.')
-            }
-          } catch { /* skip non-JSON lines */ }
-        }
-      }
+      await readSSE(res, {
+        onText: (delta) => { result += delta; setOutput(result) },
+        onError: (msg) => setOutput(msg),
+      })
     } catch (err) {
       setOutput('An error occurred while summarizing.')
       console.error(err)
