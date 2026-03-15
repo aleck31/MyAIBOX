@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getSummaryConfig } from '../api/client'
+import { authFetch, getSummaryConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import type { SummaryConfig } from '../types/summary'
 
@@ -42,7 +42,7 @@ export default function SummaryProcessor() {
     setOutput('')
 
     try {
-      const res = await fetch('/api/summary/process', {
+      const res = await authFetch('/api/summary/process', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

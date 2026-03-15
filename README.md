@@ -1,5 +1,7 @@
 # MyAIBOX
 
+![Version](https://img.shields.io/badge/version-3.2.1-blue) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
+
 MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with FastAPI and React. It provides access to various AI capabilities including AI Agent, multimodal chat, text processing, summarization, image/document recognition, and image creation.
 
 ## Overview
@@ -10,6 +12,7 @@ The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with
 - **Agent Session Cache**: Per-session Strands Agent caching with 2h TTL, hot-swap model, persistent MCP connections
 - **Assistant Multimodal**: File attachments and image display in Agent conversations
 - **Image Editing**: Edit images with text instructions (Gemini, Nova Canvas, Stability AI)
+- **Shared SSE Parser**: Unified `readSSE()` with proper line buffering, fixing stream truncation across modules
 - **CLI Tools**: `my-aibox build` (with auto version sync) and `my-aibox check` (ruff linting)
 
 **v3.0**
@@ -36,14 +39,18 @@ Supported input formats: jpg/jpeg, png, gif, webp, pdf, csv, doc/docx, xls/xlsx,
 
 ## Screenshots
 
-### Main Interface
-![my-aibox](/assets/screenshot.png "Web UI")
-
 ### Multimodal Chatbot
-![my-aibox](/assets/screenshot_chatbot.png "Multimodal Chatbot")
+![my-aibox](/assets/screenshots/webchat.png "Multimodal Chatbot")
 
 ### Vision Recognition
-![my-aibox](/assets/screenshot_vision.png "Vision Recognition")
+![my-aibox](/assets/screenshots/vision.png "Vision Recognition")
+
+### Generate and Edit
+![my-aibox](/assets/screenshots/draw.png "Generate and Edit image")
+
+
+### Settings
+![my-aibox](/assets/screenshots/settings.png "Web UI")
 
 ## Project Structure
 

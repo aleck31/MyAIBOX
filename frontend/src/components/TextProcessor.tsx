@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getTextConfig } from '../api/client'
+import { authFetch, getTextConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import type { TextConfig } from '../types/text'
 
@@ -41,7 +41,7 @@ export default function TextProcessor() {
     setOutput('')
 
     try {
-      const res = await fetch('/api/text/process', {
+      const res = await authFetch('/api/text/process', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

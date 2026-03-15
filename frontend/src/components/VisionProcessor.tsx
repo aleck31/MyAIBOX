@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getVisionConfig } from '../api/client'
+import { authFetch, getVisionConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
@@ -70,7 +70,7 @@ export default function VisionProcessor() {
     files.forEach((f) => formData.append('files', f))
 
     try {
-      const res = await fetch('/api/vision/analyze', {
+      const res = await authFetch('/api/vision/analyze', {
         method: 'POST',
         credentials: 'include',
         body: formData,

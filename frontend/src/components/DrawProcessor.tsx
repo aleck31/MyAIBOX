@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getDrawConfig } from '../api/client'
+import { authFetch, getDrawConfig } from '../api/client'
 import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
 import type { DrawConfig } from '../types/draw'
@@ -60,7 +60,7 @@ export default function DrawProcessor() {
     if (!src.trim() || optimizing) return
     setOptimizing(true)
     try {
-      const res = await fetch('/api/draw/optimize', {
+      const res = await authFetch('/api/draw/optimize', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -81,7 +81,7 @@ export default function DrawProcessor() {
     setLoading(true)
     setImageUrl(null)
     try {
-      const res = await fetch('/api/draw/generate', {
+      const res = await authFetch('/api/draw/generate', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -112,7 +112,7 @@ export default function DrawProcessor() {
       let file = editFile
       // If editing from a generated image URL (no local file), fetch it
       if (!file && editImageUrl) {
-        const resp = await fetch(editImageUrl, { credentials: 'include' })
+        const resp = await authFetch(editImageUrl)
         const blob = await resp.blob()
         file = new window.File([blob], 'edit.png', { type: 'image/png' })
       }
@@ -125,7 +125,7 @@ export default function DrawProcessor() {
       form.append('ratio', ratio)
       form.append('resolution', resolution)
 
-      const res = await fetch('/api/draw/edit', {
+      const res = await authFetch('/api/draw/edit', {
         method: 'POST',
         credentials: 'include',
         body: form,

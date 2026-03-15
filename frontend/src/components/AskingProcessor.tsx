@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getAskingConfig } from '../api/client'
+import { authFetch, getAskingConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import ModelSelector from './ModelSelector'
 import type { AskingConfig, AskingHistory } from '../types/asking'
@@ -57,7 +57,7 @@ export default function AskingProcessor() {
     files.forEach((f) => formData.append('files', f))
 
     try {
-      const res = await fetch('/api/asking/process', {
+      const res = await authFetch('/api/asking/process', {
         method: 'POST',
         credentials: 'include',
         body: formData,

@@ -1,17 +1,20 @@
 /**
- * Fetch wrapper that includes session cookies for auth.
+ * Global fetch wrapper with auth guard.
+ * All API calls should use this instead of raw fetch().
  */
+export async function authFetch(path: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(path, { credentials: 'include', ...init })
+  if (res.status === 401 && !path.includes('/auth/')) {
+    window.location.href = '/login'
+  }
+  return res
+}
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(path, {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
+  return authFetch(path, {
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
     ...init,
   })
-  return res
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
