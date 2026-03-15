@@ -52,7 +52,7 @@ export default function ModelsPanel() {
     <div className="settings-panel">
       <div className="module-options-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Model Management</span>
-        <div className="text-options">
+        <div className="module-options">
           <button className="text-btn text-btn--secondary" onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</button>
           <button className="text-btn text-btn--primary" onClick={openAdd} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Model</button>
         </div>
@@ -87,18 +87,18 @@ export default function ModelsPanel() {
             <div className="settings-modal" onClick={e => e.stopPropagation()}>
               <h3 style={{ margin: '0 0 16px' }}>{isNew ? 'Add Model' : 'Edit Model'}</h3>
 
-              <label className="text-panel-label">Model ID</label>
+              <label className="panel-label">Model ID</label>
               <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={editing.model_id}
                 onChange={e => setEditing({ ...editing, model_id: e.target.value })} disabled={!isNew} />
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label className="text-panel-label">Name</label>
+                  <label className="panel-label">Name</label>
                   <input className="draw-seed-input" style={{ width: '100%' }} value={editing.name}
                     onChange={e => setEditing({ ...editing, name: e.target.value })} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="text-panel-label">Vendor</label>
+                  <label className="panel-label">Vendor</label>
                   <input className="draw-seed-input" style={{ width: '100%' }} value={editing.vendor}
                     onChange={e => setEditing({ ...editing, vendor: e.target.value })} />
                 </div>
@@ -106,31 +106,31 @@ export default function ModelsPanel() {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label className="text-panel-label">API Provider</label>
+                  <label className="panel-label">API Provider</label>
                   <select className="top-bar-select" style={{ width: '100%' }} value={editing.api_provider}
                     onChange={e => setEditing({ ...editing, api_provider: e.target.value })}>
                     {API_PROVIDERS.map(p => <option key={p}>{p}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="text-panel-label">Category</label>
+                  <label className="panel-label">Category</label>
                   <select className="top-bar-select" style={{ width: '100%' }} value={editing.category}
                     onChange={e => setEditing({ ...editing, category: e.target.value })}>
                     {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="text-panel-label">Region</label>
+                  <label className="panel-label">Region</label>
                   <input className="draw-seed-input" style={{ width: '100%' }} value={editing.region}
                     onChange={e => setEditing({ ...editing, region: e.target.value })} placeholder="Override default" />
                 </div>
               </div>
 
-              <label className="text-panel-label" style={{ marginTop: 8 }}>Context Window</label>
+              <label className="panel-label" style={{ marginTop: 8 }}>Context Window</label>
               <input className="draw-seed-input" type="number" style={{ width: 160 }} value={cap?.context_window ?? 0}
                 onChange={e => setCap('context_window', Number(e.target.value))} />
 
-              <label className="text-panel-label" style={{ marginTop: 8 }}>Input Modalities</label>
+              <label className="panel-label" style={{ marginTop: 8 }}>Input Modalities</label>
               <div className="settings-tools-grid">
                 {MODALITIES.map(m => (
                   <label key={m} className="draw-checkbox-label">
@@ -141,7 +141,7 @@ export default function ModelsPanel() {
                 ))}
               </div>
 
-              <label className="text-panel-label">Output Modalities</label>
+              <label className="panel-label">Output Modalities</label>
               <div className="settings-tools-grid">
                 {MODALITIES.map(m => (
                   <label key={m} className="draw-checkbox-label">
@@ -152,7 +152,7 @@ export default function ModelsPanel() {
                 ))}
               </div>
 
-              <label className="text-panel-label">Capabilities</label>
+              <label className="panel-label">Capabilities</label>
               <div className="settings-tools-grid">
                 <label className="draw-checkbox-label"><input type="checkbox" checked={cap?.streaming} onChange={e => setCap('streaming', e.target.checked)} /> Streaming</label>
                 <label className="draw-checkbox-label"><input type="checkbox" checked={cap?.tool_use} onChange={e => setCap('tool_use', e.target.checked)} /> Tool Use</label>

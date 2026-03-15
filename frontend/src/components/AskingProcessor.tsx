@@ -122,13 +122,10 @@ export default function AskingProcessor() {
   const hasHistory = history.length > 0
 
   return (
-    <div className="asking-processor">
+    <div className="module-layout">
       {/* Top bar */}
       <div className="module-options-bar">
-        <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
-          I think, therefore I am.
-        </span>
-        <div className="text-options">
+        <div className="module-options">
           <ModelSelector
             models={config.models}
             value={modelId}
@@ -138,12 +135,12 @@ export default function AskingProcessor() {
       </div>
 
       {/* Main content */}
-      <div className="asking-main">
+      <div className="module-panel-main">
         {/* Left: Input */}
-        <div className="asking-input-panel">
-          <label className="text-panel-label">Your Question</label>
+        <div className="module-panel-left">
+          <label className="panel-label">Your Question</label>
           <textarea
-            className="text-area"
+            className="panel-textarea"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask your question..."
@@ -188,7 +185,7 @@ export default function AskingProcessor() {
           <details className="asking-options">
             <summary>Custom prompt</summary>
             <div className="asking-options-content">
-              <label className="text-panel-label">
+              <label className="panel-label">
                 [leave empty to use default]
               </label>
               <textarea
@@ -203,7 +200,7 @@ export default function AskingProcessor() {
         </div>
 
         {/* Right: Output */}
-        <div className="asking-output-panel">
+        <div className="module-panel-right asking-output">
           {/* Thinking (collapsible) */}
           <details className="asking-details" open={thinkingOpen} onToggle={(e) => setThinkingOpen(e.currentTarget.open)}>
             <summary className="asking-summary">
@@ -239,7 +236,7 @@ export default function AskingProcessor() {
       </div>
 
       {/* Bottom actions */}
-      <div className="text-actions">
+      <div className="module-action-bar">
         <button className="text-btn text-btn--secondary" onClick={handleClear}>
           🗑️ Clear
         </button>

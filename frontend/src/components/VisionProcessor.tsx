@@ -91,21 +91,18 @@ export default function VisionProcessor() {
   }
 
   return (
-    <div className="split-panel">
+    <div className="module-layout">
       {/* Top bar */}
       <div className="module-options-bar">
-        <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
-          I can see 乛◡乛
-        </span>
-        <div className="text-options">
+        <div className="module-options">
           <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
         </div>
       </div>
 
       {/* Main content */}
-      <div className="split-panel-main">
+      <div className="module-panel-main">
         {/* Left: Input */}
-        <div className="split-panel-left">
+        <div className="module-panel-left">
           <FilePreviewPanel
             accept="image/*,.pdf"
             label="File Preview"
@@ -115,12 +112,12 @@ export default function VisionProcessor() {
           />
 
           {/* Input area */}
-          <div className="split-panel-fill">
-            <label className="text-panel-label">
+          <div className="module-panel-fill">
+            <label className="panel-label">
               What would you like me to analyze?
             </label>
             <textarea
-              className="text-area"
+              className="panel-textarea"
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Describe what you want me to look for, or leave empty for general analysis..."
@@ -129,9 +126,9 @@ export default function VisionProcessor() {
         </div>
 
         {/* Right: Output */}
-        <div className="split-panel-right">
-          <div className="text-panel-header">
-            <label className="text-panel-label">Analysis Results</label>
+        <div className="module-panel-right">
+          <div className="panel-header">
+            <label className="panel-label">Analysis Results</label>
             {output && (
               <button className="aui-action-bar-button" onClick={() => handleCopy(output)} title="Copy">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -148,7 +145,7 @@ export default function VisionProcessor() {
       </div>
 
       {/* Bottom actions */}
-      <div className="text-actions">
+      <div className="module-action-bar">
         <button className="text-btn text-btn--secondary" onClick={handleClear}>
           🗑️ Clear
         </button>

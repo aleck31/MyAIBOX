@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getSummaryConfig } from '../api/client'
 import { readSSE } from '../api/sse'
+import ModelSelector from './ModelSelector'
 import type { SummaryConfig } from '../types/summary'
 
 const STORAGE_KEY = 'summary-processor-state'
@@ -84,13 +85,10 @@ export default function SummaryProcessor() {
   }
 
   return (
-    <div className="text-processor">
+    <div className="module-layout">
       {/* Controls bar */}
       <div className="module-options-bar">
-        <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
-          Summarize text or webpage content
-        </span>
-        <div className="text-options">
+        <div className="module-options">
           <select
             className="top-bar-select"
             value={targetLang}
@@ -100,24 +98,15 @@ export default function SummaryProcessor() {
               <option key={lang} value={lang}>{lang}</option>
             ))}
           </select>
-          <select
-            className="top-bar-select"
-            value={modelId}
-            onChange={(e) => setModelId(e.target.value)}
-            style={{ minWidth: 200 }}
-          >
-            {config.models.map((m) => (
-              <option key={m.model_id} value={m.model_id}>{m.name}</option>
-            ))}
-          </select>
+          <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
         </div>
       </div>
 
       {/* Text areas */}
-      <div className="text-panels">
-        <div className="text-panel">
-          <div className="text-panel-header">
-            <label className="text-panel-label">Text or URL</label>
+      <div className="module-panel-main module-panel-main--equal">
+        <div className="module-panel-left">
+          <div className="panel-header">
+            <label className="panel-label">Text or URL</label>
             {input && (
               <button className="aui-action-bar-button" onClick={() => handleCopy(input)} title="Copy">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -128,16 +117,15 @@ export default function SummaryProcessor() {
             )}
           </div>
           <textarea
-            className="text-area"
+            className="panel-textarea"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Enter text or paste a URL (@url) to summarize..."
-            rows={12}
           />
         </div>
-        <div className="text-panel">
-          <div className="text-panel-header">
-            <label className="text-panel-label">Summary</label>
+        <div className="module-panel-right">
+          <div className="panel-header">
+            <label className="panel-label">Summary</label>
             {output && (
               <button className="aui-action-bar-button" onClick={() => handleCopy(output)} title="Copy">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -148,17 +136,16 @@ export default function SummaryProcessor() {
             )}
           </div>
           <textarea
-            className="text-area"
+            className="panel-textarea"
             value={output}
             readOnly
             placeholder="Summary will appear here..."
-            rows={12}
           />
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="text-actions">
+      <div className="module-action-bar">
         <button className="text-btn text-btn--secondary" onClick={handleClear}>
           🗑️ Clear
         </button>

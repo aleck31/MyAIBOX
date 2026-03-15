@@ -7,6 +7,7 @@ interface NavModule {
   label: string
   route: string
   icon: React.ReactNode
+  title?: string
 }
 
 // SVG icon components — clean, 16×16
@@ -113,13 +114,13 @@ function IconLogout() {
 }
 
 const MODULES: NavModule[] = [
-  { key: 'assistant', label: 'Assistant',  route: '/assistant', icon: <IconBot /> },
-  { key: 'persona',   label: 'Persona',    route: '/persona', icon: <IconChat /> },
-  { key: 'text',      label: 'Text',       route: '/text', icon: <IconText /> },
-  { key: 'summary',   label: 'Summary',    route: '/summary', icon: <IconSummary /> },
-  { key: 'vision',    label: 'Vision',     route: '/vision', icon: <IconVision /> },
-  { key: 'asking',    label: 'Asking',     route: '/asking', icon: <IconAsking /> },
-  { key: 'draw',      label: 'Draw',       route: '/draw', icon: <IconDraw /> },
+  { key: 'assistant', label: 'Assistant',  route: '/assistant', icon: <IconBot />, title: 'Agentic AI assistant with tool use' },
+  { key: 'persona',   label: 'Persona',    route: '/persona', icon: <IconChat />, title: 'Multimodal chatbot with personality profiles' },
+  { key: 'text',      label: 'Text',       route: '/text', icon: <IconText />, title: 'Proofreading, rewriting, reduction, expansion' },
+  { key: 'summary',   label: 'Summary',    route: '/summary', icon: <IconSummary />, title: 'Text or webpage summarization' },
+  { key: 'vision',    label: 'Vision',     route: '/vision', icon: <IconVision />, title: 'I can see 乛◡乛' },
+  { key: 'asking',    label: 'Asking',     route: '/asking', icon: <IconAsking />, title: 'I think, therefore I am.' },
+  { key: 'draw',      label: 'Draw',       route: '/draw', icon: <IconDraw />, title: 'AI image generation and editing' },
 ]
 
 const SETTINGS: NavModule[] = [
@@ -185,6 +186,7 @@ export default function AppLayout({ username }: AppLayoutProps) {
                 key={mod.key}
                 className={`nav-item ${isActive(mod) ? 'active' : ''}`}
                 onClick={() => navigateTo(mod)}
+                title={mod.title}
               >
                 {mod.icon}
                 {mod.label}

@@ -32,7 +32,7 @@ export default function McpPanel() {
     <div className="settings-panel">
       <div className="module-options-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>MCP Server Management</span>
-        <div className="text-options">
+        <div className="module-options">
           <button className="text-btn text-btn--secondary" onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</button>
           <button className="text-btn text-btn--primary" onClick={() => setShowAdd(true)} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Server</button>
         </div>
@@ -70,11 +70,11 @@ export default function McpPanel() {
             <div className="settings-modal" onClick={e => e.stopPropagation()}>
               <h3 style={{ margin: '0 0 16px' }}>Add MCP Server</h3>
 
-              <label className="text-panel-label">Server Name</label>
+              <label className="panel-label">Server Name</label>
               <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} placeholder="my-server" />
 
-              <label className="text-panel-label">Type</label>
+              <label className="panel-label">Type</label>
               <select className="top-bar-select" style={{ width: '100%', marginBottom: 8 }} value={form.type}
                 onChange={e => setForm({ ...form, type: e.target.value })}>
                 <option value="http">HTTP</option>
@@ -82,14 +82,14 @@ export default function McpPanel() {
                 <option value="sse">SSE</option>
               </select>
 
-              <label className="text-panel-label">{form.type === 'stdio' ? 'Command' : 'URL'}</label>
+              <label className="panel-label">{form.type === 'stdio' ? 'Command' : 'URL'}</label>
               <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={form.url}
                 onChange={e => setForm({ ...form, url: e.target.value })}
                 placeholder={form.type === 'stdio' ? 'uvx' : 'https://api.example.com/mcp'} />
 
               {form.type === 'stdio' && (
                 <>
-                  <label className="text-panel-label">Arguments (JSON array)</label>
+                  <label className="panel-label">Arguments (JSON array)</label>
                   <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={form.args}
                     onChange={e => setForm({ ...form, args: e.target.value })} placeholder='["arg1", "arg2"]' />
                 </>

@@ -74,7 +74,7 @@ export default function FilePreviewPanel({
 
   return (
     <div className={className}>
-      <label className="text-panel-label">{label}</label>
+      <label className="panel-label">{label}</label>
       {previewUrl ? (
         <ResizablePreview minHeight={minHeight}>
           {isPdf ? (

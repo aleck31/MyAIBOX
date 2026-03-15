@@ -68,7 +68,7 @@ export default function SettingsPanel({ username }: { username: string }) {
         {tab === 'account' && (
           <div className="settings-section">
             <div className="settings-section-header">
-              <span className="text-panel-label">Active Sessions for {username}</span>
+              <span className="panel-label">Active Sessions for {username}</span>
               <button className="text-btn text-btn--secondary" onClick={loadSessions} style={{ fontSize: 12, padding: '2px 10px' }}>
                 🔃 Refresh
               </button>
@@ -138,7 +138,7 @@ export default function SettingsPanel({ username }: { username: string }) {
                 <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
                   <h3 style={{ margin: '0 0 16px' }}>{editingModule} Module Settings</h3>
 
-                  <label className="text-panel-label">Default Model</label>
+                  <label className="panel-label">Default Model</label>
                   <select
                     className="top-bar-select"
                     value={editForm.default_model}
@@ -151,16 +151,16 @@ export default function SettingsPanel({ username }: { username: string }) {
                     ))}
                   </select>
 
-                  <label className="text-panel-label">Parameters (JSON)</label>
+                  <label className="panel-label">Parameters (JSON)</label>
                   <textarea
-                    className="text-area"
+                    className="panel-textarea"
                     value={editForm.parameters}
                     onChange={(e) => setEditForm({ ...editForm, parameters: e.target.value })}
                     rows={6}
                     style={{ fontFamily: 'monospace', fontSize: 12, marginBottom: 12 }}
                   />
 
-                  <label className="text-panel-label">Enabled Tools</label>
+                  <label className="panel-label">Enabled Tools</label>
                   <div className="settings-tools-grid">
                     {modulesData.available_tools.map((t) => (
                       <label key={t} className="draw-checkbox-label">

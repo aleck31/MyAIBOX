@@ -347,8 +347,8 @@ body {
 .sidebar-toggle {
   display: none;
   position: fixed;
-  top: 10px;
-  left: 10px;
+  top: 6px;
+  left: 6px;
   z-index: 110;
   background: hsl(var(--foreground));
   color: hsl(var(--background));
@@ -356,6 +356,7 @@ body {
   border-radius: var(--radius);
   padding: 6px;
   cursor: pointer;
+  backdrop-filter: blur(4px);
 }
 
 .sidebar-overlay {
@@ -417,20 +418,29 @@ body {
 .text-btn--primary:hover:not(:disabled) { background: hsl(var(--primary) / 0.85); }
 .text-btn--secondary { background: hsl(var(--background)); }
 
-/* ─── Shared: split-panel layout (Vision, Draw, etc.) ────────────────────── */
-.split-panel { display: flex; flex-direction: column; height: 100%; }
-.split-panel-main { display: flex; flex: 1; min-height: 0; gap: 1px; background: hsl(var(--border)); }
-.split-panel-left,
-.split-panel-right { display: flex; flex-direction: column; background: hsl(var(--background)); padding: 16px; flex: 1; min-height: 0; }
-.split-panel-left { min-width: 280px; gap: 4px; }
-.split-panel-right { min-width: 320px; }
-.split-panel-fill { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 4px; }
-.split-panel-fill .text-area { flex: 1; min-height: 60px; }
-.split-panel-right > .file-preview { width: 100%; flex: 1; }
+/* ─── Shared: form elements ──────────────────────────────────────────────── */
+.module-options { display: flex; gap: 8px; margin-left: auto; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; flex-shrink: 0; }
+.panel-label { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+.panel-textarea { flex: 1; padding: 0 16px 16px; border: none; background: transparent; color: hsl(var(--foreground)); font-size: 14px; line-height: 1.6; resize: none; font-family: inherit; outline: none; }
+@media (max-width: 768px) { .module-options { margin-left: 0; } }
+
+/* ─── Shared: module layout ──────────────────────────────────────────────── */
+.module-layout { display: flex; flex-direction: column; height: 100%; }
+.module-panel-main { display: flex; flex: 1; min-height: 0; gap: 1px; background: hsl(var(--border)); }
+.module-panel-left,
+.module-panel-right { display: flex; flex-direction: column; background: hsl(var(--background)); padding: 16px; flex: 1; min-height: 0; overflow: hidden; }
+.module-panel-left { min-width: 280px; gap: 4px; }
+.module-panel-right { min-width: 320px; }
+.module-panel-fill { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 4px; }
+.module-panel-fill .panel-textarea, .module-panel-left > .panel-textarea, .module-panel-right > .panel-textarea { flex: 1; min-height: 60px; }
+.module-panel-right > .file-preview { width: 100%; flex: 1; min-height: 0; overflow: auto; }
+.module-action-bar { display: flex; gap: 8px; align-items: center; justify-content: flex-end; padding: 8px 16px; border-top: 1px solid hsl(var(--border)); background: hsl(var(--background)); flex-shrink: 0; }
 @media (max-width: 768px) {
-  .split-panel-main { flex-direction: column; }
-  .split-panel-left, .split-panel-right { flex: none; }
-  .split-panel-right { min-height: 200px; }
+  .module-panel-main { flex-direction: column; overflow-y: auto; }
+  .module-panel-left, .module-panel-right { flex: none; min-height: 250px; }
+  .module-panel-main--equal > .module-panel-left,
+  .module-panel-main--equal > .module-panel-right { flex: 1; }
 }
 
 /* ─── Shared: file preview + resize handle ───────────────────────────────── */

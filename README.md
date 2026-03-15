@@ -1,6 +1,6 @@
 # MyAIBOX
 
-![Version](https://img.shields.io/badge/version-3.2.2-blue) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
+![Version](https://img.shields.io/badge/version-3.2.3-blue) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
 
 MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with FastAPI and React. It provides access to various AI capabilities including AI Agent, multimodal chat, text processing, summarization, image/document recognition, and image creation.
 

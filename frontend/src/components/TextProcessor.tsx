@@ -83,7 +83,7 @@ export default function TextProcessor() {
   }
 
   return (
-    <div className="text-processor">
+    <div className="module-layout">
       {/* Controls bar */}
       <div className="module-options-bar">
         <div className="text-operations">
@@ -97,7 +97,7 @@ export default function TextProcessor() {
             </button>
           ))}
         </div>
-        <div className="text-options">
+        <div className="module-options">
           {operation === 'rewrite' && (
             <select
               className="top-bar-select"
@@ -122,10 +122,10 @@ export default function TextProcessor() {
       </div>
 
       {/* Text areas */}
-      <div className="text-panels">
-        <div className="text-panel">
-          <div className="text-panel-header">
-            <label className="text-panel-label">Original Text</label>
+      <div className="module-panel-main module-panel-main--equal">
+        <div className="module-panel-left">
+          <div className="panel-header">
+            <label className="panel-label">Original Text</label>
             {input && (
               <button className="aui-action-bar-button" onClick={() => handleCopy(input)} title="Copy">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -136,16 +136,15 @@ export default function TextProcessor() {
             )}
           </div>
           <textarea
-            className="text-area"
+            className="panel-textarea"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Enter your text here..."
-            rows={12}
           />
         </div>
-        <div className="text-panel">
-          <div className="text-panel-header">
-            <label className="text-panel-label">Processed Result</label>
+        <div className="module-panel-right">
+          <div className="panel-header">
+            <label className="panel-label">Processed Result</label>
             {output && (
               <button className="aui-action-bar-button" onClick={() => handleCopy(output)} title="Copy">
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -156,17 +155,16 @@ export default function TextProcessor() {
             )}
           </div>
           <textarea
-            className="text-area"
+            className="panel-textarea"
             value={output}
             readOnly
             placeholder="Result will appear here..."
-            rows={12}
           />
         </div>
       </div>
 
       {/* Action buttons */}
-      <div className="text-actions">
+      <div className="module-action-bar">
         <button className="text-btn text-btn--secondary" onClick={handleClear}>
           🗑️ Clear
         </button>
