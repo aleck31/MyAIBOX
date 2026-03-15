@@ -2,6 +2,7 @@ export interface SSECallbacks {
   onText?: (delta: string) => void
   onReasoning?: (delta: string) => void
   onError?: (message: string) => void
+  onMetadata?: (data: Record<string, unknown>) => void
 }
 
 export async function readSSE(res: Response, callbacks: SSECallbacks) {
@@ -10,6 +11,7 @@ export async function readSSE(res: Response, callbacks: SSECallbacks) {
 
   const decoder = new TextDecoder()
   let buffer = ''
+  let eventType = ''
 
   while (true) {
     const { done, value } = await reader.read()
@@ -18,13 +20,20 @@ export async function readSSE(res: Response, callbacks: SSECallbacks) {
     const lines = buffer.split('\n')
     buffer = lines.pop() || ''
     for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        eventType = line.slice(7).trim()
+        continue
+      }
       if (!line.startsWith('data: ')) continue
       try {
         const evt = JSON.parse(line.slice(6))
-        if (evt.type === 'TEXT_MESSAGE_CONTENT') callbacks.onText?.(evt.delta)
+        if (eventType === 'metadata') {
+          callbacks.onMetadata?.(evt)
+        } else if (evt.type === 'TEXT_MESSAGE_CONTENT') callbacks.onText?.(evt.delta)
         else if (evt.type === 'REASONING_MESSAGE_CONTENT') callbacks.onReasoning?.(evt.delta)
         else if (evt.type === 'RUN_ERROR') callbacks.onError?.(evt.message || 'An error occurred.')
       } catch { /* incomplete JSON, skip */ }
+      eventType = ''
     }
   }
 }

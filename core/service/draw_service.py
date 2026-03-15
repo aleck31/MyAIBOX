@@ -135,7 +135,12 @@ class DrawService(BaseService):
             raise ValueError("No response received from model")
 
         logger.debug(f"[DrawService] Seeds: {response.get('seeds')} Finish: {response.get('finish_reasons')}")
-        img_base64 = response["images"][0]
+        if "images" in response:
+            img_base64 = response["images"][0]
+        elif "image" in response:
+            img_base64 = response["image"]
+        else:
+            raise ValueError(f"Unexpected response format: {list(response.keys())}")
         return Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
     @staticmethod
@@ -219,12 +224,14 @@ class DrawService(BaseService):
         else:
             # Stability AI image-to-image
             request_body = {
-                "mode": "image-to-image",
                 "prompt": prompt,
                 "image": img_b64,
                 "strength": 0.65,
                 "output_format": "png"
             }
+            # SD 3.5 requires explicit mode field
+            if 'sd3.5' in model_id:
+                request_body["mode"] = "image-to-image"
 
         logger.debug(f"[DrawService] Bedrock edit request: model={model_id}")
         response = provider.invoke_model_sync(
@@ -233,7 +240,12 @@ class DrawService(BaseService):
         if not response:
             raise ValueError("No response received from model")
 
-        img_base64 = response["images"][0]
+        if "images" in response:
+            img_base64 = response["images"][0]
+        elif "image" in response:
+            img_base64 = response["image"]
+        else:
+            raise ValueError(f"Unexpected response format: {list(response.keys())}")
         return Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
     async def _edit_via_gemini(self, model_id, image_data, prompt, aspect_ratio, resolution='1K', temperature=0.6):

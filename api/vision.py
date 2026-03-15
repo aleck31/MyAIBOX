@@ -1,5 +1,6 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
+import json
 import os
 import uuid
 from typing import List
@@ -39,14 +40,14 @@ def _get_provider(model_id: str):
     return _provider_cache[model_id]
 
 
-async def _save_file(f: UploadFile) -> str:
+async def _save_file(f: UploadFile) -> tuple[str, str]:
     ext = os.path.splitext(f.filename or "")[1].lower()
     file_id = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, file_id)
     content = await f.read()
     with open(path, "wb") as out:
         out.write(content)
-    return path
+    return path, file_id
 
 
 @router.get("/config")
@@ -66,6 +67,7 @@ async def analyze_vision(
     text: str = Form(""),
     model_id: str = Form(None),
     files: List[UploadFile] = File(default=[]),
+    existing_files: str = Form(""),
     username: str = Depends(get_auth_user),
 ):
     """AG-UI SSE streaming endpoint for vision analysis."""
@@ -74,10 +76,21 @@ async def analyze_vision(
 
     # Save uploaded files
     file_paths = []
+    file_urls = []
     for f in files:
         if f.filename:
-            path = await _save_file(f)
+            path, file_id = await _save_file(f)
             file_paths.append(path)
+            file_urls.append(f"/api/upload/{file_id}")
+
+    # Reuse previously uploaded files
+    if not file_paths and existing_files:
+        for file_id in existing_files.split(","):
+            file_id = file_id.strip().split("/")[-1]  # extract file_id from URL or raw id
+            path = os.path.join(UPLOAD_DIR, file_id)
+            if os.path.exists(path):
+                file_paths.append(path)
+                file_urls.append(f"/api/upload/{file_id}")
 
     if not file_paths:
         async def empty():
@@ -96,6 +109,8 @@ async def analyze_vision(
             thread_id = f"vision-{username}"
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
+            if file_urls:
+                yield f"event: metadata\ndata: {json.dumps({'file_urls': file_urls})}\n\n"
             yield _enc.encode(TextMessageStartEvent(message_id=msg_id, role="assistant"))
 
             message = LLMMessage(role="user", content=content)

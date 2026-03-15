@@ -87,7 +87,11 @@ export default function FilePreviewPanel({
             style={{ position: 'absolute', top: 4, right: 4 }}
             onClick={handleClear}
             title="Remove"
-          >✕</button>
+          >
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M5 5l10 10M15 5L5 15"/>
+            </svg>
+          </button>
         </ResizablePreview>
       ) : (
         <div className="file-preview-empty">

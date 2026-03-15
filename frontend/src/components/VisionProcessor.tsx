@@ -15,7 +15,7 @@ function loadState() {
 }
 
 function saveState(state: Record<string, unknown>) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* quota exceeded */ }
 }
 
 export default function VisionProcessor() {
@@ -25,11 +25,12 @@ export default function VisionProcessor() {
   const [output, setOutput] = useState(saved.output ?? '')
   const [modelId, setModelId] = useState(saved.modelId ?? '')
   const [files, setFiles] = useState<File[]>([])
+  const [previewUrl, setPreviewUrl] = useState<string | null>(saved.previewUrl ?? null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    saveState({ text, output, modelId })
-  }, [text, output, modelId])
+    saveState({ text, output, modelId, previewUrl })
+  }, [text, output, modelId, previewUrl])
 
   useEffect(() => {
     getVisionConfig().then((cfg) => {
@@ -39,14 +40,18 @@ export default function VisionProcessor() {
   }, [])
 
   const handleAnalyze = useCallback(async () => {
-    if (files.length === 0 || loading) return
+    if (loading || (files.length === 0 && !previewUrl)) return
     setLoading(true)
     setOutput('')
 
     const formData = new FormData()
     formData.append('text', text)
     formData.append('model_id', modelId)
-    files.forEach((f) => formData.append('files', f))
+    if (files.length > 0) {
+      files.forEach((f) => formData.append('files', f))
+    } else if (previewUrl) {
+      formData.append('existing_files', previewUrl)
+    }
 
     try {
       const res = await authFetch('/api/vision/analyze', {
@@ -59,6 +64,10 @@ export default function VisionProcessor() {
       await readSSE(res, {
         onText: (delta) => { result += delta; setOutput(result) },
         onError: (msg) => setOutput(msg),
+        onMetadata: (data) => {
+          const urls = data.file_urls as string[]
+          if (urls?.[0]) setPreviewUrl(urls[0])
+        },
       })
     } catch (err) {
       setOutput('An error occurred during analysis.')
@@ -66,12 +75,13 @@ export default function VisionProcessor() {
     } finally {
       setLoading(false)
     }
-  }, [text, modelId, files, loading])
+  }, [text, modelId, files, previewUrl, loading])
 
   const handleClear = useCallback(() => {
     setText('')
     setOutput('')
     setFiles([])
+    setPreviewUrl(null)
     sessionStorage.removeItem(STORAGE_KEY)
   }, [])
 
@@ -107,8 +117,13 @@ export default function VisionProcessor() {
             accept="image/*,.pdf"
             label="File Preview"
             placeholder="Select Image or PDF"
+            externalUrl={previewUrl}
             minHeight={200}
-            onFileChange={(f) => setFiles(f ? [f] : [])}
+            onFileChange={(f) => {
+              setFiles(f ? [f] : [])
+              if (!f) setPreviewUrl(null)
+            }}
+            onClear={() => setPreviewUrl(null)}
           />
 
           {/* Input area */}
@@ -152,7 +167,7 @@ export default function VisionProcessor() {
         <button
           className="text-btn text-btn--primary"
           onClick={handleAnalyze}
-          disabled={loading || files.length === 0}
+          disabled={loading || (files.length === 0 && !previewUrl)}
         >
           {loading ? '🔍 Analyzing...' : '▶️ Analyze'}
         </button>

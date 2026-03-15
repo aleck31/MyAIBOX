@@ -3,6 +3,7 @@
 import uuid
 import os
 from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi.responses import JSONResponse, FileResponse
 from api.auth import get_auth_user
 
 router = APIRouter(prefix="/upload", tags=["upload"])
@@ -37,7 +38,16 @@ async def upload_file(
     with open(path, "wb") as f:
         f.write(content)
 
-    return {"ok": True, "path": path, "name": file.filename}
+    return {"ok": True, "path": path, "name": file.filename, "file_id": file_id}
+
+
+@router.get("/{file_id}")
+async def get_uploaded_file(file_id: str, username: str = Depends(get_auth_user)):
+    """Serve uploaded file."""
+    path = os.path.join(UPLOAD_DIR, file_id)
+    if not os.path.exists(path):
+        return JSONResponse({"error": "Not found"}, status_code=404)
+    return FileResponse(path)
 
 
 @router.get("/file/{file_id}")

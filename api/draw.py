@@ -74,11 +74,15 @@ class OptimizeRequest(BaseModel):
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available image models, styles, and ratios."""
-    models = model_manager.get_models(filter={'category': 'image'})
+    models = model_manager.get_models(filter={'category': 'image'}) or []
     return {
         "models": [
             {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
-            for m in (models or [])
+            for m in models
+        ],
+        "edit_models": [
+            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            for m in models if m.supports_input('image')
         ],
         "styles": IMAGE_STYLES,
         "ratios": IMAGE_RATIOS,
@@ -173,7 +177,8 @@ async def generate_image(
 @router.post("/edit")
 async def edit_image(
     prompt: str = Form(...),
-    image: UploadFile = File(...),
+    image: UploadFile = File(None),
+    image_url: str = Form(""),
     model_id: str = Form(""),
     ratio: str = Form("1:1"),
     resolution: str = Form("1K"),
@@ -183,7 +188,30 @@ async def edit_image(
     """Edit image with text instruction."""
     try:
         service = get_draw_service()
-        image_data = await image.read()
+
+        # Read image from upload or existing server file
+        source_url = ""
+        if image and image.filename:
+            image_data = await image.read()
+            src_ext = os.path.splitext(image.filename)[1] or ".png"
+            src_id = f"src_{int(time.time())}_{uuid.uuid4().hex[:8]}{src_ext}"
+            src_path = os.path.join(UPLOAD_DIR, src_id)
+            with open(src_path, "wb") as f:
+                f.write(image_data)
+            source_url = f"/api/upload/{src_id}"
+        elif image_url:
+            file_id = image_url.strip().split("/")[-1]
+            # Try uploads first, then generated
+            src_path = os.path.join(UPLOAD_DIR, file_id)
+            if not os.path.exists(src_path):
+                src_path = os.path.join(GENERATED_DIR, file_id)
+            if not os.path.exists(src_path):
+                return JSONResponse({"ok": False, "error": "Source image not found"}, status_code=404)
+            with open(src_path, "rb") as f:
+                image_data = f.read()
+            source_url = image_url
+        else:
+            return JSONResponse({"ok": False, "error": "No image provided"}, status_code=400)
 
         result = await service.edit_image(
             image_data=image_data,
@@ -199,7 +227,7 @@ async def edit_image(
         result.save(path, format="PNG")
 
         logger.info(f"Edit OK for {username}: {file_id}")
-        return {"ok": True, "url": f"/api/draw/image/{file_id}"}
+        return {"ok": True, "url": f"/api/draw/image/{file_id}", "source_url": source_url}
 
     except Exception as e:
         logger.error(f"Edit error for {username}: {e}", exc_info=True)

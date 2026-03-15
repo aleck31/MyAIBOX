@@ -15,7 +15,7 @@ function loadState() {
 }
 
 function saveState(state: Record<string, unknown>) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* quota exceeded */ }
 }
 
 type Mode = 'generate' | 'edit'
@@ -26,6 +26,7 @@ export default function DrawProcessor() {
   const [mode, setMode] = useState<Mode>(saved.mode ?? 'generate')
   const [prompt, setPrompt] = useState(saved.prompt ?? '')
   const [originalPrompt, setOriginalPrompt] = useState(saved.originalPrompt ?? '')
+  const [editPrompt, setEditPrompt] = useState(saved.editPrompt ?? '')
   const [negative, setNegative] = useState(saved.negative ?? '')
   const [style, setStyle] = useState(saved.style ?? '增强(enhance)')
   const [ratio, setRatio] = useState(saved.ratio ?? '1:1')
@@ -42,7 +43,7 @@ export default function DrawProcessor() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    saveState({ prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode, temperature })
+    saveState({ prompt, originalPrompt, editPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode, temperature })
   }, [prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode])
 
   useEffect(() => {
@@ -108,23 +109,20 @@ export default function DrawProcessor() {
   }, [prompt, negative, style, ratio, seed, randomSeed, modelId, resolution, loading])
 
   const handleEdit = useCallback(async () => {
-    if (!prompt.trim() || loading || (!editFile && !editImageUrl)) return
+    if (!editPrompt.trim() || loading || (!editFile && !editImageUrl)) return
     setLoading(true)
     setImageUrl(null)
     setError(null)
     try {
-      let file = editFile
-      // If editing from a generated image URL (no local file), fetch it
-      if (!file && editImageUrl) {
-        const resp = await authFetch(editImageUrl)
-        const blob = await resp.blob()
-        file = new window.File([blob], 'edit.png', { type: 'image/png' })
-      }
-      if (!file) return
-
       const form = new FormData()
-      form.append('image', file)
-      form.append('prompt', prompt)
+      if (editFile) {
+        form.append('image', editFile)
+      } else if (editImageUrl) {
+        form.append('image_url', editImageUrl)
+      } else {
+        return
+      }
+      form.append('prompt', editPrompt)
       form.append('model_id', modelId)
       form.append('ratio', ratio)
       form.append('resolution', resolution)
@@ -138,6 +136,7 @@ export default function DrawProcessor() {
       const data = await res.json()
       if (data.ok) {
         setImageUrl(data.url)
+        if (data.source_url) setEditImageUrl(data.source_url)
       } else {
         setError(data.error || 'Failed to edit image')
       }
@@ -146,7 +145,7 @@ export default function DrawProcessor() {
     } finally {
       setLoading(false)
     }
-  }, [prompt, editFile, editImageUrl, modelId, ratio, resolution, loading])
+  }, [editPrompt, editFile, editImageUrl, modelId, ratio, resolution, loading])
 
   const handleEditFromGenerated = useCallback(() => {
     if (!imageUrl) return
@@ -180,7 +179,7 @@ export default function DrawProcessor() {
   }
 
   const isEdit = mode === 'edit'
-  const canSubmit = prompt.trim() && !loading && (isEdit ? !!(editFile || editImageUrl) : true)
+  const canSubmit = !loading && (isEdit ? editPrompt.trim() && !!(editFile || editImageUrl) : !!prompt.trim())
 
   return (
     <div className="module-layout">
@@ -191,7 +190,7 @@ export default function DrawProcessor() {
           <button className={`draw-mode-tab ${isEdit ? 'active' : ''}`} onClick={() => setMode('edit')}>✏️ Edit</button>
         </div>
         <div className="module-options">
-          <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
+          <ModelSelector models={isEdit ? config.edit_models : config.models} value={modelId} onChange={setModelId} />
         </div>
       </div>
 
@@ -206,7 +205,10 @@ export default function DrawProcessor() {
               label="Source Image"
               externalUrl={editImageUrl}
               minHeight={120}
-              onFileChange={setEditFile}
+              onFileChange={(f) => {
+                setEditFile(f)
+                if (!f) setEditImageUrl(null)
+              }}
               onClear={() => setEditImageUrl(null)}
               className="draw-edit-source"
             />
@@ -217,8 +219,8 @@ export default function DrawProcessor() {
               <label className="panel-label">Edit Instruction</label>
               <textarea
                 className="panel-textarea"
-                value={prompt}
-                onChange={(e) => handlePromptChange(e.target.value)}
+                value={editPrompt}
+                onChange={(e) => setEditPrompt(e.target.value)}
                 placeholder="Describe what to change..."
               />
             </div>
