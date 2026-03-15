@@ -1,14 +1,15 @@
 import { useRef, useCallback, useState } from 'react'
 
 interface Props {
-  height?: number | string
+  height?: number          // fixed px height
+  flex?: number            // flex ratio (default: 1)
   minHeight?: number
   children: React.ReactNode
   className?: string
 }
 
-export default function ResizablePreview({ height: defaultHeight, minHeight = 150, children, className }: Props) {
-  const [height, setHeight] = useState<number | string | null>(defaultHeight ?? null)
+export default function ResizablePreview({ height: defaultHeight, flex: defaultFlex, minHeight = 150, children, className }: Props) {
+  const [height, setHeight] = useState<number | null>(defaultHeight ?? null)
   const containerRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const startY = useRef(0)
@@ -32,8 +33,13 @@ export default function ResizablePreview({ height: defaultHeight, minHeight = 15
     document.body.style.userSelect = ''
   }, [])
 
+  // No height set: use flex layout (parent controls size). Once dragged: fixed px.
+  const style: React.CSSProperties = height != null
+    ? { height, flex: 'none' }
+    : { flex: defaultFlex ?? 1, minHeight }
+
   return (
-    <div ref={containerRef} className={`file-preview ${className ?? ''}`} style={{ height: height ?? '100%' }}>
+    <div ref={containerRef} className={`file-preview ${className ?? ''}`} style={style}>
       {children}
       <div
         className="resize-handle"

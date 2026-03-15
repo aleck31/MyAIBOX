@@ -185,7 +185,7 @@ export default function DrawProcessor() {
   const canSubmit = prompt.trim() && !loading && (isEdit ? !!editImageUrl : true)
 
   return (
-    <div className="draw-processor">
+    <div className="split-panel">
       {/* Top bar */}
       <div className="module-options-bar">
         <div className="draw-mode-tabs">
@@ -198,15 +198,15 @@ export default function DrawProcessor() {
       </div>
 
       {/* Main content */}
-      <div className="draw-main">
+      <div className="split-panel-main">
         {/* Left: Input */}
-        <div className="draw-input-panel">
+        <div className="split-panel-left">
           {/* Edit mode: image upload area */}
           {isEdit && (
             <div className="draw-edit-source">
               <label className="text-panel-label">Source Image</label>
               {editImageUrl ? (
-                <ResizablePreview height="50%" minHeight={200} className="draw-edit-source-preview">
+                <ResizablePreview minHeight={120} className="draw-edit-source-preview">
                   <img src={editImageUrl} alt="Source" className="file-preview-img" />
                   <button className="draw-action-btn" style={{ position: 'absolute', top: 4, right: 4 }} onClick={() => { setEditImageUrl(null); setEditFile(null) }} title="Remove">✕</button>
                 </ResizablePreview>
@@ -219,14 +219,28 @@ export default function DrawProcessor() {
             </div>
           )}
 
-          <label className="text-panel-label">{isEdit ? 'Edit Instruction' : 'Prompt'}</label>
-          <textarea
-            className="text-area"
-            value={prompt}
-            onChange={(e) => handlePromptChange(e.target.value)}
-            placeholder={isEdit ? 'Describe what to change...' : 'Describe what you want to draw...'}
-            rows={3}
-          />
+          {isEdit ? (
+            <div className="split-panel-fill">
+              <label className="text-panel-label">Edit Instruction</label>
+              <textarea
+                className="text-area"
+                value={prompt}
+                onChange={(e) => handlePromptChange(e.target.value)}
+                placeholder="Describe what to change..."
+              />
+            </div>
+          ) : (
+            <>
+              <label className="text-panel-label">Prompt</label>
+              <textarea
+                className="text-area"
+                value={prompt}
+                onChange={(e) => handlePromptChange(e.target.value)}
+                placeholder="Describe what you want to draw..."
+                rows={3}
+              />
+            </>
+          )}
 
           {!isEdit && (
             <>
@@ -274,7 +288,7 @@ export default function DrawProcessor() {
         </div>
 
         {/* Right: Output */}
-        <div className="draw-output-panel">
+        <div className="split-panel-right">
           <ResizablePreview minHeight={200}>
             {imageUrl ? (
               <>

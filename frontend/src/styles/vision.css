@@ -1,37 +1,5 @@
 /* ── Vision Processor ─────────────────────────────────────────────────────── */
 
-.vision-processor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.vision-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  gap: 1px;
-  background: hsl(var(--border));
-}
-
-.vision-input-panel,
-.vision-output-panel {
-  display: flex;
-  flex-direction: column;
-  background: hsl(var(--background));
-  padding: 16px;
-}
-
-.vision-input-panel {
-  flex: 1;
-  min-width: 280px;
-}
-
-.vision-output-panel {
-  flex: 1;
-  min-width: 320px;
-}
-
 /* Output */
 .vision-output-content {
   flex: 1;
@@ -41,20 +9,4 @@
   white-space: pre-wrap;
   overflow-y: auto;
   color: hsl(var(--foreground));
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .vision-main {
-    flex-direction: column;
-  }
-
-  .vision-input-panel,
-  .vision-output-panel {
-    flex: none;
-  }
-
-  .vision-output-panel {
-    min-height: 200px;
-  }
 }

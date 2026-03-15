@@ -113,7 +113,7 @@ export default function VisionProcessor() {
   }
 
   return (
-    <div className="vision-processor">
+    <div className="split-panel">
       {/* Top bar */}
       <div className="module-options-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
@@ -125,11 +125,11 @@ export default function VisionProcessor() {
       </div>
 
       {/* Main content */}
-      <div className="vision-main">
+      <div className="split-panel-main">
         {/* Left: Input */}
-        <div className="vision-input-panel">
+        <div className="split-panel-left">
           {/* File preview */}
-          <ResizablePreview height="50%" minHeight={200}>
+          <ResizablePreview minHeight={200}>
             {preview && isPdf ? (
               <iframe src={preview} className="file-preview-iframe" title="PDF Preview" />
             ) : preview ? (
@@ -139,48 +139,48 @@ export default function VisionProcessor() {
             )}
           </ResizablePreview>
 
-          {/* File input */}
-          <div className="attach-file-row">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-            <button
-              className="text-btn text-btn--secondary"
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
-              📎 Select Image or PDF
-            </button>
-            {files.length > 0 && (
+          {/* Input area */}
+          <div className="split-panel-fill">
+            <div className="attach-file-row">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
               <button
                 className="text-btn text-btn--secondary"
-                onClick={() => { setFiles([]); setPreview(null) }}
+                onClick={() => fileInputRef.current?.click()}
                 type="button"
               >
-                ✕
+                📎 Select Image or PDF
               </button>
-            )}
-          </div>
+              {files.length > 0 && (
+                <button
+                  className="text-btn text-btn--secondary"
+                  onClick={() => { setFiles([]); setPreview(null) }}
+                  type="button"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
-          {/* Analysis requirement */}
-          <label className="text-panel-label" style={{ marginTop: 12 }}>
-            What would you like me to analyze?
-          </label>
-          <textarea
-            className="text-area"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Describe what you want me to look for, or leave empty for general analysis..."
-            rows={3}
-          />
+            <label className="text-panel-label">
+              What would you like me to analyze?
+            </label>
+            <textarea
+              className="text-area"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Describe what you want me to look for, or leave empty for general analysis..."
+            />
+          </div>
         </div>
 
         {/* Right: Output */}
-        <div className="vision-output-panel">
+        <div className="split-panel-right">
           <div className="text-panel-header">
             <label className="text-panel-label">Analysis Results</label>
             {output && (

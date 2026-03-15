@@ -6,6 +6,7 @@ export async function authFetch(path: string, init?: RequestInit): Promise<Respo
   const res = await fetch(path, { credentials: 'include', ...init })
   if (res.status === 401 && !path.includes('/auth/')) {
     window.location.href = '/login'
+    throw new Error('Session expired')
   }
   return res
 }

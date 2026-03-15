@@ -409,6 +409,22 @@ body {
   }
 }
 
+/* ─── Shared: split-panel layout (Vision, Draw, etc.) ────────────────────── */
+.split-panel { display: flex; flex-direction: column; height: 100%; }
+.split-panel-main { display: flex; flex: 1; min-height: 0; gap: 1px; background: hsl(var(--border)); }
+.split-panel-left,
+.split-panel-right { display: flex; flex-direction: column; background: hsl(var(--background)); padding: 16px; flex: 1; min-height: 0; }
+.split-panel-left { min-width: 280px; gap: 4px; }
+.split-panel-right { min-width: 320px; }
+.split-panel-fill { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 4px; }
+.split-panel-fill .text-area { flex: 1; min-height: 60px; }
+.split-panel-right > .file-preview { width: 100%; flex: 1; }
+@media (max-width: 768px) {
+  .split-panel-main { flex-direction: column; }
+  .split-panel-left, .split-panel-right { flex: none; }
+  .split-panel-right { min-height: 200px; }
+}
+
 /* ─── Shared: file preview + resize handle ───────────────────────────────── */
 .file-preview {
   display: flex;

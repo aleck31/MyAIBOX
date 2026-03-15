@@ -1,41 +1,5 @@
 /* ── Draw Processor ───────────────────────────────────────────────────────── */
 
-.draw-processor {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.draw-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  gap: 1px;
-  background: hsl(var(--border));
-}
-
-.draw-input-panel,
-.draw-output-panel {
-  display: flex;
-  flex-direction: column;
-  background: hsl(var(--background));
-  padding: 16px;
-}
-
-.draw-input-panel {
-  flex: 1;
-  min-width: 280px;
-  gap: 4px;
-  overflow-y: auto;
-}
-
-.draw-output-panel {
-  flex: 1;
-  min-width: 320px;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Options */
 .draw-options {
   display: flex;
@@ -90,17 +54,6 @@
   gap: 12px;
   font-size: 13px;
   color: hsl(var(--muted-foreground));
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .draw-main {
-    flex-direction: column;
-  }
-
-  .draw-output-panel {
-    min-height: 300px;
-  }
 }
 
 .draw-output-wrapper {

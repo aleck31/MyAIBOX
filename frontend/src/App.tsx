@@ -4,16 +4,23 @@ import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import AppLayout from './components/AppLayout'
 
-const AssistantPage = lazy(() => import('./pages/AssistantPage'))
-const PersonaPage = lazy(() => import('./pages/PersonaPage'))
-const TextPage = lazy(() => import('./pages/TextPage'))
-const SummaryPage = lazy(() => import('./pages/SummaryPage'))
-const AskingPage = lazy(() => import('./pages/AskingPage'))
-const VisionPage = lazy(() => import('./pages/VisionPage'))
-const DrawPage = lazy(() => import('./pages/DrawPage'))
-const SettingsPage = lazy(() => import('./pages/SettingsPage'))
-const ModelsPage = lazy(() => import('./pages/ModelsPage'))
-const McpPage = lazy(() => import('./pages/McpPage'))
+function lazyLoad(loader: () => Promise<{ default: React.ComponentType }>) {
+  return lazy(() => loader().catch(() => {
+    window.location.reload()
+    return new Promise(() => {}) // never resolves, page is reloading
+  }))
+}
+
+const AssistantPage = lazyLoad(() => import('./pages/AssistantPage'))
+const PersonaPage = lazyLoad(() => import('./pages/PersonaPage'))
+const TextPage = lazyLoad(() => import('./pages/TextPage'))
+const SummaryPage = lazyLoad(() => import('./pages/SummaryPage'))
+const AskingPage = lazyLoad(() => import('./pages/AskingPage'))
+const VisionPage = lazyLoad(() => import('./pages/VisionPage'))
+const DrawPage = lazyLoad(() => import('./pages/DrawPage'))
+const SettingsPage = lazyLoad(() => import('./pages/SettingsPage'))
+const ModelsPage = lazyLoad(() => import('./pages/ModelsPage'))
+const McpPage = lazyLoad(() => import('./pages/McpPage'))
 
 function AuthGuard({ children }: { children: (username: string) => React.ReactNode }) {
   const { username, loading } = useAuth()
