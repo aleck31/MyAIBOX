@@ -62,6 +62,7 @@ class DrawRequest(BaseModel):
     random_seed: bool = True
     model_id: str | None = None
     resolution: str = "1K"
+    temperature: float = 0.6
 
 
 class OptimizeRequest(BaseModel):
@@ -153,6 +154,7 @@ async def generate_image(
             aspect_ratio=body.ratio,
             model_id=body.model_id,
             resolution=body.resolution,
+            temperature=body.temperature,
         )
 
         # Save to file
@@ -175,6 +177,7 @@ async def edit_image(
     model_id: str = Form(""),
     ratio: str = Form("1:1"),
     resolution: str = Form("1K"),
+    temperature: float = Form(0.6),
     username: str = Depends(get_auth_user),
 ):
     """Edit image with text instruction."""
@@ -188,6 +191,7 @@ async def edit_image(
             aspect_ratio=ratio,
             model_id=model_id or None,
             resolution=resolution,
+            temperature=temperature,
         )
 
         file_id = f"edit_{int(time.time())}_{uuid.uuid4().hex[:8]}.png"

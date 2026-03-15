@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getDrawConfig } from '../api/client'
 import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
+import FilePreviewPanel from './FilePreviewPanel'
 import type { DrawConfig } from '../types/draw'
 
 const STORAGE_KEY = 'draw-processor-state'
@@ -32,15 +33,16 @@ export default function DrawProcessor() {
   const [randomSeed, setRandomSeed] = useState(saved.randomSeed ?? true)
   const [modelId, setModelId] = useState(saved.modelId ?? '')
   const [resolution, setResolution] = useState(saved.resolution ?? '1K')
+  const [temperature, setTemperature] = useState(saved.temperature ?? 0.6)
   const [imageUrl, setImageUrl] = useState<string | null>(saved.imageUrl ?? null)
   const [editImageUrl, setEditImageUrl] = useState<string | null>(saved.editImageUrl ?? null)
   const [editFile, setEditFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [optimizing, setOptimizing] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    saveState({ prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode })
+    saveState({ prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode, temperature })
   }, [prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode])
 
   useEffect(() => {
@@ -80,6 +82,7 @@ export default function DrawProcessor() {
     if (!prompt.trim() || loading) return
     setLoading(true)
     setImageUrl(null)
+    setError(null)
     try {
       const res = await authFetch('/api/draw/generate', {
         method: 'POST',
@@ -87,7 +90,7 @@ export default function DrawProcessor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt, negative_prompt: negative, style, ratio,
-          seed, random_seed: randomSeed, model_id: modelId, resolution,
+          seed, random_seed: randomSeed, model_id: modelId, resolution, temperature,
         }),
       })
       const data = await res.json()
@@ -95,10 +98,10 @@ export default function DrawProcessor() {
         setImageUrl(data.url)
         setSeed(data.seed)
       } else {
-        alert(data.error || 'Failed to generate image')
+        setError(data.error || 'Failed to generate image')
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'Network error')
     } finally {
       setLoading(false)
     }
@@ -108,6 +111,7 @@ export default function DrawProcessor() {
     if (!prompt.trim() || loading || (!editFile && !editImageUrl)) return
     setLoading(true)
     setImageUrl(null)
+    setError(null)
     try {
       let file = editFile
       // If editing from a generated image URL (no local file), fetch it
@@ -124,6 +128,7 @@ export default function DrawProcessor() {
       form.append('model_id', modelId)
       form.append('ratio', ratio)
       form.append('resolution', resolution)
+      form.append('temperature', String(temperature))
 
       const res = await authFetch('/api/draw/edit', {
         method: 'POST',
@@ -134,10 +139,10 @@ export default function DrawProcessor() {
       if (data.ok) {
         setImageUrl(data.url)
       } else {
-        alert(data.error || 'Failed to edit image')
+        setError(data.error || 'Failed to edit image')
       }
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Network error')
+      setError(err instanceof Error ? err.message : 'Network error')
     } finally {
       setLoading(false)
     }
@@ -152,13 +157,6 @@ export default function DrawProcessor() {
     setOriginalPrompt('')
     setImageUrl(null)
   }, [imageUrl])
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setEditFile(file)
-    setEditImageUrl(URL.createObjectURL(file))
-  }, [])
 
   const handleClear = useCallback(() => {
     setPrompt('')
@@ -182,7 +180,7 @@ export default function DrawProcessor() {
   }
 
   const isEdit = mode === 'edit'
-  const canSubmit = prompt.trim() && !loading && (isEdit ? !!editImageUrl : true)
+  const canSubmit = prompt.trim() && !loading && (isEdit ? !!(editFile || editImageUrl) : true)
 
   return (
     <div className="split-panel">
@@ -203,20 +201,15 @@ export default function DrawProcessor() {
         <div className="split-panel-left">
           {/* Edit mode: image upload area */}
           {isEdit && (
-            <div className="draw-edit-source">
-              <label className="text-panel-label">Source Image</label>
-              {editImageUrl ? (
-                <ResizablePreview minHeight={120} className="draw-edit-source-preview">
-                  <img src={editImageUrl} alt="Source" className="file-preview-img" />
-                  <button className="draw-action-btn" style={{ position: 'absolute', top: 4, right: 4 }} onClick={() => { setEditImageUrl(null); setEditFile(null) }} title="Remove">✕</button>
-                </ResizablePreview>
-              ) : (
-                <div className="draw-edit-upload" onClick={() => fileInputRef.current?.click()}>
-                  <span>📁 Click or drag image here</span>
-                  <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileSelect} />
-                </div>
-              )}
-            </div>
+            <FilePreviewPanel
+              accept="image/*"
+              label="Source Image"
+              externalUrl={editImageUrl}
+              minHeight={120}
+              onFileChange={setEditFile}
+              onClear={() => setEditImageUrl(null)}
+              className="draw-edit-source"
+            />
           )}
 
           {isEdit ? (
@@ -264,6 +257,10 @@ export default function DrawProcessor() {
               <select className="top-bar-select" value={resolution} onChange={(e) => setResolution(e.target.value)}>
                 {config.resolutions?.map((r: string) => <option key={r} value={r}>{r}</option>)}
               </select>
+              <label className="draw-temp-label">
+                🌡️ {temperature.toFixed(1)}
+                <input type="range" min="0" max="1" step="0.1" value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} />
+              </label>
             </div>
             {!isEdit && (
               <div className="draw-option-row">
@@ -311,6 +308,8 @@ export default function DrawProcessor() {
                 <div className="spinner-ring" />
                 <span>{isEdit ? 'Editing...' : 'Generating...'}</span>
               </div>
+            ) : error ? (
+              <div className="draw-output-placeholder draw-error">{error}</div>
             ) : (
               <div className="draw-output-placeholder">{isEdit ? 'Edited image will appear here' : 'Generated image will appear here'}</div>
             )}

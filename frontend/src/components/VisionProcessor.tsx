@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getVisionConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import ModelSelector from './ModelSelector'
-import ResizablePreview from './ResizablePreview'
+import FilePreviewPanel from './FilePreviewPanel'
 import type { VisionConfig } from '../types/vision'
 
 const STORAGE_KEY = 'vision-processor-state'
@@ -25,9 +25,7 @@ export default function VisionProcessor() {
   const [output, setOutput] = useState(saved.output ?? '')
   const [modelId, setModelId] = useState(saved.modelId ?? '')
   const [files, setFiles] = useState<File[]>([])
-  const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     saveState({ text, output, modelId })
@@ -38,25 +36,6 @@ export default function VisionProcessor() {
       setConfig(cfg)
       if (!modelId && cfg.models.length) setModelId(cfg.models[0].model_id)
     })
-  }, [])
-
-  // Generate preview URL for image or PDF
-  useEffect(() => {
-    if (files.length > 0) {
-      const url = URL.createObjectURL(files[0])
-      setPreview(url)
-      return () => URL.revokeObjectURL(url)
-    } else {
-      setPreview(null)
-    }
-  }, [files])
-
-  const isPdf = files.length > 0 && files[0].type === 'application/pdf'
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFiles(Array.from(e.target.files))
-    }
   }, [])
 
   const handleAnalyze = useCallback(async () => {
@@ -93,7 +72,6 @@ export default function VisionProcessor() {
     setText('')
     setOutput('')
     setFiles([])
-    setPreview(null)
     sessionStorage.removeItem(STORAGE_KEY)
   }, [])
 
@@ -128,45 +106,16 @@ export default function VisionProcessor() {
       <div className="split-panel-main">
         {/* Left: Input */}
         <div className="split-panel-left">
-          {/* File preview */}
-          <ResizablePreview minHeight={200}>
-            {preview && isPdf ? (
-              <iframe src={preview} className="file-preview-iframe" title="PDF Preview" />
-            ) : preview ? (
-              <img src={preview} alt="Preview" className="file-preview-img" />
-            ) : (
-              <div className="file-preview-placeholder">No file selected</div>
-            )}
-          </ResizablePreview>
+          <FilePreviewPanel
+            accept="image/*,.pdf"
+            label="File Preview"
+            placeholder="Select Image or PDF"
+            minHeight={200}
+            onFileChange={(f) => setFiles(f ? [f] : [])}
+          />
 
           {/* Input area */}
           <div className="split-panel-fill">
-            <div className="attach-file-row">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.pdf"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-              <button
-                className="text-btn text-btn--secondary"
-                onClick={() => fileInputRef.current?.click()}
-                type="button"
-              >
-                📎 Select Image or PDF
-              </button>
-              {files.length > 0 && (
-                <button
-                  className="text-btn text-btn--secondary"
-                  onClick={() => { setFiles([]); setPreview(null) }}
-                  type="button"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
             <label className="text-panel-label">
               What would you like me to analyze?
             </label>

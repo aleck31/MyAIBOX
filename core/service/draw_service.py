@@ -47,6 +47,60 @@ class DrawService(BaseService):
         "3:2": (1152, 768), "2:3": (768, 1152), "4:3": (1152, 864), "3:4": (864, 1152),
     }
 
+    # Gemini image input limits
+    GEMINI_MAX_IMAGE_BYTES = 7 * 1024 * 1024  # 7MB inline limit
+    GEMINI_MAX_PIXELS = 4096                    # max dimension
+    GEMINI_MAX_OUTPUT_TOKENS = 8192             # enough for image (~2520) + text
+
+    def _gemini_config(self, aspect_ratio='1:1', resolution='1K', temperature=0.6):
+        """Build Gemini GenerateContentConfig with shared settings."""
+        from google.genai import types
+        return types.GenerateContentConfig(
+            response_modalities=['TEXT', 'IMAGE'],
+            max_output_tokens=self.GEMINI_MAX_OUTPUT_TOKENS,
+            temperature=temperature,
+            image_config=types.ImageConfig(
+                aspect_ratio=aspect_ratio or '1:1',
+                image_size=resolution or '1K',
+            ),
+            tool_config=types.ToolConfig(
+                function_calling_config=types.FunctionCallingConfig(mode='NONE')
+            ),
+        )
+
+    def _gemini_provider(self, model_id):
+        from genai.models.providers.google_gemini import GeminiProvider
+        from genai.models.providers import LLMParameters
+        return GeminiProvider(model_id=model_id, llm_params=LLMParameters(max_tokens=self.GEMINI_MAX_OUTPUT_TOKENS))
+
+    @staticmethod
+    def _prepare_image_for_gemini(image_data: bytes) -> bytes:
+        """Resize and compress image to fit Gemini inline limits."""
+        if len(image_data) <= DrawService.GEMINI_MAX_IMAGE_BYTES:
+            img = Image.open(io.BytesIO(image_data))
+            w, h = img.size
+            if max(w, h) <= DrawService.GEMINI_MAX_PIXELS:
+                return image_data
+
+        img = Image.open(io.BytesIO(image_data))
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+
+        # Downscale if too large
+        max_px = DrawService.GEMINI_MAX_PIXELS
+        if max(img.size) > max_px:
+            img.thumbnail((max_px, max_px), Image.LANCZOS)
+
+        # Compress to fit size limit
+        for quality in range(90, 20, -10):
+            buf = io.BytesIO()
+            img.save(buf, format='JPEG', quality=quality)
+            if buf.tell() <= DrawService.GEMINI_MAX_IMAGE_BYTES:
+                logger.debug(f"[DrawService] Image prepared: {img.size}, quality={quality}, size={buf.tell()//1024}KB")
+                return buf.getvalue()
+
+        raise ValueError("Image too large to compress within Gemini limits")
+
     async def _generate_via_bedrock(self, provider, model_id, prompt, negative_prompt, seed, aspect_ratio, option_params):
         """Generate image via BedrockInvoke (Stability AI / Nova Canvas)"""
         is_nova = 'nova-canvas' in model_id
@@ -87,40 +141,64 @@ class DrawService(BaseService):
     @staticmethod
     def _extract_image(response) -> Image.Image:
         """Extract image from Gemini response"""
+        # Check for blocked content
+        if hasattr(response, 'prompt_feedback') and response.prompt_feedback:
+            fb = response.prompt_feedback
+            reason = getattr(fb, 'block_reason', None) or getattr(fb, 'block_reason_message', None)
+            if reason:
+                raise ValueError(f"Image blocked by safety filter: {reason}. Try rephrasing your prompt.")
+
         candidates = response.candidates
-        if not candidates or not candidates[0].content or not candidates[0].content.parts:
-            raise ValueError("No image returned from Gemini model")
-        for part in candidates[0].content.parts:
+        if not candidates:
+            raise ValueError("No image generated. The prompt may have been blocked by content filters. Try simplifying or rephrasing your prompt.")
+
+        candidate = candidates[0]
+        # Check finish reason
+        finish = getattr(candidate, 'finish_reason', None)
+        if finish and str(finish) not in ('STOP', 'FinishReason.STOP', '1'):
+            raise ValueError(f"Image generation stopped: {finish}. Try a different prompt or image.")
+
+        if not candidate.content or not candidate.content.parts:
+            raise ValueError("Model returned empty response. Try a simpler prompt or different image.")
+
+        # Look for image part, collect text parts for context
+        texts = []
+        for part in candidate.content.parts:
             if part.inline_data and part.inline_data.mime_type and part.inline_data.mime_type.startswith('image/'):
                 return Image.open(io.BytesIO(part.inline_data.data))
-        raise ValueError("No image returned from Gemini model")
+            if hasattr(part, 'text') and part.text:
+                texts.append(part.text)
 
-    async def _generate_via_gemini(self, model_id, prompt, negative_prompt, aspect_ratio, resolution='1K'):
+        # No image found — include model's text response as hint
+        hint = texts[0][:200] if texts else "Try a different prompt or image"
+        raise ValueError(f"No image in response. Model said: {hint}")
+
+    async def _generate_via_gemini(self, model_id, prompt, negative_prompt, aspect_ratio, resolution='1K', temperature=0.6):
         """Generate image via Gemini native image generation"""
-        from google.genai import types
-        from genai.models.providers.google_gemini import GeminiProvider
-        from genai.models.providers import LLMParameters
-
-        params = LLMParameters(max_tokens=1024, temperature=0.8)
-        gemini = GeminiProvider(model_id=model_id, llm_params=params)
+        gemini = self._gemini_provider(model_id)
+        config = self._gemini_config(aspect_ratio, resolution, temperature)
 
         full_prompt = prompt
         if negative_prompt:
             full_prompt += f"\nAvoid: {negative_prompt}"
 
-        config = types.GenerateContentConfig(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config=types.ImageConfig(
-                aspect_ratio=aspect_ratio or '1:1',
-                image_size=resolution or '1K',
-            ),
-        )
-        response = gemini.client.models.generate_content(
-            model=model_id, contents=full_prompt, config=config
-        )
+        config = self._gemini_config(aspect_ratio, resolution)
 
-        # Extract image from response parts
-        return self._extract_image(response)
+        # Retry on transient MALFORMED_FUNCTION_CALL errors
+        last_err = None
+        for attempt in range(3):
+            try:
+                response = gemini.client.models.generate_content(
+                    model=model_id, contents=full_prompt, config=config
+                )
+                return self._extract_image(response)
+            except ValueError as e:
+                last_err = e
+                if 'MALFORMED_FUNCTION_CALL' in str(e) and attempt < 2:
+                    logger.warning(f"[DrawService] Gemini MALFORMED_FUNCTION_CALL, retry {attempt + 1}/2")
+                    continue
+                raise
+        raise last_err  # unreachable but satisfies type checker
 
     async def _edit_via_bedrock(self, provider, model_id, image_data, prompt, aspect_ratio):
         """Edit image via BedrockInvoke (Nova Canvas IMAGE_VARIATION / Stability AI image-to-image)"""
@@ -158,28 +236,30 @@ class DrawService(BaseService):
         img_base64 = response["images"][0]
         return Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
-    async def _edit_via_gemini(self, model_id, image_data, prompt, aspect_ratio, resolution='1K'):
+    async def _edit_via_gemini(self, model_id, image_data, prompt, aspect_ratio, resolution='1K', temperature=0.6):
         """Edit image via Gemini — send image + text prompt"""
         from google.genai import types
-        from genai.models.providers.google_gemini import GeminiProvider
-        from genai.models.providers import LLMParameters
 
-        params = LLMParameters(max_tokens=1024, temperature=0.8)
-        gemini = GeminiProvider(model_id=model_id, llm_params=params)
+        gemini = self._gemini_provider(model_id)
+        config = self._gemini_config(aspect_ratio, resolution, temperature)
+        image_data = self._prepare_image_for_gemini(image_data)
+        image_part = types.Part.from_bytes(data=image_data, mime_type='image/jpeg')
+        edit_prompt = f"Edit this image as instructed. Output the edited image directly, no text explanation needed.\nInstruction: {prompt}"
 
-        config = types.GenerateContentConfig(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config=types.ImageConfig(
-                aspect_ratio=aspect_ratio or '1:1',
-                image_size=resolution or '1K',
-            ),
-        )
-        image_part = types.Part.from_bytes(data=image_data, mime_type='image/png')
-        response = gemini.client.models.generate_content(
-            model=model_id, contents=[image_part, prompt], config=config
-        )
-
-        return self._extract_image(response)
+        last_err = None
+        for attempt in range(3):
+            try:
+                response = gemini.client.models.generate_content(
+                    model=model_id, contents=[image_part, edit_prompt], config=config
+                )
+                return self._extract_image(response)
+            except ValueError as e:
+                last_err = e
+                if 'MALFORMED_FUNCTION_CALL' in str(e) and attempt < 2:
+                    logger.warning(f"[DrawService] Gemini MALFORMED_FUNCTION_CALL on edit, retry {attempt + 1}/2")
+                    continue
+                raise
+        raise last_err
 
     async def edit_image(
         self,
@@ -187,7 +267,8 @@ class DrawService(BaseService):
         prompt: str,
         aspect_ratio: str,
         model_id: Optional[str] = None,
-        resolution: str = '1K'
+        resolution: str = '1K',
+        temperature: float = 0.6,
     ) -> Image.Image:
         """Edit image using text instruction"""
         model_id = model_id or module_config.get_default_model(self.module_name)
@@ -201,7 +282,7 @@ class DrawService(BaseService):
         self._validate_model(model_id, model.api_provider)
 
         if model.api_provider == 'Gemini':
-            return await self._edit_via_gemini(model_id, image_data, prompt, aspect_ratio, resolution)
+            return await self._edit_via_gemini(model_id, image_data, prompt, aspect_ratio, resolution, temperature)
         else:
             provider = self._get_creative_provider(model_id)
             return await self._edit_via_bedrock(provider, model_id, image_data, prompt, aspect_ratio)
@@ -214,7 +295,8 @@ class DrawService(BaseService):
         aspect_ratio: str,
         option_params: Optional[Dict[str, Any]] = None,
         model_id: Optional[str] = None,
-        resolution: str = '1K'
+        resolution: str = '1K',
+        temperature: float = 0.6,
     ) -> Image.Image:
         """Generate image using the configured LLM without session context"""
         try:
@@ -230,7 +312,7 @@ class DrawService(BaseService):
             self._validate_model(model_id, api_provider)
 
             if api_provider == 'Gemini':
-                return await self._generate_via_gemini(model_id, prompt, negative_prompt, aspect_ratio, resolution)
+                return await self._generate_via_gemini(model_id, prompt, negative_prompt, aspect_ratio, resolution, temperature)
             else:
                 provider = self._get_creative_provider(model_id)
                 return await self._generate_via_bedrock(provider, model_id, prompt, negative_prompt, seed, aspect_ratio, option_params)
