@@ -45,17 +45,24 @@ class TextRequest(BaseModel):
     operation: str  # proofread | rewrite | reduce | expand
     target_lang: str = "en_US"
     style: str | None = None  # only for rewrite
+    model_id: str | None = None
 
 
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
-    """Return available operations, languages, and styles."""
+    """Return available operations, languages, styles, and models."""
+    from genai.models.model_manager import model_manager
+    models = model_manager.get_models(filter={'output_modality': ['text']})
     return {
         "operations": [
             {"key": k, "label": v} for k, v in TEXT_OPERATIONS.items()
         ],
         "languages": LANGS,
         "styles": STYLE_KEYS,
+        "models": [
+            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            for m in (models or [])
+        ],
     }
 
 
@@ -99,6 +106,7 @@ async def process_text(
             result = await service.gen_text_stateless(
                 content={"text": f"<text>\n{body.text}\n</text>"},
                 system_prompt=system_prompt,
+                model_id=body.model_id or None,
             )
 
             # Emit full result as single content event

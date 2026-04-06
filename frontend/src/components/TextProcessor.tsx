@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getTextConfig } from '../api/client'
 import { readSSE } from '../api/sse'
+import ModelSelector from './ModelSelector'
 import type { TextConfig } from '../types/text'
 
 const STORAGE_KEY = 'text-processor-state'
@@ -24,15 +25,19 @@ export default function TextProcessor() {
   const [operation, setOperation] = useState(saved.operation ?? 'proofread')
   const [targetLang, setTargetLang] = useState(saved.targetLang ?? 'en_US')
   const [style, setStyle] = useState(saved.style ?? '正常')
+  const [modelId, setModelId] = useState(saved.modelId ?? '')
   const [loading, setLoading] = useState(false)
 
   // Persist state on change
   useEffect(() => {
-    saveState({ input, output, operation, targetLang, style })
+    saveState({ input, output, operation, targetLang, style, modelId })
   }, [input, output, operation, targetLang, style])
 
   useEffect(() => {
-    getTextConfig().then(setConfig)
+    getTextConfig().then((cfg) => {
+      setConfig(cfg)
+      if (!modelId && cfg.models?.length) setModelId(cfg.models[0].model_id)
+    })
   }, [])
 
   const handleProcess = useCallback(async () => {
@@ -45,7 +50,7 @@ export default function TextProcessor() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: input, operation, target_lang: targetLang, style }),
+        body: JSON.stringify({ text: input, operation, target_lang: targetLang, style, model_id: modelId }),
       })
 
       let result = ''
@@ -118,6 +123,7 @@ export default function TextProcessor() {
               <option key={lang} value={lang}>{lang}</option>
             ))}
           </select>
+          <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
         </div>
       </div>
 

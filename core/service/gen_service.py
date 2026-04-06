@@ -56,7 +56,8 @@ class GenService(BaseService):
         self,
         content: Dict[str, str],
         system_prompt: Optional[str] = None,
-        option_params: Optional[Dict[str, float]] = None
+        option_params: Optional[Dict[str, float]] = None,
+        model_id: Optional[str] = None,
     ) -> str:
         """Generate text using the configured LLM without session context
         
@@ -70,7 +71,7 @@ class GenService(BaseService):
         """
         try:
             # Get default model from module config
-            model_id = module_config.get_default_model(self.module_name)
+            model_id = model_id or module_config.get_default_model(self.module_name)
             if not model_id:
                 raise ValueError(f"No default model configured for {self.module_name}")
             
