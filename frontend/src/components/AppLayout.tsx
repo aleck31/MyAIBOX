@@ -124,10 +124,10 @@ const MODULES: NavModule[] = [
 ]
 
 const SETTINGS: NavModule[] = [
-  { key: 'settings', label: 'Settings', route: '/settings', icon: <IconSettings /> },
-  { key: 'models', label: 'Models', route: '/models', icon: <IconModels /> },
-  { key: 'mcp', label: 'MCP Server', route: '/mcp', icon: <IconMcp /> },
-  // { key: 'legacy', label: 'Legacy UI', route: '/legacy', icon: <IconLegacy /> },
+  { key: 'session', label: 'Sessions', route: '/settings/session', icon: <IconLegacy /> },
+  { key: 'modules', label: 'Modules', route: '/settings/modules', icon: <IconSettings /> },
+  { key: 'models', label: 'Models', route: '/settings/models', icon: <IconModels /> },
+  { key: 'mcp', label: 'MCP Server', route: '/settings/mcp', icon: <IconMcp /> },
 ]
 
 interface AppLayoutProps {

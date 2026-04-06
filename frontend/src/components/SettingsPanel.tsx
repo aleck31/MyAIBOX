@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getSettingsSessions, deleteSession, clearSessionHistory, getModulesConfig, updateModuleConfig } from '../api/client'
 import type { SessionInfo, ModulesData, ModuleConfig } from '../types/settings'
 
-export default function SettingsPanel({ username }: { username: string }) {
-  const [tab, setTab] = useState<'account' | 'modules'>('account')
+export default function SettingsPanel({ username, tab = 'account' }: { username: string; tab?: 'account' | 'modules' }) {
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [modulesData, setModulesData] = useState<ModulesData | null>(null)
   const [editingModule, setEditingModule] = useState<string | null>(null)
@@ -52,18 +51,6 @@ export default function SettingsPanel({ username }: { username: string }) {
 
   return (
     <div className="settings-panel">
-      {/* Top bar */}
-      <div className="module-options-bar">
-        <div className="settings-tabs">
-          <button className={`text-op-btn${tab === 'account' ? ' active' : ''}`} onClick={() => setTab('account')}>
-            Sessions
-          </button>
-          <button className={`text-op-btn${tab === 'modules' ? ' active' : ''}`} onClick={() => setTab('modules')}>
-            Module Configuration
-          </button>
-        </div>
-      </div>
-
       <div className="settings-content">
         {tab === 'account' && (
           <div className="settings-section">

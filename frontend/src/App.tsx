@@ -19,6 +19,7 @@ const AskingPage = lazyLoad(() => import('./pages/AskingPage'))
 const VisionPage = lazyLoad(() => import('./pages/VisionPage'))
 const DrawPage = lazyLoad(() => import('./pages/DrawPage'))
 const SettingsPage = lazyLoad(() => import('./pages/SettingsPage'))
+const ModulesPage = lazyLoad(() => import('./pages/ModulesPage'))
 const ModelsPage = lazyLoad(() => import('./pages/ModelsPage'))
 const McpPage = lazyLoad(() => import('./pages/McpPage'))
 
@@ -68,9 +69,10 @@ export default function App() {
           <Route path="asking" element={<Suspense><AskingPage /></Suspense>} />
           <Route path="vision" element={<Suspense><VisionPage /></Suspense>} />
           <Route path="draw" element={<Suspense><DrawPage /></Suspense>} />
-          <Route path="settings" element={<Suspense><SettingsPage /></Suspense>} />
-          <Route path="models" element={<Suspense><ModelsPage /></Suspense>} />
-          <Route path="mcp" element={<Suspense><McpPage /></Suspense>} />
+          <Route path="settings/session" element={<Suspense><SettingsPage /></Suspense>} />
+          <Route path="settings/modules" element={<Suspense><ModulesPage /></Suspense>} />
+          <Route path="settings/models" element={<Suspense><ModelsPage /></Suspense>} />
+          <Route path="settings/mcp" element={<Suspense><McpPage /></Suspense>} />
         </Route>
 
         {/* Fallback */}
