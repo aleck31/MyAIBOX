@@ -3,6 +3,49 @@ import { useNavigate } from 'react-router-dom'
 import { loginApi } from '../api/client'
 
 const REMEMBERED_USER_KEY = 'aibox_remembered_user'
+const PBKDF2_SALT = new TextEncoder().encode('my-aibox')
+const PBKDF2_ITERATIONS = 10000
+
+async function deriveKey(username: string) {
+  const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(username), 'PBKDF2', false, ['deriveKey'])
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: PBKDF2_SALT, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    raw, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  )
+}
+
+async function encryptAndSave(username: string, password: string) {
+  const key = await deriveKey(username)
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(password)))
+  // Pack: 1 byte username length + username + 12 bytes IV + ciphertext
+  const uBytes = new TextEncoder().encode(username)
+  const packed = new Uint8Array(1 + uBytes.length + 12 + encrypted.length)
+  packed[0] = uBytes.length
+  packed.set(uBytes, 1)
+  packed.set(iv, 1 + uBytes.length)
+  packed.set(encrypted, 1 + uBytes.length + 12)
+  localStorage.setItem(REMEMBERED_USER_KEY, btoa(String.fromCharCode(...packed)))
+}
+
+async function loadSaved(): Promise<{ u: string; p: string } | null> {
+  const saved = localStorage.getItem(REMEMBERED_USER_KEY)
+  if (!saved) return null
+  try {
+    const packed = Uint8Array.from(atob(saved), c => c.charCodeAt(0))
+    const uLen = packed[0]
+    const uBytes = packed.slice(1, 1 + uLen)
+    const iv = packed.slice(1 + uLen, 1 + uLen + 12)
+    const encrypted = packed.slice(1 + uLen + 12)
+    const username = new TextDecoder().decode(uBytes)
+    const key = await deriveKey(username)
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted)
+    return { u: username, p: new TextDecoder().decode(decrypted) }
+  } catch {
+    localStorage.removeItem(REMEMBERED_USER_KEY)
+    return null
+  }
+}
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -14,17 +57,13 @@ export default function LoginPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const saved = localStorage.getItem(REMEMBERED_USER_KEY)
-    if (saved) {
-      try {
-        const { u, p } = JSON.parse(atob(saved))
-        setUsername(u)
-        setPassword(p)
-      } catch {
-        setUsername(saved) // legacy: plain username
+    loadSaved().then(result => {
+      if (result) {
+        setUsername(result.u)
+        setPassword(result.p)
+        setRemember(true)
       }
-      setRemember(true)
-    }
+    })
   }, [])
 
   async function handleSubmit(e: FormEvent) {
@@ -36,7 +75,7 @@ export default function LoginPage() {
       const data = await loginApi(username.trim(), password)
       if (data.success) {
         if (remember) {
-          localStorage.setItem(REMEMBERED_USER_KEY, btoa(JSON.stringify({ u: username.trim(), p: password })))
+          await encryptAndSave(username.trim(), password)
         } else {
           localStorage.removeItem(REMEMBERED_USER_KEY)
         }
@@ -61,7 +100,7 @@ export default function LoginPage() {
           </div>
           <div className="login-panel-tagline">GenAI 百宝箱</div>
         </div>
-        <div className="login-panel-footer">Enterprise Edition</div>
+        <div className="login-panel-footer">© iX · v{__APP_VERSION__}</div>
       </div>
 
       {/* Form area */}
