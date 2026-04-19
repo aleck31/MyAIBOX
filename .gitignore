@@ -16,6 +16,7 @@ assets/uploads/*
 
 # vscode
 .vscode
+.dev
 .idea
 .kiro
 .claude
@@ -29,7 +30,6 @@ venv/
 .pid
 
 flagged
-devguide
 .bedrock_agentcore.yaml
 config.json
 logs/*

@@ -107,8 +107,16 @@ class AppConfig:
     @property
     def cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration"""
+        origins = [o.strip() for o in os.getenv('CORS_ORIGINS', '*').split(',') if o.strip()]
+        # Browsers reject `Access-Control-Allow-Origin: *` together with credentials,
+        # and SessionMiddleware always sends a cookie. Force an explicit origin list.
+        if '*' in origins:
+            raise RuntimeError(
+                "CORS_ORIGINS='*' is not allowed with credentialed requests. "
+                "Set CORS_ORIGINS to an explicit comma-separated list of origins."
+            )
         return {
-            'allow_origins': os.getenv('CORS_ORIGINS', '*').split(','),
+            'allow_origins': origins,
             'allow_methods': os.getenv('CORS_METHODS', 'GET,POST,PUT,DELETE,OPTIONS').split(','),
             'allow_headers': os.getenv('CORS_HEADERS', '*').split(',')
         }
@@ -116,8 +124,21 @@ class AppConfig:
     @property
     def security_config(self) -> Dict[str, Any]:
         """Get security configuration"""
+        secret_key = os.getenv('SECRET_KEY')
+        # Session cookies are signed with this key; a known/default value lets anyone forge sessions.
+        _known_defaults = {
+            'default-secret-key',
+            'replace-me-with-a-random-48-byte-token',
+            'aibox-production-secret-key-2024',
+            'aibox-production-secret-key-2025',
+        }
+        if not secret_key or secret_key in _known_defaults:
+            raise RuntimeError(
+                "SECRET_KEY is unset or uses a known default. "
+                "Generate a strong value, e.g. `python -c 'import secrets; print(secrets.token_urlsafe(48))'`."
+            )
         return {
-            'secret_key': os.getenv('SECRET_KEY', 'default-secret-key'),
+            'secret_key': secret_key,
             'token_expiration': int(os.getenv('TOKEN_EXPIRATION', '7200')),
             'ssl_enabled': os.getenv('SSL_ENABLED', 'False').lower() == 'true'
         }
