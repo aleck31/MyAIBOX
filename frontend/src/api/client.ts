@@ -1,3 +1,5 @@
+import { redirectToLogin } from '../auth'
+
 /**
  * Global fetch wrapper with auth guard.
  * All API calls should use this instead of raw fetch().
@@ -5,7 +7,7 @@
 export async function authFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(path, { credentials: 'include', ...init })
   if (res.status === 401 && !path.includes('/auth/')) {
-    window.location.href = '/login'
+    redirectToLogin()
     throw new Error('Session expired')
   }
   return res
@@ -20,7 +22,7 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export async function getMe(): Promise<{ username: string } | null> {
+export async function getMe(): Promise<{ sub: string; username: string; email: string } | null> {
   const res = await apiFetch('/api/auth/me')
   if (!res.ok) return null
   return res.json()

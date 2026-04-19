@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import AppLayout from './components/AppLayout'
+import { SSO_ENABLED, redirectToLogin } from './auth'
 
 function lazyLoad(loader: () => Promise<{ default: React.ComponentType }>) {
   return lazy(() => loader().catch(() => {
@@ -26,6 +27,12 @@ const McpPage = lazyLoad(() => import('./pages/McpPage'))
 function AuthGuard({ children }: { children: (username: string) => React.ReactNode }) {
   const { username, loading } = useAuth()
 
+  useEffect(() => {
+    if (!loading && !username && SSO_ENABLED) {
+      redirectToLogin()
+    }
+  }, [loading, username])
+
   if (loading) {
     return (
       <div className="state-screen">
@@ -38,7 +45,8 @@ function AuthGuard({ children }: { children: (username: string) => React.ReactNo
   }
 
   if (!username) {
-    return <Navigate to="/login" replace />
+    // SSO: redirect handled by effect above; render nothing meanwhile.
+    return SSO_ENABLED ? null : <Navigate to="/login" replace />
   }
 
   return <>{children(username)}</>

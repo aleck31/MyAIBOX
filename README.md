@@ -136,21 +136,15 @@ uv run python app.py
 ## Deployment
 
 ### Local / EC2
-```bash
-my-aibox start    # start in background (tmux)
-my-aibox stop     # stop
-my-aibox restart  # restart
-my-aibox status   # check status
-my-aibox attach   # view live output (Ctrl+B D to detach)
-my-aibox build    # build frontend
-my-aibox check    # lint Python code (ruff)
-```
 
-### Systemd (persistent service)
 ```bash
-cp my-aibox.service ~/.config/systemd/user/
-systemctl --user daemon-reload
-systemctl --user enable --now my-aibox
+my-aibox install           # set up the systemd user service (one-time)
+my-aibox run               # run in the foreground (skips systemd)
+my-aibox start|stop|restart # manage the systemd user service
+my-aibox status            # show service status
+my-aibox logs [-f]         # tail journalctl logs
+my-aibox build             # build frontend (syncs version)
+my-aibox check             # lint Python code (ruff)
 ```
 
 ### AgentCore Runtime (Serverless Agent)

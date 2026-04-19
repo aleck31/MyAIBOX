@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { loginApi } from '../api/client'
+import { SSO_ENABLED, SSO_PROVIDER_NAME, buildLoginUrl } from '../auth'
 
 const REMEMBERED_USER_KEY = 'aibox_remembered_user'
 const PBKDF2_SALT = new TextEncoder().encode('my-aibox')
@@ -48,6 +49,36 @@ async function loadSaved(): Promise<{ u: string; p: string } | null> {
 }
 
 export default function LoginPage() {
+  if (SSO_ENABLED) return <SSOLoginPage />
+  return <PasswordLoginPage />
+}
+
+function SSOLoginPage() {
+  const returnTo = new URLSearchParams(location.search).get('return')
+    || `${location.origin}/`
+  return (
+    <div className="login-root">
+      <div className="login-panel">
+        <div>
+          <div className="login-panel-logo">AI<em>Box</em></div>
+          <div className="login-panel-tagline">GenAI 百宝箱</div>
+        </div>
+        <div className="login-panel-footer">© iX · v{__APP_VERSION__}</div>
+      </div>
+      <div className="login-form-area">
+        <div className="login-card">
+          <div className="login-card-title">欢迎使用 AIBox</div>
+          <div className="login-card-sub">你的个性化 AI 助手</div>
+          <a className="login-submit" href={buildLoginUrl(returnTo)} style={{ textAlign: 'center', display: 'block', textDecoration: 'none', marginTop: '1.5rem' }}>
+            使用 {SSO_PROVIDER_NAME} 登录
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PasswordLoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)

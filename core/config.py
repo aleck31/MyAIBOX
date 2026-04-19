@@ -81,6 +81,30 @@ class ENVConfig:
         }
 
     @property
+    def sso_config(self) -> Dict[str, Any]:
+        """Get SSO configuration.
+
+        When enabled, the app reads the SSO session cookie and validates it
+        against `<SSO_AUTH_ORIGIN>/introspect`. When disabled, the app keeps
+        using Cognito USER_PASSWORD_AUTH via common/auth.py.
+        """
+        enabled = os.getenv('SSO_ENABLED', 'false').lower() == 'true'
+        auth_origin = os.getenv('SSO_AUTH_ORIGIN', '').rstrip('/')
+        cookie_name = os.getenv('SSO_COOKIE_NAME', '')
+        if enabled and (not auth_origin or not cookie_name):
+            raise RuntimeError(
+                "SSO_ENABLED=true requires SSO_AUTH_ORIGIN and SSO_COOKIE_NAME to be set"
+            )
+        return {
+            'enabled': enabled,
+            'auth_origin': auth_origin,
+            'cookie_name': cookie_name,
+            'cache_ttl': int(os.getenv('SSO_CACHE_TTL', '30')),
+            'stale_grace_ttl': int(os.getenv('SSO_STALE_GRACE_TTL', '60')),
+            'request_timeout': float(os.getenv('SSO_REQUEST_TIMEOUT', '5')),
+        }
+
+    @property
     def agentcore_config(self) -> Dict[str, Any]:
         """Get AgentCore Runtime configuration"""
         return {

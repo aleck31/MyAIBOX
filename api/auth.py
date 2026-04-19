@@ -3,13 +3,19 @@
 import json
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import JSONResponse
+
+from core.config import env_config
 from common.auth import cognito_auth
 from common.logger import setup_logger
+from common.sso import introspect as sso_introspect, build_logout_url, SSOError
 
 logger = setup_logger('api.auth')
 
+_sso_enabled: bool = env_config.sso_config['enabled']
+_sso_cookie: str = env_config.sso_config['cookie_name']
 
-# --- Auth helpers (migrated from webui/login) ---
+
+# --- helpers ---
 
 def _log_unauth_access(request: Request, details: str):
     client_ip = request.headers.get('x-forwarded-for') or request.headers.get('x-real-ip') or request.client.host
@@ -21,75 +27,121 @@ def _log_unauth_access(request: Request, details: str):
     logger.warning(f"SECURITY_ALERT: Unauthorized access - {json.dumps(security_log, indent=2)}")
 
 
-def _handle_auth_failure(request: Request, error_detail: str, log_message: str):
-    is_api_request = request.url.path.startswith('/api/') or request.headers.get('accept') == 'application/json'
-    if is_api_request:
+def _unauthorized(request: Request, error_detail: str):
+    """Raise 401 for API callers, 302 to /login for page requests."""
+    is_api = request.url.path.startswith('/api/') or request.headers.get('accept') == 'application/json'
+    if is_api:
         raise HTTPException(status_code=401, detail=error_detail)
-    else:
-        if log_message:
-            logger.debug(f"[Auth] {log_message}")
-        raise HTTPException(status_code=302, headers={"Location": "/login"}, detail="Redirecting to login page")
+    raise HTTPException(status_code=302, headers={"Location": "/login"}, detail="Redirecting to login page")
 
 
-def get_auth_user(request: Request):
-    """Get current authorized username with token verification."""
+# --- auth dependency ---
+
+async def get_auth_user(request: Request) -> str:
+    """Return the current user's Cognito `sub`, or raise 401/302.
+
+    - SSO mode: validate the SSO session cookie via the provider's /introspect.
+    - Cognito mode: validate local session + refresh access token as needed.
+    """
+    if _sso_enabled:
+        sid = request.cookies.get(_sso_cookie)
+        if not sid:
+            _log_unauth_access(request, 'No SSO cookie')
+            _unauthorized(request, "Not authenticated")
+
+        try:
+            user = await sso_introspect(sid)
+        except SSOError as e:
+            logger.error(f"[Auth] SSO introspection unavailable: {e}")
+            raise HTTPException(status_code=503, detail="auth service unavailable")
+
+        if not user:
+            _log_unauth_access(request, 'SSO sid rejected')
+            _unauthorized(request, "Session expired")
+
+        request.state.user = {
+            'sub': user.sub,
+            'email': user.email,
+            'username': user.username,
+        }
+        return user.sub
+
+    # --- Cognito mode ---
     auth_user = request.session.get('auth_user')
-
     if not auth_user:
-        _log_unauth_access(request, 'Attempted to access protected route without valid session')
-        redirect_url = request.url.path
-        _handle_auth_failure(request, "Not authenticated",
-                             f"Redirecting unauthenticated user to login page, from: {redirect_url}")
+        _log_unauth_access(request, 'No local session')
+        _unauthorized(request, "Not authenticated")
 
-    username = auth_user.get('username')
-    if access_token := auth_user.get('access_token'):
-        if validated_token := cognito_auth.verify_token(access_token):
-            request.session['auth_user']['access_token'] = validated_token
-            return username
-        else:
-            _log_unauth_access(request, f'Invalid or expired token for user: {username}')
-            request.session.clear()
-            _handle_auth_failure(request, "Authentication token expired or invalid",
-                                 "Redirecting user with expired token to login page")
-    else:
-        logger.warning(f"Missing access token for user [{username}]")
-        _handle_auth_failure(request, "Invalid authentication token",
-                             "Redirecting user with invalid token to login page")
+    sub = auth_user.get('sub')
+    access_token = auth_user.get('access_token')
+    if not sub or not access_token:
+        request.session.clear()
+        _unauthorized(request, "Invalid authentication token")
+
+    validated = cognito_auth.verify_token(access_token)
+    if not validated:
+        _log_unauth_access(request, f'Invalid or expired token for sub [{sub}]')
+        request.session.clear()
+        _unauthorized(request, "Authentication token expired or invalid")
+
+    request.session['auth_user']['access_token'] = validated
+    cached = cognito_auth.user_info.get(sub, {})
+    request.state.user = {
+        'sub': sub,
+        'username': cached.get('username', ''),
+        'email': cached.get('attributes', {}).get('email', ''),
+    }
+    return sub
 
 
-# --- Router ---
+# --- router ---
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.get("/me")
-async def get_me(username: str = Depends(get_auth_user)):
-    return {"username": username}
+async def get_me(request: Request, sub: str = Depends(get_auth_user)):
+    user = getattr(request.state, 'user', {}) or {}
+    # `username` = Cognito username (e.g. `aleck`) for UI display.
+    # `sub` = stable user id used as DDB partition key. Keep them separate so
+    # the frontend can show a friendly name without touching identity keys.
+    return {
+        'sub': sub,
+        'username': user.get('username') or sub,
+        'email': user.get('email', ''),
+    }
 
 
 @router.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    if _sso_enabled:
+        raise HTTPException(status_code=404, detail="Password login disabled in SSO mode")
+
     auth_result = cognito_auth.authenticate(username, password)
     if auth_result['success']:
         request.session['auth_user'] = {
-            'username': username,
-            'access_token': auth_result['tokens']['AccessToken']
+            'sub': auth_result['sub'],
+            'access_token': auth_result['tokens']['AccessToken'],
         }
-        logger.debug(f"[Auth] Login successful for {username}")
-        return {"success": True, "username": username}
+        logger.debug(f"[Auth] Login successful for {username} (sub={auth_result['sub']})")
+        return {"success": True, "username": auth_result['sub']}
 
     logger.warning(f"[Auth] Login failed for {username}")
     return JSONResponse({"success": False, "error": "Invalid username or password"}, status_code=401)
 
 
 @router.post("/logout")
-async def logout_api(request: Request, username: str = Depends(get_auth_user)):
+async def logout_api(request: Request, sub: str = Depends(get_auth_user)):
+    if _sso_enabled:
+        # Logout is owned by the SSO provider; frontend should navigate there directly.
+        return {"success": True, "redirect": build_logout_url()}
+
     try:
         auth_user = request.session.get('auth_user')
         if auth_user and auth_user.get('access_token'):
             cognito_auth.logout(auth_user['access_token'])
         request.session.clear()
-        logger.debug(f"[Auth] Logout for {username}")
+        logger.debug(f"[Auth] Logout for sub={sub}")
         return {"success": True}
     except Exception as e:
         logger.error(f"[Auth] Logout error: {e}")

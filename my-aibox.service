@@ -1,7 +1,5 @@
 # MyAIBOX systemd user service
-# Install: cp my-aibox.service ~/.config/systemd/user/
-#          systemctl --user daemon-reload
-#          systemctl --user enable --now my-aibox
+# Do not install this file directly. Run `my-aibox install`.
 
 [Unit]
 Description=MyAIBOX Service
@@ -9,9 +7,9 @@ After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/repos/my-aibox
-ExecStart=%h/repos/my-aibox/.venv/bin/python app.py
-EnvironmentFile=%h/repos/my-aibox/.env
+WorkingDirectory={project_dir}
+ExecStart={project_dir}/.venv/bin/python app.py
+EnvironmentFile={project_dir}/.env
 Restart=on-failure
 RestartSec=5
 

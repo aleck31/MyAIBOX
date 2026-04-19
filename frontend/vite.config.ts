@@ -1,12 +1,22 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import pkg from './package.json'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const ssoEnabled = env.VITE_SSO_ENABLED === 'true'
+  const ssoAuthOrigin = env.VITE_SSO_AUTH_ORIGIN || ''
+  const ssoProviderName = env.VITE_SSO_PROVIDER_NAME || 'SSO'
+  return {
   plugins: [tailwindcss(), react()],
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __SSO_ENABLED__: JSON.stringify(ssoEnabled),
+    __SSO_AUTH_ORIGIN__: JSON.stringify(ssoAuthOrigin),
+    __SSO_PROVIDER_NAME__: JSON.stringify(ssoProviderName),
+  },
   base: '/',
   server: {
     port: 5173,
@@ -44,4 +54,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })

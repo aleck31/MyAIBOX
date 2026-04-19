@@ -47,10 +47,14 @@ class CognitoAuth:
 
     def authenticate(self, username: str, password: str) -> Dict:
         """
-        Authenticate a user using Amazon Cognito
+        Authenticate a user using Amazon Cognito.
+
+        `username` is the user-entered login (Cognito username or alias such as
+        email). Internally we key everything off the Cognito `sub` so downstream
+        code matches the SSO path.
 
         Returns:
-            dict: Authentication result containing tokens and user attributes
+            dict: {success, tokens, sub, error}
         """
         try:
             # Initial authentication with password
@@ -65,126 +69,104 @@ class CognitoAuth:
 
             # Store tokens and user info
             if 'AuthenticationResult' in response:
-                self.refresh_tokens[username] = response['AuthenticationResult'].get('RefreshToken')
-                self.access_tokens[username] = {
-                    'access_token': response['AuthenticationResult'].get('AccessToken'),
+                access_token = response['AuthenticationResult']['AccessToken']
+                user_info = self.client.get_user(AccessToken=access_token)
+                attrs = {a['Name']: a['Value'] for a in user_info['UserAttributes']}
+                sub = attrs.get('sub')
+                if not sub:
+                    raise ValueError("Cognito user has no sub attribute")
+
+                self.refresh_tokens[sub] = response['AuthenticationResult'].get('RefreshToken')
+                self.access_tokens[sub] = {
+                    'access_token': access_token,
                     'expiry_time': time.time() + self.token_validity_period
                 }
-
-                # Get and store user info
-                user_info = self.client.get_user(
-                    AccessToken=response['AuthenticationResult']['AccessToken']
-                )
-                self.user_info[username] = {
+                self.user_info[sub] = {
                     'username': user_info['Username'],
-                    'attributes': {attr['Name']: attr['Value'] for attr in user_info['UserAttributes']}
+                    'attributes': attrs,
                 }
 
-                logger.info(f"User [{username}] authenticated successfully")
+                logger.info(f"User [{username}] (sub={sub}) authenticated successfully")
                 return {
                     'success': True,
                     'tokens': response['AuthenticationResult'],
-                    'error': None
+                    'sub': sub,
+                    'error': None,
                 }
             else:
                 logger.warning(f"User [{username}] authentication failed: No AuthenticationResult")
-                return {
-                    'success': False,
-                    'tokens': None,
-                    'error': 'Authentication failed'
-                }
+                return {'success': False, 'tokens': None, 'sub': None, 'error': 'Authentication failed'}
 
         except self.client.exceptions.NotAuthorizedException:
             logger.warning(f"Invalid credentials for user [{username}]")
-            return {
-                'success': False,
-                'tokens': None,
-                'error': 'Invalid username or password'
-            }
+            return {'success': False, 'tokens': None, 'sub': None, 'error': 'Invalid username or password'}
 
         except self.client.exceptions.UserNotFoundException:
             logger.warning(f"User [{username}] not found")
-            return {
-                'success': False,
-                'tokens': None,
-                'error': 'User not found'
-            }
+            return {'success': False, 'tokens': None, 'sub': None, 'error': 'User not found'}
 
         except ClientError as e:
             error_code = e.response['Error']['Code']
             error_message = e.response['Error']['Message']
             logger.error(f"Authentication error for user [{username}]: {error_code} - {error_message}")
-            return {
-                'success': False,
-                'tokens': None,
-                'error': error_message
-            }
+            return {'success': False, 'tokens': None, 'sub': None, 'error': error_message}
 
     def verify_token(self, token: str) -> Optional[str]:
         """
-        Verify an access token with Cognito and refresh if expired
+        Verify an access token with Cognito and refresh if expired.
 
-        Args:
-            token: The access token to verify
-            
-        Returns:
-            str: The valid token (original or refreshed) if verification succeeds, None otherwise
+        Returns the valid token (original or refreshed) on success, None otherwise.
+        Caches are keyed by Cognito `sub`.
         """
-        # Check if token exists in our stored access tokens
-        username = None
-        for user, token_data in self.access_tokens.items():
+        sub = None
+        for s, token_data in self.access_tokens.items():
             if token_data['access_token'] == token:
-                username = user
+                sub = s
                 break
 
-        if username:
-            # Check if token is still valid based on our local expiry time
+        if sub:
             current_time = time.time()
-            token_expiry = self.access_tokens[username]['expiry_time']
-            
-            # If token is not expired locally, return it without API call
+            token_expiry = self.access_tokens[sub]['expiry_time']
+
             if current_time < token_expiry - 300:  # 5 minutes buffer
                 return token
 
-            # If token is close to expiry, try to refresh it
-            if username in self.refresh_tokens:
+            if sub in self.refresh_tokens:
                 try:
-                    if auth_result := self.refresh_access_token(username):
-                        # Return the new token
+                    if auth_result := self.refresh_access_token(sub):
                         return auth_result['AccessToken']
                 except Exception as e:
-                    logger.error(f"Token refresh failed for user [{username}]: {str(e)}")
+                    logger.error(f"Token refresh failed for sub [{sub}]: {str(e)}")
                     self._remove_token(token)
                     return None
 
-            # Try to verify with Cognito as a last resort if we can't refresh
             try:
-                # Let Cognito verify if token is still valid
                 self.client.get_user(AccessToken=token)
-                # Update expiry time since token is still valid
-                self.access_tokens[username]['expiry_time'] = time.time() + self.token_validity_period
+                self.access_tokens[sub]['expiry_time'] = time.time() + self.token_validity_period
                 return token
             except self.client.exceptions.NotAuthorizedException:
-                # Token is definitely expired
                 self._remove_token(token)
                 return None
             except Exception as e:
                 logger.error(f"Token verification failed: {str(e)}")
                 return None
 
-        # Verify with Cognito when no token cached
+        # Verify with Cognito when no cached entry
         try:
             response = self.client.get_user(AccessToken=token)
-            username = response['Username']
-            
-            # Store verified token and user info
-            self.access_tokens[username] = {
+            attrs = {a['Name']: a['Value'] for a in response['UserAttributes']}
+            sub = attrs.get('sub')
+            if not sub:
+                logger.error("Cognito get_user returned no sub attribute")
+                return None
+
+            self.access_tokens[sub] = {
                 'access_token': token,
                 'expiry_time': time.time() + self.token_validity_period
             }
-            self.user_info[username] = {
-                'username': username,
-                'attributes': {attr['Name']: attr['Value'] for attr in response['UserAttributes']}
+            self.user_info[sub] = {
+                'username': response['Username'],
+                'attributes': attrs,
             }
             return token
 
@@ -192,64 +174,48 @@ class CognitoAuth:
             logger.error(f"Token verification failed: {str(e)}")
             return None
 
-    def refresh_access_token(self, username: str) -> Optional[Dict]:
-        """
-        Refresh access token using stored refresh token
-
-        Returns:
-            dict: New token if refresh successful, None otherwise
-        """
-        refresh_token = self.refresh_tokens.get(username)
+    def refresh_access_token(self, sub: str) -> Optional[Dict]:
+        """Refresh access token using stored refresh token keyed by `sub`."""
+        refresh_token = self.refresh_tokens.get(sub)
         if not refresh_token:
             return None
-            
+
         try:
             response = self.client.initiate_auth(
                 ClientId=self.client_id,
                 AuthFlow='REFRESH_TOKEN_AUTH',
-                AuthParameters={
-                    'REFRESH_TOKEN': refresh_token
-                }
+                AuthParameters={'REFRESH_TOKEN': refresh_token}
             )
-            
+
             if 'AuthenticationResult' in response:
-                # Update stored tokens
-                self.access_tokens[username] = {
+                self.access_tokens[sub] = {
                     'access_token': response['AuthenticationResult']['AccessToken'],
                     'expiry_time': time.time() + self.token_validity_period
                 }
-                # Note: Refresh token remains the same
-                
-                logger.info(f"Successfully refreshed token for user [{username}]")
+                logger.info(f"Successfully refreshed token for sub [{sub}]")
                 return response['AuthenticationResult']
-            else:
-                logger.warning(f"Token refresh failed for user [{username}]: No AuthenticationResult")
-                return None
-                
+            logger.warning(f"Token refresh failed for sub [{sub}]: No AuthenticationResult")
+            return None
+
         except Exception as e:
-            logger.error(f"Token refresh failed for user [{username}]: {str(e)}")
+            logger.error(f"Token refresh failed for sub [{sub}]: {str(e)}")
             return None
 
     def _remove_token(self, token: str) -> None:
         """Remove token and associated data from storage"""
-        for username, token_data in self.access_tokens.items():
+        for sub, token_data in self.access_tokens.items():
             if token_data['access_token'] == token:
-                # Try to refresh token before removing
-                if username in self.refresh_tokens:
-                    if self.refresh_access_token(username):
-                        return  # Token refreshed successfully, don't remove
-                
-                # If refresh failed or no refresh token, remove all tokens
-                del self.access_tokens[username]
-                if username in self.refresh_tokens:
-                    del self.refresh_tokens[username]
-                if username in self.user_info:
-                    del self.user_info[username]
+                if sub in self.refresh_tokens:
+                    if self.refresh_access_token(sub):
+                        return
+                del self.access_tokens[sub]
+                self.refresh_tokens.pop(sub, None)
+                self.user_info.pop(sub, None)
                 break
 
-    def get_token_for_user(self, username: str) -> str:
-        """Get stored access token for user"""
-        token_data = self.access_tokens.get(username)
+    def get_token_for_user(self, sub: str) -> str:
+        """Get stored access token by `sub`."""
+        token_data = self.access_tokens.get(sub)
         return token_data['access_token'] if token_data else ''
 
     def logout(self, token: str) -> bool:
