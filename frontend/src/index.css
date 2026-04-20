@@ -131,6 +131,23 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
+  /* Prevent iOS double-tap-to-zoom and the blue tap-highlight flash */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-safe defaults: any text-ish native input/textarea ≥16px so iOS
+   Safari doesn't zoom the viewport on focus. Primitives (.input / .select /
+   .panel-textarea) already handle this; this covers any bare <input>. */
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  textarea { font-size: 16px; }
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */

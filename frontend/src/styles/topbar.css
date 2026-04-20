@@ -51,3 +51,8 @@
   border-color: hsl(var(--destructive) / 0.5);
   background: hsl(var(--destructive) / 0.06);
 }
+
+/* Touch devices: guarantee 44px tap target */
+@media (pointer: coarse) {
+  .bar-icon-btn { width: var(--tap-size); height: var(--tap-size); }
+}

@@ -105,6 +105,12 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+/* Mobile: 16px prevents iOS auto-zoom on focus */
+@media (max-width: 768px) {
+  .login-input { font-size: 16px; }
+  .login-submit { min-height: var(--tap-size); }
+}
+
 .login-input::placeholder { color: hsl(var(--muted-foreground) / 0.45); }
 
 .login-password-wrapper {

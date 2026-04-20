@@ -55,6 +55,15 @@ Tokens exist for documentation; `@media` cannot read CSS variables.
 
 - `--tap-size` 44px — minimum interactive target (iOS HIG)
 
+## Mobile-safe defaults
+
+These live in `index.css` and cover problems the primitives alone can't:
+
+- `body` has `touch-action: manipulation` and `-webkit-tap-highlight-color: transparent` — kills the 300ms double-tap delay and the blue flash on tap.
+- Under 768px, any native `<input type="text|email|password|number|search|tel|url">` or `<textarea>` is bumped to 16px so iOS Safari doesn't zoom the viewport on focus.
+- Under `@media (pointer: coarse)`, icon-only buttons (`.btn--icon`, `.bar-icon-btn`, `.aui-action-bar-button`, `.composer-add-attachment`) grow to `var(--tap-size)`.
+- Under 768px, `.modal` becomes full-viewport (no border/radius) so mobile dialogs don't get squeezed.
+
 ## Naming — BEM-ish
 
 - Root class: `.block`

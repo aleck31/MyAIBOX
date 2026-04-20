@@ -111,6 +111,12 @@ details[open] .thinking-chevron { transform: rotate(180deg); }
   display: none;
 }
 
+/* Touch devices: bump icon-button hit areas to meet tap-size guidelines */
+@media (pointer: coarse) {
+  .aui-action-bar-button,
+  .composer-add-attachment { width: var(--tap-size); height: var(--tap-size); }
+}
+
 /* ── Edit composer footer buttons ── */
 .aui-edit-composer-btn {
   padding: 5px 14px;

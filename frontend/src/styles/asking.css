@@ -75,8 +75,4 @@
   min-height: 60px;
 }
 
-/* Mobile */
-@media (max-width: 768px) {
-}
-
 .asking-output { gap: 12px; overflow-y: auto; }
