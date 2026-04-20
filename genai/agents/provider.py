@@ -23,6 +23,10 @@ class AgentProvider:
         self.tool_config = tool_config or {}
         self._agent: Optional[Agent] = None
         self._mcp_clients: list = []
+        # HTTP clients shared across model swaps so update_model() does not
+        # leak sockets. Bedrock reuses a module-level boto3 session already.
+        self._openai_client = None
+        self._gemini_client = None
 
     def _get_strands_model(self, model_id: Optional[str] = None):
         """Get Strands model based on API provider"""
@@ -43,21 +47,27 @@ class AgentProvider:
             return BedrockModel(**kwargs)
 
         elif api_provider == 'OPENAI':
-            openai_secret_id = env_config.openai_config.get('secret_id')
-            api_key = get_secret(openai_secret_id).get('api_key') if openai_secret_id else None
+            if self._openai_client is None:
+                from openai import OpenAI
+                openai_secret_id = env_config.openai_config.get('secret_id')
+                api_key = get_secret(openai_secret_id).get('api_key') if openai_secret_id else None
+                self._openai_client = OpenAI(api_key=api_key)
             return OpenAIModel(
-                client_args={"api_key": api_key},
+                client=self._openai_client,
                 model_id=mid,
-                params={"max_tokens": 1000, "temperature": 0.7}
+                params={"max_tokens": 1000, "temperature": 0.7},
             )
 
         elif api_provider == 'GEMINI':
-            gemini_secret_id = env_config.gemini_config.get('secret_id')
-            api_key = get_secret(gemini_secret_id).get('api_key') if gemini_secret_id else None
-            if not api_key:
-                raise ValueError("Gemini API key not configured")
+            if self._gemini_client is None:
+                from google import genai as google_genai
+                gemini_secret_id = env_config.gemini_config.get('secret_id')
+                api_key = get_secret(gemini_secret_id).get('api_key') if gemini_secret_id else None
+                if not api_key:
+                    raise ValueError("Gemini API key not configured")
+                self._gemini_client = google_genai.Client(api_key=api_key)
             return GeminiModel(
-                client_args={"api_key": api_key},
+                client=self._gemini_client,
                 model_id=mid,
                 params={"max_tokens": 8192, "temperature": 0.7},
             )
@@ -130,7 +140,7 @@ class AgentProvider:
             logger.info(f"[AgentProvider] Tools reloaded: {len(tools)}")
 
     def destroy(self):
-        """Cleanup Agent and MCP connections."""
+        """Cleanup Agent, MCP connections, and shared HTTP clients."""
         self._stop_mcp_clients()
         if self._agent is not None:
             try:
@@ -138,6 +148,14 @@ class AgentProvider:
             except Exception as e:
                 logger.warning(f"Agent cleanup error: {e}")
             self._agent = None
+        if self._openai_client is not None:
+            try:
+                self._openai_client.close()
+            except Exception as e:
+                logger.warning(f"OpenAI client close error: {e}")
+            self._openai_client = None
+        # google-genai Client exposes no close(); drop the reference and let GC handle it.
+        self._gemini_client = None
         logger.debug("[AgentProvider] Destroyed")
 
     def _stop_mcp_clients(self):

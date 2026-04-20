@@ -1,14 +1,32 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import time
+import weakref
 from typing import Dict, AsyncIterator, Any, List, Optional
 from core.service import BaseService
 from core.session.models import Session
 from genai.agents.provider import AgentProvider
 from . import logger
 
-# Agent cache TTL: 2 hours
-_AGENT_TTL = 7200
+# Agent cache limits
+_AGENT_TTL = 7200   # 2 hours idle eviction
+_AGENT_MAX = 100    # Hard cap; LRU evicts oldest when exceeded
+
+# Weak registry of all live AgentService instances — used at shutdown to
+# release cached Agents and their MCP subprocesses deterministically.
+_instances: "weakref.WeakSet[AgentService]" = weakref.WeakSet()
+
+
+def shutdown_all() -> None:
+    """Destroy every cached AgentProvider across all AgentService instances.
+    Call this from the FastAPI lifespan shutdown to avoid orphaned MCP clients."""
+    for service in list(_instances):
+        for sid, (provider, _) in list(service._agent_cache.items()):
+            try:
+                provider.destroy()
+            except Exception as e:
+                logger.warning(f"[AgentService] destroy({sid}) failed: {e}")
+        service._agent_cache.clear()
 
 
 class AgentService(BaseService):
@@ -18,6 +36,7 @@ class AgentService(BaseService):
         super().__init__(module_name)
         # Per-session agent cache: {session_id: (AgentProvider, last_used_timestamp)}
         self._agent_cache: Dict[str, tuple[AgentProvider, float]] = {}
+        _instances.add(self)
 
     def _evict_expired(self):
         """Remove expired Agent instances."""
@@ -38,7 +57,13 @@ class AgentService(BaseService):
         return None
 
     def _cache_provider(self, session_id: str, provider: AgentProvider):
-        """Cache an AgentProvider for a session."""
+        """Cache an AgentProvider for a session. Evicts LRU entry if at capacity."""
+        if len(self._agent_cache) >= _AGENT_MAX and session_id not in self._agent_cache:
+            # Evict the oldest entry by last-used timestamp
+            oldest_sid = min(self._agent_cache, key=lambda s: self._agent_cache[s][1])
+            old_provider, _ = self._agent_cache.pop(oldest_sid)
+            old_provider.destroy()
+            logger.warning(f"[AgentService] Cache full ({_AGENT_MAX}); evicted LRU agent: {oldest_sid}")
         self._agent_cache[session_id] = (provider, time.time())
 
     def _remove_cached_provider(self, session_id: str):

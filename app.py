@@ -7,8 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from common.spa import SPAStaticFiles
-from core.config import app_config
 from common.logger import logger
+from core.config import app_config
+from core.service.agent_service import shutdown_all as shutdown_agents
 from genai.models.model_manager import model_manager
 from api.auth import router as auth_api_router
 from api.assistant import router as assistant_router
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("Shutting down application...")
+        shutdown_agents()
 
 # Create FastAPI app
 app = FastAPI(lifespan=lifespan)
