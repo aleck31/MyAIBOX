@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getTextConfig } from '../api/client'
 import { readSSE } from '../api/sse'
+import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import type { TextConfig } from '../types/text'
 
@@ -93,13 +94,14 @@ export default function TextProcessor() {
       <div className="module-options-bar">
         <div className="text-operations">
           {config.operations.map((op) => (
-            <button
+            <Button
               key={op.key}
-              className={`text-op-btn${operation === op.key ? ' active' : ''}`}
+              shape="pill"
+              active={operation === op.key}
               onClick={() => setOperation(op.key)}
             >
               {op.label}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="module-options">
@@ -171,16 +173,14 @@ export default function TextProcessor() {
 
       {/* Action buttons */}
       <div className="module-action-bar">
-        <button className="text-btn text-btn--secondary" onClick={handleClear}>
-          🗑️ Clear
-        </button>
-        <button
-          className="text-btn text-btn--primary"
+        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button
+          variant="primary"
           onClick={handleProcess}
           disabled={loading || !input.trim()}
         >
           {loading ? '⏳ Processing...' : '▶️ Process'}
-        </button>
+        </Button>
       </div>
     </div>
   )

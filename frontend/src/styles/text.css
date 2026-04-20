@@ -7,30 +7,6 @@
   gap: 4px;
 }
 
-.text-op-btn {
-  padding: 4px 12px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s;
-  white-space: nowrap;
-}
-
-.text-op-btn:hover {
-  border-color: hsl(var(--foreground) / 0.4);
-  background: hsl(var(--muted));
-}
-
-.text-op-btn.active {
-  background: hsl(var(--foreground));
-  color: hsl(var(--background));
-  border-color: hsl(var(--foreground));
-}
-
-
 /* Mobile */
 @media (max-width: 768px) {
   .text-operations {

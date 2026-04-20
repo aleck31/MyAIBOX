@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getSummaryConfig } from '../api/client'
 import { readSSE } from '../api/sse'
+import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import type { SummaryConfig } from '../types/summary'
 
@@ -146,16 +147,14 @@ export default function SummaryProcessor() {
 
       {/* Action buttons */}
       <div className="module-action-bar">
-        <button className="text-btn text-btn--secondary" onClick={handleClear}>
-          🗑️ Clear
-        </button>
-        <button
-          className="text-btn text-btn--primary"
+        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button
+          variant="primary"
           onClick={handleProcess}
           disabled={loading || !input.trim()}
         >
           {loading ? '⏳ Summarizing...' : '▶️ Summarize'}
-        </button>
+        </Button>
       </div>
     </div>
   )

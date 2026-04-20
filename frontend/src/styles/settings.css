@@ -65,18 +65,6 @@
   white-space: nowrap;
 }
 
-.settings-action-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  font-size: 13px;
-}
-
-.settings-action-btn--danger:hover {
-  color: hsl(var(--destructive));
-}
-
 /* Module cards */
 .settings-module-card {
   border: 1px solid hsl(var(--border));
@@ -128,14 +116,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: var(--z-modal);
 }
 
 .settings-modal {
   background: hsl(var(--background));
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
-  padding: 24px;
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
   width: 90%;
   max-width: 560px;
   max-height: 80vh;

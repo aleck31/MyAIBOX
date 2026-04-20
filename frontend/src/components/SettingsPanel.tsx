@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSettingsSessions, deleteSession, clearSessionHistory, getModulesConfig, updateModuleConfig } from '../api/client'
+import { Button } from './Button'
 import type { SessionInfo, ModulesData, ModuleConfig } from '../types/settings'
 
 export default function SettingsPanel({ username, tab = 'account' }: { username: string; tab?: 'account' | 'modules' }) {
@@ -56,9 +57,9 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
           <div className="settings-section">
             <div className="settings-section-header">
               <span className="panel-label">Active Sessions for {username}</span>
-              <button className="text-btn text-btn--secondary" onClick={loadSessions} style={{ fontSize: 12, padding: '2px 10px' }}>
+              <Button onClick={loadSessions} style={{ fontSize: 12, padding: '2px 10px' }}>
                 🔃 Refresh
-              </button>
+              </Button>
             </div>
 
             <table className="settings-table">
@@ -81,8 +82,8 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
                     <td>{new Date(s.created).toLocaleString()}</td>
                     <td>{new Date(s.updated).toLocaleString()}</td>
                     <td>
-                      <button className="settings-action-btn" onClick={() => handleClearHistory(s.session_id)} title="Clear history">🧹</button>
-                      <button className="settings-action-btn settings-action-btn--danger" onClick={() => handleDelete(s.session_id)} title="Delete">🗑️</button>
+                      <Button variant="ghost" onClick={() => handleClearHistory(s.session_id)} title="Clear history" style={{ padding: '2px 4px', minHeight: 0 }}>🧹</Button>
+                      <Button variant="danger" onClick={() => handleDelete(s.session_id)} title="Delete" style={{ padding: '2px 4px', minHeight: 0, border: 'none' }}>🗑️</Button>
                     </td>
                   </tr>
                 ))}
@@ -100,9 +101,9 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
               <div key={name} className="settings-module-card">
                 <div className="settings-module-header">
                   <span className="settings-module-name">{name}</span>
-                  <button className="text-btn text-btn--secondary" onClick={() => handleEdit(name)} style={{ fontSize: 11, padding: '2px 10px' }}>
+                  <Button onClick={() => handleEdit(name)} style={{ fontSize: 11, padding: '2px 10px' }}>
                     ✏️ Edit
-                  </button>
+                  </Button>
                 </div>
                 <div className="settings-module-body">
                   <div className="settings-field">
@@ -167,10 +168,10 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
                   </div>
 
                   <div className="settings-modal-actions">
-                    <button className="text-btn text-btn--secondary" onClick={() => setEditingModule(null)}>Cancel</button>
-                    <button className="text-btn text-btn--primary" onClick={handleSave} disabled={saving}>
+                    <Button onClick={() => setEditingModule(null)}>Cancel</Button>
+                    <Button variant="primary" onClick={handleSave} disabled={saving}>
                       {saving ? '⏳ Saving...' : '💾 Save'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

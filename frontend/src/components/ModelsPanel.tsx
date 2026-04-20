@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getModels, addModel, updateModel, deleteModel } from '../api/client'
+import { Button } from './Button'
+
+const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
 const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'Gemini', 'OpenAI']
 const CATEGORIES = ['text', 'vision', 'image', 'video', 'reasoning', 'embedding']
@@ -53,8 +56,8 @@ export default function ModelsPanel() {
       <div className="module-options-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Model Management</span>
         <div className="module-options">
-          <button className="text-btn text-btn--secondary" onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</button>
-          <button className="text-btn text-btn--primary" onClick={openAdd} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Model</button>
+          <Button onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</Button>
+          <Button variant="primary" onClick={openAdd} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Model</Button>
         </div>
       </div>
 
@@ -74,8 +77,8 @@ export default function ModelsPanel() {
                 <td>{m.capabilities.tool_use ? '✓' : ''}</td>
                 <td>{m.capabilities.reasoning ? '✓' : ''}</td>
                 <td>
-                  <button className="settings-action-btn" onClick={() => openEdit(m)} title="Edit">✏️</button>
-                  <button className="settings-action-btn settings-action-btn--danger" onClick={() => handleDelete(m.model_id)} title="Delete">🗑️</button>
+                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" style={ACTION_BTN_STYLE}>✏️</Button>
+                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}>🗑️</Button>
                 </td>
               </tr>
             ))}
@@ -160,10 +163,10 @@ export default function ModelsPanel() {
               </div>
 
               <div className="settings-modal-actions">
-                <button className="text-btn text-btn--secondary" onClick={() => setEditing(null)}>Cancel</button>
-                <button className="text-btn text-btn--primary" onClick={handleSave} disabled={saving}>
+                <Button onClick={() => setEditing(null)}>Cancel</Button>
+                <Button variant="primary" onClick={handleSave} disabled={saving}>
                   {saving ? '⏳ Saving...' : '💾 Save'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getDrawConfig } from '../api/client'
+import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
 import FilePreviewPanel from './FilePreviewPanel'
@@ -321,25 +322,22 @@ export default function DrawProcessor() {
 
       {/* Bottom actions */}
       <div className="module-action-bar">
-        <button className="text-btn text-btn--secondary" onClick={handleClear}>
-          🗑️ Clear
-        </button>
+        <Button onClick={handleClear}>🗑️ Clear</Button>
         {!isEdit && (
-          <button
-            className="text-btn text-btn--secondary"
+          <Button
             onClick={handleOptimize}
             disabled={optimizing || !prompt.trim()}
           >
             {optimizing ? '⏳ Optimizing...' : '✨ Optimize'}
-          </button>
+          </Button>
         )}
-        <button
-          className="text-btn text-btn--primary"
+        <Button
+          variant="primary"
           onClick={isEdit ? handleEdit : handleGenerate}
           disabled={!canSubmit}
         >
           {loading ? (isEdit ? '⏳ Editing...' : '⏳ Drawing...') : (isEdit ? '✏️ Edit' : '🪄 Draw')}
-        </button>
+        </Button>
       </div>
     </div>
   )

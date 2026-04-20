@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { authFetch, getAskingConfig } from '../api/client'
 import { readSSE } from '../api/sse'
+import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import type { AskingConfig, AskingHistory } from '../types/asking'
 
@@ -172,13 +173,9 @@ export default function AskingProcessor() {
               onChange={handleFileSelect}
               style={{ display: 'none' }}
             />
-            <button
-              className="text-btn text-btn--secondary"
-              onClick={() => fileInputRef.current?.click()}
-              type="button"
-            >
+            <Button onClick={() => fileInputRef.current?.click()}>
               📎 Attach
-            </button>
+            </Button>
           </div>
 
           {/* Options (custom prompt only) */}
@@ -237,16 +234,14 @@ export default function AskingProcessor() {
 
       {/* Bottom actions */}
       <div className="module-action-bar">
-        <button className="text-btn text-btn--secondary" onClick={handleClear}>
-          🗑️ Clear
-        </button>
-        <button
-          className="text-btn text-btn--primary"
+        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button
+          variant="primary"
           onClick={handleProcess}
           disabled={loading || !input.trim()}
         >
           {loading ? '💭 Thinking...' : hasHistory ? '🙋 Ask further' : '✨ Go'}
-        </button>
+        </Button>
       </div>
     </div>
   )

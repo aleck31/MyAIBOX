@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getVisionConfig } from '../api/client'
 import { readSSE } from '../api/sse'
+import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import FilePreviewPanel from './FilePreviewPanel'
 import type { VisionConfig } from '../types/vision'
@@ -161,16 +162,14 @@ export default function VisionProcessor() {
 
       {/* Bottom actions */}
       <div className="module-action-bar">
-        <button className="text-btn text-btn--secondary" onClick={handleClear}>
-          🗑️ Clear
-        </button>
-        <button
-          className="text-btn text-btn--primary"
+        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button
+          variant="primary"
           onClick={handleAnalyze}
           disabled={loading || (files.length === 0 && !previewUrl)}
         >
           {loading ? '🔍 Analyzing...' : '▶️ Analyze'}
-        </button>
+        </Button>
       </div>
     </div>
   )

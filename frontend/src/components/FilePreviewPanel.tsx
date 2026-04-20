@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { Button } from './Button'
 import ResizablePreview from './ResizablePreview'
 
 interface Props {
@@ -99,15 +100,9 @@ export default function FilePreviewPanel({
         </div>
       )}
       <div className="file-upload-actions">
-        <button className="text-btn text-btn--secondary" onClick={() => inputRef.current?.click()} title="Select file">
-          📁 File
-        </button>
-        <button className="text-btn text-btn--secondary" onClick={handlePaste} title="Paste from clipboard">
-          📋 Paste
-        </button>
-        <button className="text-btn text-btn--secondary" onClick={() => cameraRef.current?.click()} title="Take photo">
-          📷 Camera
-        </button>
+        <Button onClick={() => inputRef.current?.click()} title="Select file">📁 File</Button>
+        <Button onClick={handlePaste} title="Paste from clipboard">📋 Paste</Button>
+        <Button onClick={() => cameraRef.current?.click()} title="Take photo">📷 Camera</Button>
       </div>
       <input ref={inputRef} type="file" accept={accept} hidden onChange={handleSelect} />
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={handleSelect} />

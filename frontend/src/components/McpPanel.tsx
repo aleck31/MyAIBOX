@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getMcpServers, addMcpServer, deleteMcpServer, toggleMcpServer } from '../api/client'
+import { Button } from './Button'
+
+const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
 interface McpServer { name: string; type: string; status: string; url: string; tools_count: number }
 
@@ -33,8 +36,8 @@ export default function McpPanel() {
       <div className="module-options-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>MCP Server Management</span>
         <div className="module-options">
-          <button className="text-btn text-btn--secondary" onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</button>
-          <button className="text-btn text-btn--primary" onClick={() => setShowAdd(true)} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Server</button>
+          <Button onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</Button>
+          <Button variant="primary" onClick={() => setShowAdd(true)} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Server</Button>
         </div>
       </div>
 
@@ -52,10 +55,10 @@ export default function McpPanel() {
                 <td>{s.tools_count}</td>
                 <td className="settings-session-id" style={{ maxWidth: 300 }}>{s.url}</td>
                 <td>
-                  <button className="settings-action-btn" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'}>
+                  <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
                     {s.status === 'Enabled' ? '❌' : '✅'}
-                  </button>
-                  <button className="settings-action-btn settings-action-btn--danger" onClick={() => handleDelete(s.name)} title="Delete">🗑️</button>
+                  </Button>
+                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}>🗑️</Button>
                 </td>
               </tr>
             ))}
@@ -96,8 +99,8 @@ export default function McpPanel() {
               )}
 
               <div className="settings-modal-actions">
-                <button className="text-btn text-btn--secondary" onClick={() => setShowAdd(false)}>Cancel</button>
-                <button className="text-btn text-btn--primary" onClick={handleAdd}>➕ Add</button>
+                <Button onClick={() => setShowAdd(false)}>Cancel</Button>
+                <Button variant="primary" onClick={handleAdd}>➕ Add</Button>
               </div>
             </div>
           </div>

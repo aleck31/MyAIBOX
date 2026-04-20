@@ -91,6 +91,30 @@
   --radius-md:  var(--radius);
   --radius-lg:  calc(var(--radius) + 2px);
   --radius-xl:  calc(var(--radius) + 6px);
+
+  /* Spacing — 4px base scale */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  24px;
+  --space-2xl: 32px;
+
+  /* Z-index layers (keep ascending; reuse these, do not invent new numbers) */
+  --z-dropdown: 50;
+  --z-overlay:  90;
+  --z-sidebar:  100;
+  --z-sidebar-toggle: 110;
+  --z-modal:    1000;
+  --z-toast:    2000;
+
+  /* Breakpoints (authoring reference only — CSS @media can't use vars) */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+
+  /* Touch target — iOS HIG / Material guideline */
+  --tap-size: 44px;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -349,7 +373,7 @@ body {
   position: fixed;
   top: 6px;
   left: 6px;
-  z-index: 110;
+  z-index: var(--z-sidebar-toggle);
   background: hsl(var(--foreground));
   color: hsl(var(--background));
   border: none;
@@ -379,7 +403,7 @@ body {
     top: 0;
     left: 0;
     bottom: 0;
-    z-index: 100;
+    z-index: var(--z-sidebar);
     transform: translateX(-100%);
     transition: transform 0.2s ease;
   }
@@ -395,7 +419,7 @@ body {
     display: block;
     position: fixed;
     inset: 0;
-    z-index: 99;
+    z-index: var(--z-overlay);
     background: rgba(0, 0, 0, 0.4);
   }
 
@@ -411,12 +435,53 @@ body {
 }
 
 /* ─── Shared: buttons ────────────────────────────────────────────────────── */
-.text-btn { display: flex; align-items: center; gap: 6px; padding: 6px 16px; border: 1px solid hsl(var(--border)); border-radius: var(--radius); font-size: 13px; cursor: pointer; background: hsl(var(--background)); color: hsl(var(--foreground)); transition: border-color 0.12s, background 0.12s; }
-.text-btn:hover:not(:disabled) { border-color: hsl(var(--foreground) / 0.4); background: hsl(var(--muted)); }
-.text-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.text-btn--primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
-.text-btn--primary:hover:not(:disabled) { background: hsl(var(--primary) / 0.85); }
-.text-btn--secondary { background: hsl(var(--background)); }
+/* Base — .btn. Variants: --primary / --ghost / --danger / --icon / --pill */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: 6px var(--space-lg);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:hover:not(:disabled) { border-color: hsl(var(--foreground) / 0.4); background: hsl(var(--muted)); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Primary CTA */
+.btn--primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
+.btn--primary:hover:not(:disabled) { background: hsl(var(--primary) / 0.85); border-color: hsl(var(--primary) / 0.85); }
+/* Ghost — borderless, for icon-bar style buttons */
+.btn--ghost { background: transparent; border-color: transparent; }
+.btn--ghost:hover:not(:disabled) { background: hsl(var(--muted)); border-color: transparent; }
+/* Danger */
+.btn--danger:hover:not(:disabled) { border-color: hsl(var(--destructive) / 0.5); background: hsl(var(--destructive) / 0.06); color: hsl(var(--destructive)); }
+/* Icon — square, 32×32, no label */
+.btn--icon { padding: 0; width: 32px; height: 32px; flex-shrink: 0; }
+/* Pill — compact tab-like button used in the Text module's op selector */
+.btn--pill { padding: 4px var(--space-md); font-size: 12px; white-space: nowrap; }
+/* Active state — opt-in via `.is-active` to avoid clashing with framework pseudo-classes */
+.btn.is-active { background: hsl(var(--foreground)); color: hsl(var(--background)); border-color: hsl(var(--foreground)); }
+.btn.is-active:hover:not(:disabled) { background: hsl(var(--foreground) / 0.85); }
+
+/* Touch devices — guarantee tap target */
+@media (pointer: coarse) {
+  .btn { min-height: var(--tap-size); }
+  .btn--icon { width: var(--tap-size); height: var(--tap-size); }
+}
+
+/* NOTE: .bar-icon-btn (chat/persona), .settings-action-btn, and
+   .draw-action-btn remain as module-specific classes — each has unique
+   visuals (blue-bordered active state, table-row action, overlay on
+   image) that aren't part of the shared .btn primitive. */
 
 /* ─── Shared: form elements ──────────────────────────────────────────────── */
 .module-options { display: flex; gap: 8px; margin-left: auto; }
