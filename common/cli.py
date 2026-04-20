@@ -180,6 +180,16 @@ def main():
     elif cmd == "check":
         subprocess.run(["uv", "run", "ruff", "check", "."], cwd=DIR, check=True)
         print("✓ ruff check passed")
+        subprocess.run(
+            ["uv", "run", "pytest", "-m", "not integration", "tests/unit"],
+            cwd=DIR, check=True,
+        )
+        print("✓ unit tests passed")
+
+    elif cmd == "test":
+        # Pass-through: everything after `my-aibox test` goes to pytest.
+        extra = sys.argv[2:] or ["tests/unit"]
+        subprocess.run(["uv", "run", "pytest", *extra], cwd=DIR, check=True)
 
     else:
         print("Usage: my-aibox <command>\n")
@@ -189,5 +199,7 @@ def main():
         print("  status              Show service status")
         print("  logs [-f]           Tail service logs (journalctl)")
         print("  build               Build the frontend (syncs version)")
-        print("  check               Lint Python with ruff")
+        print("  check               Lint Python + run unit tests")
+        print("  test [pytest args]  Run pytest (default: tests/unit). Use")
+        print("                      `my-aibox test -m integration` for real-service tests.")
         sys.exit(0 if cmd is None else 1)

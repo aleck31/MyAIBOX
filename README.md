@@ -55,7 +55,6 @@ Supported input formats: jpg/jpeg, png, gif, webp, pdf, csv, doc/docx, xls/xlsx,
 
 ```
 my-aibox/
-├── app.py                        # FastAPI entry point
 ├── api/                          # REST + SSE API endpoints
 │   ├── auth.py                       # Authentication & session management
 │   ├── assistant.py                  # Assistant (AG-UI SSE + tool use)
@@ -67,12 +66,6 @@ my-aibox/
 │   ├── draw.py                       # Image generation (REST)
 │   ├── settings.py                   # Settings, models, MCP CRUD
 │   └── upload.py                     # File upload
-├── frontend/                     # React SPA
-│   └── src/
-│       ├── components/               # UI components (ChatWindow, Processors, Panels)
-│       ├── pages/                    # Route pages
-│       ├── api/client.ts             # API client
-│       └── styles/                   # CSS modules
 ├── core/                         # Core components
 │   ├── config.py                     # Configuration
 │   ├── module_config.py              # Module configuration
@@ -83,16 +76,22 @@ my-aibox/
 │   ├── models/                       # LLM providers (Bedrock, Gemini, OpenAI)
 │   ├── agents/                       # Strands Agent
 │   └── tools/                        # Legacy tools, MCP tools, unified provider
-└── devguide/                     # Development guides
+├── frontend/                     # React SPA
+│   └── src/
+│       ├── components/               # UI components (ChatWindow, Processors, Panels)
+│       ├── pages/                    # Route pages
+│       ├── api/client.ts             # API client
+│       └── styles/                   # CSS modules
+└── app.py                        # FastAPI entry point
 ```
 
 ## Tool System
 
 | Tool Type | Configuration | Examples |
 |-----------|---------------|----------|
-| **Legacy Tools** | Module Configuration | `get_weather`, `search_wikipedia` |
 | **Strands Tools** | Always enabled | `calculator`, `current_time` |
 | **MCP Tools** | Settings → MCP Server | `exa-server`, `core-mcp-server` |
+| **Legacy Tools** | Module Configuration | `get_weather`, `search_wikipedia` |
 
 MCP server types: HTTP, stdio, SSE.
 
@@ -142,7 +141,9 @@ my-aibox start|stop|restart # manage the systemd user service
 my-aibox status            # show service status
 my-aibox logs [-f]         # tail journalctl logs
 my-aibox build             # build frontend (syncs version)
-my-aibox check             # lint Python code (ruff)
+my-aibox check             # lint (ruff) + run unit tests
+my-aibox test              # run pytest (default: tests/unit)
+                           # use `my-aibox test -m integration` for real-service tests
 ```
 
 ## License
