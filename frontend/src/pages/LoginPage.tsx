@@ -68,7 +68,7 @@ function SSOLoginPage() {
       <div className="login-form-area">
         <div className="login-card">
           <div className="login-card-title">欢迎使用 AIBox</div>
-          <div className="login-card-sub">你的个性化 AI 助手</div>
+          <div className="login-card-sub">你的 GenAI 工具箱</div>
           <a className="login-submit" href={buildLoginUrl(returnTo)} style={{ textAlign: 'center', display: 'block', textDecoration: 'none', marginTop: '1.5rem' }}>
             使用 {SSO_PROVIDER_NAME} (SSO) 登录
           </a>

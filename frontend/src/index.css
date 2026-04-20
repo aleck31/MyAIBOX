@@ -504,7 +504,21 @@ body {
 .module-options { display: flex; gap: 8px; margin-left: auto; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; flex-shrink: 0; }
 .panel-label { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
-.panel-textarea { flex: 1; padding: 0 16px 16px; border: none; background: transparent; color: hsl(var(--foreground)); font-size: 14px; line-height: 1.6; resize: none; font-family: inherit; outline: none; }
+.panel-textarea {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.panel-textarea:focus { border-color: hsl(var(--foreground) / 0.5); }
 
 /* Bordered text input primitive */
 .input {
@@ -587,6 +601,13 @@ body {
 .module-panel-left,
 .module-panel-right { display: flex; flex-direction: column; background: hsl(var(--background)); padding: 16px; flex: 1; min-height: 0; overflow: hidden; }
 .module-panel-left { min-width: 280px; gap: 4px; }
+/* Opt-in: left panel scrolls vertically when children overflow (e.g. Vision,
+   Draw). Also neutralizes flex-fill children (textareas etc.) that would
+   otherwise collapse to height: 0 inside a scroll container. Apply by
+   adding `module-panel-left--scroll` alongside `module-panel-left`. */
+.module-panel-left--scroll { overflow-y: auto; }
+.module-panel-left--scroll > .module-panel-fill { flex: none; }
+.module-panel-left--scroll > .panel-textarea { flex: none; }
 .module-panel-right { min-width: 320px; }
 .module-panel-fill { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 4px; }
 .module-panel-fill .panel-textarea, .module-panel-left > .panel-textarea, .module-panel-right > .panel-textarea { flex: 1; min-height: 60px; }
@@ -618,7 +639,7 @@ body {
 .file-preview-placeholder { font-size: 13px; color: hsl(var(--muted-foreground)); }
 .file-preview-empty {
   display: flex; align-items: center; justify-content: center;
-  min-height: 120px; border: 1px dashed hsl(var(--border)); border-radius: var(--radius);
+  min-height: 360px; border: 1px dashed hsl(var(--border)); border-radius: var(--radius);
   background: hsl(var(--muted) / 0.3); flex: 1;
 }
 .file-upload-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
@@ -628,24 +649,35 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 12px;
+  height: 16px;
   cursor: ns-resize;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: hsl(var(--muted) / 0.5);
+  background: hsl(var(--muted));
+  border-top: 1px solid hsl(var(--border));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  transition: background 0.12s;
 }
 .resize-handle::after {
   content: '';
-  width: 32px;
-  height: 3px;
+  width: 48px;
+  height: 4px;
   border-radius: 2px;
-  background: hsl(var(--muted-foreground) / 0.4);
+  background: hsl(var(--muted-foreground) / 0.7);
+  transition: background 0.12s;
+}
+.resize-handle:hover {
+  background: hsl(var(--muted-foreground) / 0.15);
 }
 .resize-handle:hover::after,
 .resize-handle:active::after {
-  background: hsl(var(--muted-foreground) / 0.7);
+  background: hsl(var(--foreground));
+}
+/* Touch devices: bigger drag area and grabber for easier targeting */
+@media (pointer: coarse) {
+  .resize-handle { height: 22px; }
+  .resize-handle::after { width: 56px; height: 5px; }
 }

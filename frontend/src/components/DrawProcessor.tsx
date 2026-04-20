@@ -198,7 +198,7 @@ export default function DrawProcessor() {
       {/* Main content */}
       <div className="module-panel-main">
         {/* Left: Input */}
-        <div className="module-panel-left">
+        <div className="module-panel-left module-panel-left--scroll">
           {/* Edit mode: image upload area */}
           {isEdit && (
             <FilePreviewPanel
@@ -220,6 +220,7 @@ export default function DrawProcessor() {
               <label className="panel-label">Edit Instruction</label>
               <textarea
                 className="panel-textarea"
+                style={{ minHeight: 100 }}
                 value={editPrompt}
                 onChange={(e) => setEditPrompt(e.target.value)}
                 placeholder="Describe what to change..."
@@ -290,6 +291,9 @@ export default function DrawProcessor() {
 
         {/* Right: Output */}
         <div className="module-panel-right">
+          <div className="panel-header">
+            <label className="panel-label">{isEdit ? 'Edited Image' : 'Generated Image'}</label>
+          </div>
           <ResizablePreview minHeight={200}>
             {imageUrl ? (
               <>

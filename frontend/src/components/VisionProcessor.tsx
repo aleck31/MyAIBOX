@@ -113,7 +113,7 @@ export default function VisionProcessor() {
       {/* Main content */}
       <div className="module-panel-main">
         {/* Left: Input */}
-        <div className="module-panel-left">
+        <div className="module-panel-left module-panel-left--scroll">
           <FilePreviewPanel
             accept="image/*,.pdf"
             label="File Preview"
@@ -134,6 +134,7 @@ export default function VisionProcessor() {
             </label>
             <textarea
               className="panel-textarea"
+              style={{ minHeight: 120 }}
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Describe what you want me to look for, or leave empty for general analysis..."
