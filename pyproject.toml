@@ -3,7 +3,7 @@ name = "my-aibox"
 version = "3.2.6"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     # Fundamental
     "fastapi>=0.100.0",
@@ -15,8 +15,6 @@ dependencies = [
     # Strands Agents
     "strands-agents>=1.20.0",
     "strands-agents-tools>=0.1.7",
-    # AgentCore Runtime
-    "bedrock-agentcore>=1.1.0",
     # Utilities
     "uvicorn[standard]>=0.23.0",
     "python-dotenv>=1.0.0",
@@ -39,14 +37,14 @@ my-aibox = "common.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["core*", "genai*", "webui*", "common*", "utils*"]
-exclude = ["tests*", "logs*", "tmp*", "assets*"]
+exclude = ["tests*", "logs*", "tmp*", "assets*", ".deprecated*"]
 
 [tool.uv]
 package = true
 
 [tool.ruff]
 line-length = 120
-exclude = ["tests"]
+exclude = ["tests", ".deprecated"]
 
 [tool.ruff.lint]
 ignore = ["E402", "E701"]

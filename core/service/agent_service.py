@@ -1,36 +1,23 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import time
-from typing import Dict, AsyncIterator, Any, List, Optional, Union, TYPE_CHECKING, cast
+from typing import Dict, AsyncIterator, Any, List, Optional
 from core.service import BaseService
 from core.session.models import Session
-from core.config import env_config
 from genai.agents.provider import AgentProvider
 from . import logger
-
-if TYPE_CHECKING:
-    from genai.agents.agentcore_client import AgentCoreClient
 
 # Agent cache TTL: 2 hours
 _AGENT_TTL = 7200
 
 
 class AgentService(BaseService):
-    """Strands Agent service with per-session Agent caching.
-
-    Supports two execution modes:
-    - Local mode: Uses AgentProvider with cached Agent instances
-    - Remote mode: Uses AgentCoreClient to call AgentCore Runtime
-    """
+    """Strands Agent service with per-session Agent caching."""
 
     def __init__(self, module_name: str):
         super().__init__(module_name)
         # Per-session agent cache: {session_id: (AgentProvider, last_used_timestamp)}
         self._agent_cache: Dict[str, tuple[AgentProvider, float]] = {}
-        self._agentcore_client = None
-        self._use_agentcore = env_config.agentcore_config.get('enabled', False)
-        if self._use_agentcore:
-            logger.info(f"[AgentService] AgentCore mode enabled for module: {module_name}")
 
     def _evict_expired(self):
         """Remove expired Agent instances."""
@@ -87,21 +74,6 @@ class AgentService(BaseService):
             logger.error(f"[AgentService] Error converting messages: {e}")
             return []
 
-    def _get_agentcore_client(self):
-        """Get or initialize AgentCoreClient for remote execution."""
-        if self._agentcore_client is None:
-            from genai.agents.agentcore_client import AgentCoreClient
-            config = env_config.agentcore_config
-            runtime_arn = config.get('runtime_arn')
-            if not runtime_arn:
-                raise ValueError("AGENTCORE_RUNTIME_ARN not configured")
-            self._agentcore_client = AgentCoreClient(
-                runtime_arn=runtime_arn,
-                region=config.get('region'),
-                endpoint_name=config.get('endpoint_name', 'DEFAULT')
-            )
-        return self._agentcore_client
-
     async def _get_or_create_provider(
         self,
         session: Session,
@@ -109,11 +81,8 @@ class AgentService(BaseService):
         system_prompt: str,
         history: Optional[List[Dict]] = None,
         tool_config: Optional[Dict] = None,
-    ) -> Union[AgentProvider, "AgentCoreClient"]:
+    ) -> AgentProvider:
         """Get cached provider or create new one with history recovery."""
-        if self._use_agentcore:
-            return self._get_agentcore_client()
-
         session_id = session.session_id
 
         # Return cached provider if available
@@ -202,23 +171,10 @@ class AgentService(BaseService):
                 session, model_id, system_prompt, history, tool_config
             )
 
-            if self._use_agentcore:
-                client = cast("AgentCoreClient", provider)
-                async for chunk in client.generate_stream(
-                    prompt=prompt,
-                    history_messages=history,
-                    tool_config=tool_config,
-                    model_id=model_id,
-                    system_prompt=system_prompt
-                ):
-                    if isinstance(chunk, dict):
-                        yield chunk
-            else:
-                # Build multimodal prompt if files present
-                agent_prompt = self._build_multimodal_prompt(prompt, files)
-                async for chunk in provider.generate_stream(agent_prompt):
-                    if isinstance(chunk, dict):
-                        yield chunk
+            agent_prompt = self._build_multimodal_prompt(prompt, files)
+            async for chunk in provider.generate_stream(agent_prompt):
+                if isinstance(chunk, dict):
+                    yield chunk
 
         except Exception as e:
             logger.error(f"Error in streaming generation: {e}", exc_info=True)
@@ -323,23 +279,9 @@ class AgentService(BaseService):
         await self.session_store.save_session(session)
         logger.debug(f"[AgentService] Cleared history for session {session.session_id}")
 
-    def is_agentcore_enabled(self) -> bool:
-        return self._use_agentcore
-
     async def health_check(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
-            "mode": "agentcore" if self._use_agentcore else "local",
+        return {
             "module": self.module_name,
             "cached_agents": len(self._agent_cache),
+            "status": "healthy",
         }
-        if self._use_agentcore:
-            try:
-                client = self._get_agentcore_client()
-                health = await client.health_check()
-                result["status"] = health.get("status", "unknown")
-            except Exception as e:
-                result["status"] = "error"
-                result["error"] = str(e)
-        else:
-            result["status"] = "healthy"
-        return result

@@ -20,6 +20,7 @@ assets/uploads/*
 .idea
 .kiro
 .claude
+.deprecated
 .DS_Store
 
 # Environments
@@ -30,7 +31,6 @@ venv/
 .pid
 
 flagged
-.bedrock_agentcore.yaml
 config.json
 logs/*
 *.log

@@ -1,6 +1,6 @@
 # MyAIBOX
 
-![Version](https://img.shields.io/badge/version-3.2.5-blue) ![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
 
 MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with FastAPI and React. It provides access to various AI capabilities including AI Agent, multimodal chat, text processing, summarization, image/document recognition, and image creation.
 
@@ -21,7 +21,6 @@ The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with
 - **Model & MCP Management**: In-app model registry and MCP server configuration
 
 **v2.x**
-- **AgentCore Runtime**: Serverless AI Agent on AWS Bedrock AgentCore Runtime (up to 8 hours, SSE streaming)
 - **Multi-provider Agent**: Bedrock, Gemini, and OpenAI models via Strands SDK
 
 ## Features
@@ -82,9 +81,8 @@ my-aibox/
 ├── common/                       # Auth (Cognito), logging
 ├── genai/                        # GenAI integration
 │   ├── models/                       # LLM providers (Bedrock, Gemini, OpenAI)
-│   ├── agents/                       # Strands Agent + AgentCore client
+│   ├── agents/                       # Strands Agent
 │   └── tools/                        # Legacy tools, MCP tools, unified provider
-├── agentcore_app.py              # AgentCore Runtime entry point
 └── devguide/                     # Development guides
 ```
 
@@ -146,16 +144,6 @@ my-aibox logs [-f]         # tail journalctl logs
 my-aibox build             # build frontend (syncs version)
 my-aibox check             # lint Python code (ruff)
 ```
-
-### AgentCore Runtime (Serverless Agent)
-```bash
-.venv/bin/agentcore deploy
-
-# .env
-USE_AGENTCORE=true
-AGENTCORE_RUNTIME_ARN=arn:aws:bedrock-agentcore:...
-```
-
 
 ## License
 

@@ -104,16 +104,6 @@ class ENVConfig:
             'request_timeout': float(os.getenv('SSO_REQUEST_TIMEOUT', '5')),
         }
 
-    @property
-    def agentcore_config(self) -> Dict[str, Any]:
-        """Get AgentCore Runtime configuration"""
-        return {
-            'enabled': os.getenv('USE_AGENTCORE', 'false').lower() == 'true',
-            'runtime_arn': os.getenv('AGENTCORE_RUNTIME_ARN', ''),
-            'region': os.getenv('AGENTCORE_REGION', os.getenv('AWS_REGION', 'ap-southeast-1')),
-            'endpoint_name': os.getenv('AGENTCORE_ENDPOINT_NAME', 'DEFAULT'),
-        }
-
 
 class AppConfig:
     """Application-level configuration settings"""
