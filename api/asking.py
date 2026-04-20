@@ -16,6 +16,7 @@ from genai.models.model_manager import model_manager
 from genai.models.providers import LLMMessage, LLMParameters, create_model_provider
 from api.auth import get_auth_user
 from api.prompts.asking import SYSTEM_PROMPT
+from common.provider_cache import ProviderCache
 from common.logger import setup_logger
 
 logger = setup_logger('api.asking')
@@ -23,21 +24,24 @@ logger = setup_logger('api.asking')
 router = APIRouter(prefix="/asking", tags=["asking"])
 
 _enc = EventEncoder()
-_provider_cache = {}
+_provider_cache = ProviderCache()
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _get_provider(model_id: str):
-    if model_id not in _provider_cache:
-        model = model_manager.get_model_by_id(model_id)
-        if not model:
-            raise ValueError(f"Model not found: {model_id}")
-        params = module_config.get_inference_params('asking') or {}
-        llm_params = LLMParameters(**params) if params else LLMParameters()
-        _provider_cache[model_id] = create_model_provider(model.api_provider, model_id, llm_params)
-    return _provider_cache[model_id]
+    model = model_manager.get_model_by_id(model_id)
+    if not model:
+        raise ValueError(f"Model not found: {model_id}")
+    params = module_config.get_inference_params('asking') or {}
+    return _provider_cache.get_or_create(
+        model_id, params,
+        lambda: create_model_provider(
+            model.api_provider, model_id,
+            LLMParameters(**params) if params else LLMParameters(),
+        ),
+    )
 
 
 async def _save_file(f: UploadFile) -> str:
