@@ -91,7 +91,7 @@ export default function SummaryProcessor() {
       <div className="module-options-bar">
         <div className="module-options">
           <select
-            className="top-bar-select"
+            className="select"
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
           >

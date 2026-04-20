@@ -10,7 +10,7 @@ interface RoleSelectorProps {
 export default function RoleSelector({ roles, value, onChange, disabled }: RoleSelectorProps) {
   return (
     <select
-      className="top-bar-select"
+      className="select"
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}

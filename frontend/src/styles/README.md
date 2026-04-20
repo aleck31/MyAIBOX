@@ -69,9 +69,11 @@ to avoid collisions. Global primitives use single-word names (`.btn`,
 
 Shared building blocks live in `index.css`:
 
-- `.btn` / `--primary` / `--ghost` / `--danger` / `--icon` — see `components/Button.tsx`
-- `.input` / `.select` / `.textarea` — form controls (font-size ≥ 16px to avoid iOS auto-zoom)
-- `.overlay` / `.modal` — see `components/Modal.tsx`
+- `.btn` / `--primary` / `--ghost` / `--danger` / `--icon` / `--pill` — see `components/Button.tsx`
+- `.input` — bordered text input; `.select` — styled `<select>` with chevron
+  - Both bump to 16px on mobile (`@media max-width: 768px`) to prevent iOS auto-zoom on focus
+- `.panel-textarea` — transparent full-width textarea inside module panels (also 16px on mobile)
+- `.overlay` / `.modal` — planned, see `components/Modal.tsx`
 - `.shell-root` / `.sidebar` / `.nav-item` / `.module-panel-*` — app chrome
 
 Module-specific CSS files should only hold styles that are truly unique to

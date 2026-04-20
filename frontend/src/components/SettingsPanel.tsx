@@ -128,7 +128,7 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
 
                   <label className="panel-label">Default Model</label>
                   <select
-                    className="top-bar-select"
+                    className="select"
                     value={editForm.default_model}
                     onChange={(e) => setEditForm({ ...editForm, default_model: e.target.value })}
                     style={{ width: '100%', marginBottom: 12 }}

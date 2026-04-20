@@ -254,10 +254,10 @@ export default function DrawProcessor() {
           {/* Options */}
           <div className="draw-options">
             <div className="draw-option-row">
-              <select className="top-bar-select" value={ratio} onChange={(e) => setRatio(e.target.value)}>
+              <select className="select" value={ratio} onChange={(e) => setRatio(e.target.value)}>
                 {config.ratios.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <select className="top-bar-select" value={resolution} onChange={(e) => setResolution(e.target.value)}>
+              <select className="select" value={resolution} onChange={(e) => setResolution(e.target.value)}>
                 {config.resolutions?.map((r: string) => <option key={r} value={r}>{r}</option>)}
               </select>
               <label className="draw-temp-label">
@@ -267,7 +267,7 @@ export default function DrawProcessor() {
             </div>
             {!isEdit && (
               <div className="draw-option-row">
-                <select className="top-bar-select" value={style} onChange={(e) => setStyle(e.target.value)}>
+                <select className="select" value={style} onChange={(e) => setStyle(e.target.value)}>
                   {config.styles.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <label className="draw-checkbox-label">
@@ -276,7 +276,8 @@ export default function DrawProcessor() {
                 </label>
                 <input
                   type="number"
-                  className="draw-seed-input"
+                  className="input"
+                  style={{ width: 120 }}
                   value={seed}
                   onChange={(e) => setSeed(Number(e.target.value))}
                   disabled={randomSeed}

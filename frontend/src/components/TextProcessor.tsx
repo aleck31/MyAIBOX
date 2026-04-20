@@ -107,7 +107,7 @@ export default function TextProcessor() {
         <div className="module-options">
           {operation === 'rewrite' && (
             <select
-              className="top-bar-select"
+              className="select"
               value={style}
               onChange={(e) => setStyle(e.target.value)}
             >
@@ -117,7 +117,7 @@ export default function TextProcessor() {
             </select>
           )}
           <select
-            className="top-bar-select"
+            className="select"
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
           >

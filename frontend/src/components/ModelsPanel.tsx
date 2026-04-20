@@ -91,18 +91,18 @@ export default function ModelsPanel() {
               <h3 style={{ margin: '0 0 16px' }}>{isNew ? 'Add Model' : 'Edit Model'}</h3>
 
               <label className="panel-label">Model ID</label>
-              <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={editing.model_id}
+              <input className="input" style={{ width: '100%', marginBottom: 8 }} value={editing.model_id}
                 onChange={e => setEditing({ ...editing, model_id: e.target.value })} disabled={!isNew} />
 
               <div style={{ display: 'flex', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">Name</label>
-                  <input className="draw-seed-input" style={{ width: '100%' }} value={editing.name}
+                  <input className="input" style={{ width: '100%' }} value={editing.name}
                     onChange={e => setEditing({ ...editing, name: e.target.value })} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">Vendor</label>
-                  <input className="draw-seed-input" style={{ width: '100%' }} value={editing.vendor}
+                  <input className="input" style={{ width: '100%' }} value={editing.vendor}
                     onChange={e => setEditing({ ...editing, vendor: e.target.value })} />
                 </div>
               </div>
@@ -110,27 +110,27 @@ export default function ModelsPanel() {
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">API Provider</label>
-                  <select className="top-bar-select" style={{ width: '100%' }} value={editing.api_provider}
+                  <select className="select" style={{ width: '100%' }} value={editing.api_provider}
                     onChange={e => setEditing({ ...editing, api_provider: e.target.value })}>
                     {API_PROVIDERS.map(p => <option key={p}>{p}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">Category</label>
-                  <select className="top-bar-select" style={{ width: '100%' }} value={editing.category}
+                  <select className="select" style={{ width: '100%' }} value={editing.category}
                     onChange={e => setEditing({ ...editing, category: e.target.value })}>
                     {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">Region</label>
-                  <input className="draw-seed-input" style={{ width: '100%' }} value={editing.region}
+                  <input className="input" style={{ width: '100%' }} value={editing.region}
                     onChange={e => setEditing({ ...editing, region: e.target.value })} placeholder="Override default" />
                 </div>
               </div>
 
               <label className="panel-label" style={{ marginTop: 8 }}>Context Window</label>
-              <input className="draw-seed-input" type="number" style={{ width: 160 }} value={cap?.context_window ?? 0}
+              <input className="input" type="number" style={{ width: 160 }} value={cap?.context_window ?? 0}
                 onChange={e => setCap('context_window', Number(e.target.value))} />
 
               <label className="panel-label" style={{ marginTop: 8 }}>Input Modalities</label>

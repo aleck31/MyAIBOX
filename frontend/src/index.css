@@ -488,7 +488,48 @@ body {
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; flex-shrink: 0; }
 .panel-label { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
 .panel-textarea { flex: 1; padding: 0 16px 16px; border: none; background: transparent; color: hsl(var(--foreground)); font-size: 14px; line-height: 1.6; resize: none; font-family: inherit; outline: none; }
-@media (max-width: 768px) { .module-options { margin-left: 0; } }
+
+/* Bordered text input primitive */
+.input {
+  padding: 4px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.input:focus { border-color: hsl(var(--foreground)); }
+.input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Select primitive (custom chevron, appearance: none) */
+.select {
+  appearance: none;
+  padding: 4px 28px 4px 10px;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23999' stroke-width='1.5'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  transition: border-color 0.12s;
+  max-width: 260px;
+}
+.select:focus { border-color: hsl(var(--foreground)); }
+.select:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Mobile: bump input/select font to 16px to disable iOS auto-zoom on focus */
+@media (max-width: 768px) {
+  .module-options { margin-left: 0; }
+  .input, .select, .panel-textarea { font-size: 16px; }
+}
 
 /* ─── Shared: module layout ──────────────────────────────────────────────── */
 .module-layout { display: flex; flex-direction: column; height: 100%; }

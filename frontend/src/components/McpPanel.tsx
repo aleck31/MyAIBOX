@@ -74,11 +74,11 @@ export default function McpPanel() {
               <h3 style={{ margin: '0 0 16px' }}>Add MCP Server</h3>
 
               <label className="panel-label">Server Name</label>
-              <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={form.name}
+              <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} placeholder="my-server" />
 
               <label className="panel-label">Type</label>
-              <select className="top-bar-select" style={{ width: '100%', marginBottom: 8 }} value={form.type}
+              <select className="select" style={{ width: '100%', marginBottom: 8 }} value={form.type}
                 onChange={e => setForm({ ...form, type: e.target.value })}>
                 <option value="http">HTTP</option>
                 <option value="stdio">stdio</option>
@@ -86,14 +86,14 @@ export default function McpPanel() {
               </select>
 
               <label className="panel-label">{form.type === 'stdio' ? 'Command' : 'URL'}</label>
-              <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={form.url}
+              <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.url}
                 onChange={e => setForm({ ...form, url: e.target.value })}
                 placeholder={form.type === 'stdio' ? 'uvx' : 'https://api.example.com/mcp'} />
 
               {form.type === 'stdio' && (
                 <>
                   <label className="panel-label">Arguments (JSON array)</label>
-                  <input className="draw-seed-input" style={{ width: '100%', marginBottom: 8 }} value={form.args}
+                  <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.args}
                     onChange={e => setForm({ ...form, args: e.target.value })} placeholder='["arg1", "arg2"]' />
                 </>
               )}
