@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getModels, addModel, updateModel, deleteModel } from '../api/client'
 import { Button } from './Button'
+import { Modal, ModalActions } from './Modal'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -86,8 +87,7 @@ export default function ModelsPanel() {
         </table>
 
         {editing && (
-          <div className="settings-modal-overlay" onClick={() => setEditing(null)}>
-            <div className="settings-modal" onClick={e => e.stopPropagation()}>
+          <Modal open onClose={() => setEditing(null)}>
               <h3 style={{ margin: '0 0 16px' }}>{isNew ? 'Add Model' : 'Edit Model'}</h3>
 
               <label className="panel-label">Model ID</label>
@@ -162,14 +162,13 @@ export default function ModelsPanel() {
                 <label className="draw-checkbox-label"><input type="checkbox" checked={cap?.reasoning} onChange={e => setCap('reasoning', e.target.checked)} /> Reasoning</label>
               </div>
 
-              <div className="settings-modal-actions">
+              <ModalActions>
                 <Button onClick={() => setEditing(null)}>Cancel</Button>
                 <Button variant="primary" onClick={handleSave} disabled={saving}>
                   {saving ? '⏳ Saving...' : '💾 Save'}
                 </Button>
-              </div>
-            </div>
-          </div>
+              </ModalActions>
+          </Modal>
         )}
       </div>
     </div>

@@ -73,7 +73,8 @@ Shared building blocks live in `index.css`:
 - `.input` — bordered text input; `.select` — styled `<select>` with chevron
   - Both bump to 16px on mobile (`@media max-width: 768px`) to prevent iOS auto-zoom on focus
 - `.panel-textarea` — transparent full-width textarea inside module panels (also 16px on mobile)
-- `.overlay` / `.modal` — planned, see `components/Modal.tsx`
+- `.overlay` / `.modal` / `.modal-actions` — see `components/Modal.tsx` (ESC + backdrop-click + body scroll lock)
+  - Mobile: card becomes full-viewport (no radius/border)
 - `.shell-root` / `.sidebar` / `.nav-item` / `.module-panel-*` — app chrome
 
 Module-specific CSS files should only hold styles that are truly unique to

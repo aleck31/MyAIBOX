@@ -108,38 +108,11 @@
   word-break: break-all;
 }
 
-/* Edit modal */
-.settings-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-modal);
-}
-
-.settings-modal {
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-  width: 90%;
-  max-width: 560px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
+/* Modal overlay/card/actions → see .overlay / .modal / .modal-actions in index.css */
 
 .settings-tools-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
-}
-
-.settings-modal-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 16px;
 }

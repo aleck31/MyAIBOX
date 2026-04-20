@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSettingsSessions, deleteSession, clearSessionHistory, getModulesConfig, updateModuleConfig } from '../api/client'
 import { Button } from './Button'
+import { Modal, ModalActions } from './Modal'
 import type { SessionInfo, ModulesData, ModuleConfig } from '../types/settings'
 
 export default function SettingsPanel({ username, tab = 'account' }: { username: string; tab?: 'account' | 'modules' }) {
@@ -122,59 +123,57 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
 
             {/* Edit modal */}
             {editingModule && editForm && (
-              <div className="settings-modal-overlay" onClick={() => setEditingModule(null)}>
-                <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-                  <h3 style={{ margin: '0 0 16px' }}>{editingModule} Module Settings</h3>
+              <Modal open onClose={() => setEditingModule(null)}>
+                <h3 style={{ margin: '0 0 16px' }}>{editingModule} Module Settings</h3>
 
-                  <label className="panel-label">Default Model</label>
-                  <select
-                    className="select"
-                    value={editForm.default_model}
-                    onChange={(e) => setEditForm({ ...editForm, default_model: e.target.value })}
-                    style={{ width: '100%', marginBottom: 12 }}
-                  >
-                    <option value="">— None —</option>
-                    {modulesData.model_choices.map((m) => (
-                      <option key={m.model_id} value={m.model_id}>{m.name}</option>
-                    ))}
-                  </select>
+                <label className="panel-label">Default Model</label>
+                <select
+                  className="select"
+                  value={editForm.default_model}
+                  onChange={(e) => setEditForm({ ...editForm, default_model: e.target.value })}
+                  style={{ width: '100%', marginBottom: 12 }}
+                >
+                  <option value="">— None —</option>
+                  {modulesData.model_choices.map((m) => (
+                    <option key={m.model_id} value={m.model_id}>{m.name}</option>
+                  ))}
+                </select>
 
-                  <label className="panel-label">Parameters (JSON)</label>
-                  <textarea
-                    className="panel-textarea"
-                    value={editForm.parameters}
-                    onChange={(e) => setEditForm({ ...editForm, parameters: e.target.value })}
-                    rows={6}
-                    style={{ fontFamily: 'monospace', fontSize: 12, marginBottom: 12 }}
-                  />
+                <label className="panel-label">Parameters (JSON)</label>
+                <textarea
+                  className="panel-textarea"
+                  value={editForm.parameters}
+                  onChange={(e) => setEditForm({ ...editForm, parameters: e.target.value })}
+                  rows={6}
+                  style={{ fontFamily: 'monospace', fontSize: 12, marginBottom: 12 }}
+                />
 
-                  <label className="panel-label">Enabled Tools</label>
-                  <div className="settings-tools-grid">
-                    {modulesData.available_tools.map((t) => (
-                      <label key={t} className="draw-checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={editForm.enabled_tools.includes(t)}
-                          onChange={(e) => {
-                            const tools = e.target.checked
-                              ? [...editForm.enabled_tools, t]
-                              : editForm.enabled_tools.filter((x) => x !== t)
-                            setEditForm({ ...editForm, enabled_tools: tools })
-                          }}
-                        />
-                        {t}
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="settings-modal-actions">
-                    <Button onClick={() => setEditingModule(null)}>Cancel</Button>
-                    <Button variant="primary" onClick={handleSave} disabled={saving}>
-                      {saving ? '⏳ Saving...' : '💾 Save'}
-                    </Button>
-                  </div>
+                <label className="panel-label">Enabled Tools</label>
+                <div className="settings-tools-grid">
+                  {modulesData.available_tools.map((t) => (
+                    <label key={t} className="draw-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={editForm.enabled_tools.includes(t)}
+                        onChange={(e) => {
+                          const tools = e.target.checked
+                            ? [...editForm.enabled_tools, t]
+                            : editForm.enabled_tools.filter((x) => x !== t)
+                          setEditForm({ ...editForm, enabled_tools: tools })
+                        }}
+                      />
+                      {t}
+                    </label>
+                  ))}
                 </div>
-              </div>
+
+                <ModalActions>
+                  <Button onClick={() => setEditingModule(null)}>Cancel</Button>
+                  <Button variant="primary" onClick={handleSave} disabled={saving}>
+                    {saving ? '⏳ Saving...' : '💾 Save'}
+                  </Button>
+                </ModalActions>
+              </Modal>
             )}
           </div>
         )}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getMcpServers, addMcpServer, deleteMcpServer, toggleMcpServer } from '../api/client'
 import { Button } from './Button'
+import { Modal, ModalActions } from './Modal'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -69,41 +70,39 @@ export default function McpPanel() {
         </table>
 
         {showAdd && (
-          <div className="settings-modal-overlay" onClick={() => setShowAdd(false)}>
-            <div className="settings-modal" onClick={e => e.stopPropagation()}>
-              <h3 style={{ margin: '0 0 16px' }}>Add MCP Server</h3>
+          <Modal open onClose={() => setShowAdd(false)}>
+            <h3 style={{ margin: '0 0 16px' }}>Add MCP Server</h3>
 
-              <label className="panel-label">Server Name</label>
-              <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })} placeholder="my-server" />
+            <label className="panel-label">Server Name</label>
+            <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })} placeholder="my-server" />
 
-              <label className="panel-label">Type</label>
-              <select className="select" style={{ width: '100%', marginBottom: 8 }} value={form.type}
-                onChange={e => setForm({ ...form, type: e.target.value })}>
-                <option value="http">HTTP</option>
-                <option value="stdio">stdio</option>
-                <option value="sse">SSE</option>
-              </select>
+            <label className="panel-label">Type</label>
+            <select className="select" style={{ width: '100%', marginBottom: 8 }} value={form.type}
+              onChange={e => setForm({ ...form, type: e.target.value })}>
+              <option value="http">HTTP</option>
+              <option value="stdio">stdio</option>
+              <option value="sse">SSE</option>
+            </select>
 
-              <label className="panel-label">{form.type === 'stdio' ? 'Command' : 'URL'}</label>
-              <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.url}
-                onChange={e => setForm({ ...form, url: e.target.value })}
-                placeholder={form.type === 'stdio' ? 'uvx' : 'https://api.example.com/mcp'} />
+            <label className="panel-label">{form.type === 'stdio' ? 'Command' : 'URL'}</label>
+            <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.url}
+              onChange={e => setForm({ ...form, url: e.target.value })}
+              placeholder={form.type === 'stdio' ? 'uvx' : 'https://api.example.com/mcp'} />
 
-              {form.type === 'stdio' && (
-                <>
-                  <label className="panel-label">Arguments (JSON array)</label>
-                  <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.args}
-                    onChange={e => setForm({ ...form, args: e.target.value })} placeholder='["arg1", "arg2"]' />
-                </>
-              )}
+            {form.type === 'stdio' && (
+              <>
+                <label className="panel-label">Arguments (JSON array)</label>
+                <input className="input" style={{ width: '100%', marginBottom: 8 }} value={form.args}
+                  onChange={e => setForm({ ...form, args: e.target.value })} placeholder='["arg1", "arg2"]' />
+              </>
+            )}
 
-              <div className="settings-modal-actions">
-                <Button onClick={() => setShowAdd(false)}>Cancel</Button>
-                <Button variant="primary" onClick={handleAdd}>➕ Add</Button>
-              </div>
-            </div>
-          </div>
+            <ModalActions>
+              <Button onClick={() => setShowAdd(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleAdd}>➕ Add</Button>
+            </ModalActions>
+          </Modal>
         )}
       </div>
     </div>
