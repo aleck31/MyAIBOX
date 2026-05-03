@@ -181,18 +181,13 @@ export default function AskingProcessor() {
           {/* Options (custom prompt only) */}
           <details className="asking-options">
             <summary>Custom prompt</summary>
-            <div className="asking-options-content">
-              <label className="panel-label">
-                [leave empty to use default]
-              </label>
-              <textarea
-                className="text-area asking-prompt-input"
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-                placeholder="Enter custom prompt template..."
-                rows={3}
-              />
-            </div>
+            <textarea
+              className="asking-options-textarea"
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Enter custom prompt template (leave empty to use default)..."
+              rows={3}
+            />
           </details>
         </div>
 

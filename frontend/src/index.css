@@ -503,7 +503,7 @@ body {
 /* ─── Shared: form elements ──────────────────────────────────────────────── */
 .module-options { display: flex; gap: 8px; margin-left: auto; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; flex-shrink: 0; }
-.panel-label { font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
+.panel-label { display: block; font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
 .panel-textarea {
   flex: 1;
   padding: 10px 12px;
