@@ -91,7 +91,7 @@ export default function TextProcessor() {
   return (
     <div className="module-layout">
       {/* Controls bar */}
-      <div className="module-options-bar">
+      <div className="section-bar">
         <div className="text-operations">
           {config.operations.map((op) => (
             <Button
@@ -104,7 +104,7 @@ export default function TextProcessor() {
             </Button>
           ))}
         </div>
-        <div className="module-options">
+        <div className="section-actions">
           {operation === 'rewrite' && (
             <select
               className="select"

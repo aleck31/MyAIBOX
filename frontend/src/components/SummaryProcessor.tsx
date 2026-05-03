@@ -88,8 +88,8 @@ export default function SummaryProcessor() {
   return (
     <div className="module-layout">
       {/* Controls bar */}
-      <div className="module-options-bar">
-        <div className="module-options">
+      <div className="section-bar">
+        <div className="section-actions">
           <select
             className="select"
             value={targetLang}

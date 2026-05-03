@@ -67,14 +67,14 @@ export default function ModelsPanel() {
 
   return (
     <div className="settings-panel">
-      <div className="module-options-bar">
+      <div className="section-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Model Management</span>
-        <div className="module-options">
-          <Button onClick={() => load(true)} disabled={refreshing} style={{ fontSize: 11, padding: '2px 10px' }}>
+        <div className="section-actions">
+          <Button onClick={() => load(true)} disabled={refreshing}>
             <span className={refreshing ? 'spin' : ''} style={{ display: 'inline-block' }}>🔄</span>
-            {' '}{refreshing ? 'Refreshing...' : 'Refresh'}
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
-          <Button variant="primary" onClick={openAdd} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Model</Button>
+          <Button variant="primary" onClick={openAdd}>➕ Add Model</Button>
         </div>
       </div>
 

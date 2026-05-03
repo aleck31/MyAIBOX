@@ -30,13 +30,6 @@
   font-size: 14px;
 }
 
-.settings-section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-
 /* Sessions table */
 .settings-table {
   width: 100%;

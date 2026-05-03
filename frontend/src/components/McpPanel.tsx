@@ -34,11 +34,11 @@ export default function McpPanel() {
 
   return (
     <div className="settings-panel">
-      <div className="module-options-bar">
+      <div className="section-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>MCP Server Management</span>
-        <div className="module-options">
-          <Button onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</Button>
-          <Button variant="primary" onClick={() => setShowAdd(true)} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Server</Button>
+        <div className="section-actions">
+          <Button onClick={load}>🔄 Refresh</Button>
+          <Button variant="primary" onClick={() => setShowAdd(true)}>➕ Add Server</Button>
         </div>
       </div>
 

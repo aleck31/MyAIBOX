@@ -1,6 +1,6 @@
 /* ── Text Processor ──────────────────────────────────────────────────────── */
 
-/* Top bar controls — base layout via .module-options-bar in index.css */
+/* Top bar controls — base layout via .section-bar in index.css */
 
 .text-operations {
   display: flex;

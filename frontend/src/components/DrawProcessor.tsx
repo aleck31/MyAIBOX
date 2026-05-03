@@ -185,12 +185,12 @@ export default function DrawProcessor() {
   return (
     <div className="module-layout">
       {/* Top bar */}
-      <div className="module-options-bar">
+      <div className="section-bar">
         <div className="draw-mode-tabs">
           <button className={`draw-mode-tab ${!isEdit ? 'active' : ''}`} onClick={() => setMode('generate')}>🎨 Generate</button>
           <button className={`draw-mode-tab ${isEdit ? 'active' : ''}`} onClick={() => setMode('edit')}>✏️ Edit</button>
         </div>
-        <div className="module-options">
+        <div className="section-actions">
           <ModelSelector models={isEdit ? config.edit_models : config.models} value={modelId} onChange={setModelId} />
         </div>
       </div>

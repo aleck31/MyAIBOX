@@ -125,8 +125,8 @@ export default function AskingProcessor() {
   return (
     <div className="module-layout">
       {/* Top bar */}
-      <div className="module-options-bar">
-        <div className="module-options">
+      <div className="section-bar">
+        <div className="section-actions">
           <ModelSelector
             models={config.models}
             value={modelId}

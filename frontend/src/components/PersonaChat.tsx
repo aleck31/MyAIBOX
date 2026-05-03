@@ -61,7 +61,7 @@ export default function PersonaChat({ config, initialPrefs }: PersonaChatProps) 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="module-options-bar">
+      <div className="section-bar">
         <ModelSelector
           models={config.models}
           value={modelId}

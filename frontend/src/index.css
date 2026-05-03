@@ -2,7 +2,7 @@
 @plugin "@tailwindcss/typography";
 @import "@assistant-ui/styles/index.css";
 @import "./styles/login.css";
-@import "./styles/topbar.css";
+@import "./styles/section-bar.css";
 @import "./styles/chat.css";
 @import "./styles/text.css";
 @import "./styles/asking.css";
@@ -448,7 +448,7 @@ body {
   }
 
   /* Module options bar: left padding for hamburger */
-  .module-options-bar {
+  .section-bar {
     padding: 8px 12px 8px 44px;
   }
 }
@@ -503,7 +503,7 @@ body {
    image) that aren't part of the shared .btn primitive. */
 
 /* ─── Shared: form elements ──────────────────────────────────────────────── */
-.module-options { display: flex; gap: 8px; margin-left: auto; }
+.section-actions { display: flex; gap: 8px; margin-left: auto; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; flex-shrink: 0; }
 .panel-label { display: block; font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
 .panel-textarea {
@@ -560,7 +560,7 @@ body {
 
 /* Mobile: bump input/select font to 16px to disable iOS auto-zoom on focus */
 @media (max-width: 768px) {
-  .module-options { margin-left: 0; }
+  .section-actions { margin-left: 0; }
   .input, .select, .panel-textarea { font-size: 16px; }
 }
 

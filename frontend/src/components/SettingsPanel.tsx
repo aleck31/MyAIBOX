@@ -53,16 +53,22 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
 
   return (
     <div className="settings-panel">
+      {tab === 'account' && (
+        <div className="section-bar">
+          <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Active Sessions for {username}</span>
+          <div className="section-actions">
+            <Button onClick={loadSessions}>🔃 Refresh</Button>
+          </div>
+        </div>
+      )}
+      {tab === 'modules' && (
+        <div className="section-bar">
+          <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Module Configuration</span>
+        </div>
+      )}
       <div className="settings-content">
         {tab === 'account' && (
           <div className="settings-section">
-            <div className="settings-section-header">
-              <span className="panel-label">Active Sessions for {username}</span>
-              <Button onClick={loadSessions} style={{ fontSize: 12, padding: '2px 10px' }}>
-                🔃 Refresh
-              </Button>
-            </div>
-
             <table className="settings-table">
               <thead>
                 <tr>
@@ -102,9 +108,7 @@ export default function SettingsPanel({ username, tab = 'account' }: { username:
               <div key={name} className="settings-module-card">
                 <div className="settings-module-header">
                   <span className="settings-module-name">{name}</span>
-                  <Button onClick={() => handleEdit(name)} style={{ fontSize: 11, padding: '2px 10px' }}>
-                    ✏️ Edit
-                  </Button>
+                  <Button onClick={() => handleEdit(name)}>✏️ Edit</Button>
                 </div>
                 <div className="settings-module-body">
                   <div className="settings-field">
