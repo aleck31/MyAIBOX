@@ -17,6 +17,7 @@ from genai.models.providers import LLMMessage, LLMParameters, create_model_provi
 from api.auth import get_auth_user
 from api.prompts.vision import VISION_SYSTEM_PROMPT
 from common.provider_cache import ProviderCache
+from common.async_stream import aiter_sync
 from common.logger import setup_logger
 
 logger = setup_logger('api.vision')
@@ -119,10 +120,10 @@ async def analyze_vision(
 
             message = LLMMessage(role="user", content=content)
 
-            for chunk in provider.generate_stream(
+            async for chunk in aiter_sync(provider.generate_stream(
                 messages=[message],
                 system_prompt=VISION_SYSTEM_PROMPT,
-            ):
+            )):
                 if not isinstance(chunk, dict):
                     continue
                 if c := chunk.get('content'):

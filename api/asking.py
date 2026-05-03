@@ -17,6 +17,7 @@ from genai.models.providers import LLMMessage, LLMParameters, create_model_provi
 from api.auth import get_auth_user
 from api.prompts.asking import SYSTEM_PROMPT
 from common.provider_cache import ProviderCache
+from common.async_stream import aiter_sync
 from common.logger import setup_logger
 
 logger = setup_logger('api.asking')
@@ -123,18 +124,23 @@ async def process_asking(
             text_started = False
             message = LLMMessage(role="user", content=content)
 
-            for chunk in provider.generate_stream(
+            async for chunk in aiter_sync(provider.generate_stream(
                 messages=[message],
                 system_prompt=sys_prompt,
-            ):
+            )):
                 if not isinstance(chunk, dict):
                     continue
 
                 if thinking := chunk.get('thinking'):
+                    # BedrockConverse yields `thinking` as {text, signature}; AG-UI
+                    # ReasoningMessageContentEvent.delta expects a plain string.
+                    delta_text = thinking.get('text', '') if isinstance(thinking, dict) else str(thinking)
+                    if not delta_text:
+                        continue
                     if not thinking_started:
                         yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="assistant"))
                         thinking_started = True
-                    yield _enc.encode(ReasoningMessageContentEvent(message_id=thinking_id, delta=thinking))
+                    yield _enc.encode(ReasoningMessageContentEvent(message_id=thinking_id, delta=delta_text))
                 
                 if c := chunk.get('content'):
                     if txt := c.get('text'):
