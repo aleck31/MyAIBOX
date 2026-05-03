@@ -56,9 +56,16 @@ def _cmd_install():
 
 
 def _sync_version():
-    """Sync version from pyproject.toml to frontend/package.json."""
+    """Propagate the pyproject.toml version to all lockfiles/manifests.
+
+    pyproject.toml is the single source of truth. Downstream:
+      - frontend/package.json + package-lock.json  (via `npm version`)
+      - uv.lock                                    (via `uv lock`)
+    """
     pyproject = os.path.join(DIR, "pyproject.toml")
     pkg_json = os.path.join(DIR, "frontend", "package.json")
+    lock_path = os.path.join(DIR, "uv.lock")
+    frontend_dir = os.path.join(DIR, "frontend")
 
     with open(pyproject) as f:
         match = re.search(r'^version\s*=\s*"(.+?)"', f.read(), re.MULTILINE)
@@ -66,14 +73,23 @@ def _sync_version():
         return
     version = match.group(1)
 
+    # Frontend: let npm own package.json + package-lock.json together so the
+    # two files never drift.
     with open(pkg_json) as f:
         pkg = json.load(f)
     if pkg.get("version") != version:
-        pkg["version"] = version
-        with open(pkg_json, "w") as f:
-            json.dump(pkg, f, indent=2)
-            f.write("\n")
-        print(f"✓ synced version {version} → package.json")
+        subprocess.run(
+            ["npm", "version", "--no-git-tag-version", "--allow-same-version", version],
+            cwd=frontend_dir, check=True, capture_output=True,
+        )
+        print(f"✓ synced version {version} → package.json + package-lock.json")
+
+    # uv.lock records the project's own version (editable self-dep).
+    with open(lock_path) as f:
+        lock_txt = f.read()
+    if f'name = "my-aibox"\nversion = "{version}"' not in lock_txt:
+        subprocess.run(["uv", "lock"], cwd=DIR, check=True)
+        print(f"✓ synced version {version} → uv.lock")
 
 
 def _listen_urls(host: str, port: int) -> list[str]:
