@@ -18,7 +18,7 @@ class ToolProvider:
     def legacy_registry(self):
         """Lazy load legacy tool registry"""
         if self._legacy_registry is None:
-            from genai.tools.legacy.tool_registry import legacy_tool_registry
+            from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
             self._legacy_registry = legacy_tool_registry
         return self._legacy_registry
     
@@ -26,7 +26,7 @@ class ToolProvider:
     def mcp_server_manager(self):
         """Lazy load MCP server manager"""
         if self._mcp_server_manager is None:
-            from genai.tools.mcp.mcp_server_manager import mcp_server_manager
+            from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
             self._mcp_server_manager = mcp_server_manager
         return self._mcp_server_manager
     
@@ -98,7 +98,7 @@ class ToolProvider:
     def _get_strands_tools(self) -> List:
         """Get all Strands builtin tools"""
         try:
-            from genai.tools.strands.builtin_tools import load_builtin_tools
+            from backend.genai.tools.strands.builtin_tools import load_builtin_tools
             # Load all Strands tools by default
             return load_builtin_tools()
         except ImportError:
@@ -167,7 +167,7 @@ class ToolProvider:
         
         # Strands tools
         try:
-            from genai.tools.strands.builtin_tools import BUILTIN_TOOLS
+            from backend.genai.tools.strands.builtin_tools import BUILTIN_TOOLS
             for tool_name in BUILTIN_TOOLS:
                 tools_info.append({
                     'name': tool_name,

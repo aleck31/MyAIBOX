@@ -7,12 +7,12 @@ import random
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
-from core.service.service_factory import ServiceFactory
-from core.service.draw_service import DrawService
-from genai.models.model_manager import model_manager
-from api.auth import get_auth_user
-from api.prompts.draw import PROMPT_OPTIMIZER_TEMPLATE, NEGATIVE_PROMPTS
-from common.logger import setup_logger
+from backend.core.service.service_factory import ServiceFactory
+from backend.core.service.draw_service import DrawService
+from backend.genai.models.model_manager import model_manager
+from backend.api.auth import get_auth_user
+from backend.api.prompts.draw import PROMPT_OPTIMIZER_TEMPLATE, NEGATIVE_PROMPTS
+from backend.common.logger import setup_logger
 import json
 import re
 
@@ -23,10 +23,10 @@ router = APIRouter(prefix="/draw", tags=["draw"])
 _draw_service: DrawService | None = None
 _gen_service = None
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/uploads")
+UPLOAD_DIR = "storage/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-GENERATED_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/generated/images")
+GENERATED_DIR = "storage/generated/images"
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
 IMAGE_STYLES = [

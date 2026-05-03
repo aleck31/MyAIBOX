@@ -6,21 +6,21 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
-from common.spa import SPAStaticFiles
-from common.logger import logger
-from core.config import app_config
-from core.service.agent_service import shutdown_all as shutdown_agents
-from genai.models.model_manager import model_manager
-from api.auth import router as auth_api_router
-from api.assistant import router as assistant_router
-from api.persona import router as persona_router
-from api.text import router as text_router
-from api.summary import router as summary_router
-from api.asking import router as asking_router
-from api.vision import router as vision_router
-from api.draw import router as draw_router
-from api.settings import router as settings_router
-from api.upload import router as upload_router
+from backend.common.spa import SPAStaticFiles
+from backend.common.logger import logger
+from backend.core.config import app_config
+from backend.core.service.agent_service import shutdown_all as shutdown_agents
+from backend.genai.models.model_manager import model_manager
+from backend.api.auth import router as auth_api_router
+from backend.api.assistant import router as assistant_router
+from backend.api.persona import router as persona_router
+from backend.api.text import router as text_router
+from backend.api.summary import router as summary_router
+from backend.api.asking import router as asking_router
+from backend.api.vision import router as vision_router
+from backend.api.draw import router as draw_router
+from backend.api.settings import router as settings_router
+from backend.api.upload import router as upload_router
 
 
 # Get configurations from app_config

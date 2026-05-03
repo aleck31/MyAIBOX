@@ -9,10 +9,10 @@ from ag_ui.core import (
     TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
 )
 from ag_ui.encoder import EventEncoder
-from core.service.service_factory import ServiceFactory
-from api.auth import get_auth_user
-from api.prompts.text import SYSTEM_PROMPTS, STYLES, LANG_MAP
-from common.logger import setup_logger
+from backend.core.service.service_factory import ServiceFactory
+from backend.api.auth import get_auth_user
+from backend.api.prompts.text import SYSTEM_PROMPTS, STYLES, LANG_MAP
+from backend.common.logger import setup_logger
 
 logger = setup_logger('api.text')
 
@@ -51,7 +51,7 @@ class TextRequest(BaseModel):
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available operations, languages, styles, and models."""
-    from genai.models.model_manager import model_manager
+    from backend.genai.models.model_manager import model_manager
     models = model_manager.get_models(filter={'output_modality': ['text']})
     return {
         "operations": [

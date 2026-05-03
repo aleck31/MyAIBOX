@@ -6,7 +6,7 @@ import re
 import sys
 import textwrap
 from io import StringIO
-from common.logger import setup_logger
+from backend.common.logger import setup_logger
 
 logger = setup_logger('utils')
 

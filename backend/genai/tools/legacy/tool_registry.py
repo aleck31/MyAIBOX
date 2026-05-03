@@ -29,7 +29,7 @@ class LegacyToolRegistry:
         """Load a specific tool from a local package"""
         try:
             # Import tool module
-            tool_module = importlib.import_module(f"genai.tools.legacy.{package_name}")
+            tool_module = importlib.import_module(f"backend.genai.tools.legacy.{package_name}")
 
             # Load tool function
             if hasattr(tool_module, tool_name):

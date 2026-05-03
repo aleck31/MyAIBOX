@@ -5,7 +5,7 @@ restart because the cache hit on model_id alone.
 """
 from __future__ import annotations
 
-from common.provider_cache import ProviderCache
+from backend.common.provider_cache import ProviderCache
 
 
 class _Counter:

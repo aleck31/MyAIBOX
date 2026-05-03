@@ -1,7 +1,7 @@
 """Service for creative content generation"""
 from typing import Dict, Optional
-from core.session import Session
-from genai.models.providers import LLMMessage, LLMProviderError
+from backend.core.session import Session
+from backend.genai.models.providers import LLMMessage, LLMProviderError
 from . import BaseService, logger
 
 

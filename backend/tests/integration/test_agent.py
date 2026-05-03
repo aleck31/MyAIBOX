@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import pytest
 
-from core.service.agent_service import AgentService
-from genai.models.model_manager import model_manager
+from backend.core.service.agent_service import AgentService
+from backend.genai.models.model_manager import model_manager
 
 pytestmark = pytest.mark.integration
 

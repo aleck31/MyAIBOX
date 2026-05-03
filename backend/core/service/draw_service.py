@@ -4,10 +4,10 @@ import json
 import base64
 from PIL import Image
 from typing import Dict, Optional, Any
-from core.session import Session
-from core.module_config import module_config
-from genai.models.providers import LLMProviderError
-from genai.models.model_manager import model_manager
+from backend.core.session import Session
+from backend.core.module_config import module_config
+from backend.genai.models.providers import LLMProviderError
+from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
 
 
@@ -69,8 +69,8 @@ class DrawService(BaseService):
         )
 
     def _gemini_provider(self, model_id):
-        from genai.models.providers.google_gemini import GeminiProvider
-        from genai.models.providers import LLMParameters
+        from backend.genai.models.providers.google_gemini import GeminiProvider
+        from backend.genai.models.providers import LLMParameters
         return GeminiProvider(model_id=model_id, llm_params=LLMParameters(max_tokens=self.GEMINI_MAX_OUTPUT_TOKENS))
 
     @staticmethod

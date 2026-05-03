@@ -39,50 +39,44 @@ Supported input formats: jpg/jpeg, png, gif, webp, pdf, csv, doc/docx, xls/xlsx,
 ## Screenshots
 
 ### Multimodal Chatbot
-![my-aibox](/assets/screenshots/webchat.png "Multimodal Chatbot")
+![my-aibox](/docs/screenshots/webchat.png "Multimodal Chatbot")
 
 ### Vision Recognition
-![my-aibox](/assets/screenshots/vision.png "Vision Recognition")
+![my-aibox](/docs/screenshots/vision.png "Vision Recognition")
 
 ### Generate and Edit
-![my-aibox](/assets/screenshots/draw.png "Generate and Edit image")
+![my-aibox](/docs/screenshots/draw.png "Generate and Edit image")
 
 
 ### Settings
-![my-aibox](/assets/screenshots/settings.png "Web UI")
+![my-aibox](/docs/screenshots/settings.png "Web UI")
 
 ## Project Structure
 
 ```
 my-aibox/
-├── api/                          # REST + SSE API endpoints
-│   ├── auth.py                       # Authentication & session management
-│   ├── assistant.py                  # Assistant (AG-UI SSE + tool use)
-│   ├── persona.py                    # Persona chat (AG-UI SSE)
-│   ├── text.py                       # Text processing (SSE)
-│   ├── summary.py                    # Summarization (SSE)
-│   ├── asking.py                     # Reasoning (SSE with thinking)
-│   ├── vision.py                     # Vision analysis (SSE)
-│   ├── draw.py                       # Image generation (REST)
-│   ├── settings.py                   # Settings, models, MCP CRUD
-│   └── upload.py                     # File upload
-├── core/                         # Core components
-│   ├── config.py                     # Configuration
-│   ├── module_config.py              # Module configuration
-│   ├── service/                      # Service layer (GenService, ChatService, AgentService, DrawService)
-│   └── session/                      # Session management (DynamoDB)
-├── common/                       # Auth (Cognito), logging
-├── genai/                        # GenAI integration
-│   ├── models/                       # LLM providers (Bedrock, Gemini, OpenAI)
-│   ├── agents/                       # Strands Agent
-│   └── tools/                        # Legacy tools, MCP tools, unified provider
-├── frontend/                     # React SPA
-│   └── src/
-│       ├── components/               # UI components (ChatWindow, Processors, Panels)
-│       ├── pages/                    # Route pages
-│       ├── api/client.ts             # API client
-│       └── styles/                   # CSS modules
-└── app.py                        # FastAPI entry point
+├── app.py                        # FastAPI + uvicorn entry point
+├── backend/                      # Backend Python modules
+│   ├── api/                          # REST + SSE endpoints (assistant, persona, text,
+│   │                                 #   summary, asking, vision, draw, settings, upload)
+│   ├── core/                         # Config, service layer, DynamoDB sessions
+│   ├── common/                       # Auth, logger, CLI, provider cache, async stream
+│   ├── genai/                        # LLM providers (Bedrock/Gemini/OpenAI), agents, tools
+│   ├── utils/                        # AWS + Bedrock helpers
+│   └── tests/                        # pytest unit + integration
+├── frontend/                     # React SPA (Vite + TypeScript)
+│   ├── src/                          # components / pages / api / styles
+│   └── assets/                       # UI static assets (avatars, icons)
+├── storage/                      # Runtime data (gitignored)
+│   ├── uploads/                      # User-uploaded files
+│   └── generated/                    # Generated images / videos
+├── logs/                         # Application logs (gitignored)
+├── deploy/                       # Deployment artifacts
+│   ├── my-aibox.service              # systemd user unit template
+│   └── full-stack/                   # Dockerfile + IAM + K8s manifests
+├── docs/                         # README screenshots, etc.
+├── pyproject.toml
+└── README.md
 ```
 
 ## Tool System

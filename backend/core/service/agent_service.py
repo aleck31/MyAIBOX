@@ -3,9 +3,9 @@
 import time
 import weakref
 from typing import Dict, AsyncIterator, Any, List, Optional
-from core.service import BaseService
-from core.session.models import Session
-from genai.agents.provider import AgentProvider
+from backend.core.service import BaseService
+from backend.core.session.models import Session
+from backend.genai.agents.provider import AgentProvider
 from . import logger
 
 # Agent cache limits

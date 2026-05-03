@@ -1,9 +1,9 @@
 from datetime import datetime
 from itertools import groupby
 from typing import Dict, List, Optional, AsyncIterator
-from core.session import Session
-from genai.models.providers import LLMMessage, LLMProviderError
-from genai.models.model_manager import model_manager
+from backend.core.session import Session
+from backend.genai.models.providers import LLMMessage, LLMProviderError
+from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
 
 

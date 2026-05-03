@@ -4,11 +4,11 @@ import uuid
 import os
 from fastapi import APIRouter, Depends, UploadFile, File
 from fastapi.responses import JSONResponse, FileResponse
-from api.auth import get_auth_user
+from backend.api.auth import get_auth_user
 
 router = APIRouter(prefix="/upload", tags=["upload"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/uploads")
+UPLOAD_DIR = "storage/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {

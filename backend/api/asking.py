@@ -11,14 +11,14 @@ from ag_ui.core import (
     ReasoningMessageStartEvent, ReasoningMessageContentEvent, ReasoningMessageEndEvent,
 )
 from ag_ui.encoder import EventEncoder
-from core.module_config import module_config
-from genai.models.model_manager import model_manager
-from genai.models.providers import LLMMessage, LLMParameters, create_model_provider
-from api.auth import get_auth_user
-from api.prompts.asking import SYSTEM_PROMPT
-from common.provider_cache import ProviderCache
-from common.async_stream import aiter_sync
-from common.logger import setup_logger
+from backend.core.module_config import module_config
+from backend.genai.models.model_manager import model_manager
+from backend.genai.models.providers import LLMMessage, LLMParameters, create_model_provider
+from backend.api.auth import get_auth_user
+from backend.api.prompts.asking import SYSTEM_PROMPT
+from backend.common.provider_cache import ProviderCache
+from backend.common.async_stream import aiter_sync
+from backend.common.logger import setup_logger
 
 logger = setup_logger('api.asking')
 
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/asking", tags=["asking"])
 _enc = EventEncoder()
 _provider_cache = ProviderCache()
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets/uploads")
+UPLOAD_DIR = "storage/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 

@@ -5,7 +5,7 @@ import logging
 import inspect
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-from core.config import app_config
+from backend.core.config import app_config
 
 
 class AutoPrefixLogger:
@@ -104,8 +104,8 @@ def setup_logger(layer_name: str = 'app') -> AutoPrefixLogger:
     
     # File handlers (only if LOG_TO_FILE=true)
     if log_to_file:
-        # Create logs directory
-        log_dir = Path(__file__).parent.parent / 'logs'
+        # Create logs directory at project root (backend/common/logger.py → ../../..)
+        log_dir = Path(__file__).parent.parent.parent / 'logs'
         log_dir.mkdir(exist_ok=True)
         
         # Regular application log file (INFO and above)

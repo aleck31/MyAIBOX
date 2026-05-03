@@ -4,7 +4,7 @@ Covers the data-shape translation without touching any Agent / LLM.
 """
 from __future__ import annotations
 
-from core.service.agent_service import AgentService
+from backend.core.service.agent_service import AgentService
 
 
 def _svc() -> AgentService:

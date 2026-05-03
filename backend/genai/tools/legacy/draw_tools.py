@@ -7,7 +7,7 @@ import random
 from pathlib import Path
 from typing import Dict
 from PIL import Image
-from api.prompts.draw import NEGATIVE_PROMPTS
+from backend.api.prompts.draw import NEGATIVE_PROMPTS
 from .. import logger
 
 
@@ -33,8 +33,8 @@ def generate_image(
             raise ValueError("Prompt is required")
 
         # Import dependencies dynamically to avoid circular imports
-        from genai.models.model_manager import model_manager
-        from genai.models import GenImageParameters
+        from backend.genai.models.model_manager import model_manager
+        from backend.genai.models import GenImageParameters
         models = model_manager.get_models(filter={'category': 'image'})
         if not models:
             raise ValueError("No image generation models available")
@@ -59,7 +59,7 @@ def generate_image(
         )
 
         # Import provider dynamically to avoid circular imports
-        from genai.models.providers.bedrock_invoke import BedrockInvoke
+        from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
         
         # Create provider instance
         provider = BedrockInvoke(stability_model.model_id, gen_params)
@@ -101,7 +101,7 @@ def generate_image(
         image = Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
         # Save to project's assets directory
-        images_dir = Path("assets/generated/images")
+        images_dir = Path("storage/generated/images")
         images_dir.mkdir(parents=True, exist_ok=True)
 
         # Create a unique filename with timestamp and seed

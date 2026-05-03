@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Union, Iterator
-from genai.models import LLMParameters, GenImageParameters, LLMMessage, LLMResponse
+from backend.genai.models import LLMParameters, GenImageParameters, LLMMessage, LLMResponse
 
 
 class LLMProviderError(Exception):
@@ -124,10 +124,10 @@ def create_model_provider(provider_name: str, model_id: str, llm_params: LLMPara
     Raises:
         ValueError: If provider_type is not supported
     """
-    from genai.models.providers.bedrock_converse import BedrockConverse
-    from genai.models.providers.bedrock_invoke import BedrockInvoke
-    from genai.models.providers.google_gemini import GeminiProvider
-    from genai.models.providers.openai import OpenAIProvider
+    from backend.genai.models.providers.bedrock_converse import BedrockConverse
+    from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
+    from backend.genai.models.providers.google_gemini import GeminiProvider
+    from backend.genai.models.providers.openai import OpenAIProvider
 
     # Map provider types to their implementations
     providers = {

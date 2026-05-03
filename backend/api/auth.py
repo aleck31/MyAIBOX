@@ -4,10 +4,10 @@ import json
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-from core.config import env_config
-from common.auth import cognito_auth
-from common.logger import setup_logger
-from common.sso import introspect as sso_introspect, build_logout_url, SSOError
+from backend.core.config import env_config
+from backend.common.auth import cognito_auth
+from backend.common.logger import setup_logger
+from backend.common.sso import introspect as sso_introspect, build_logout_url, SSOError
 
 logger = setup_logger('api.auth')
 

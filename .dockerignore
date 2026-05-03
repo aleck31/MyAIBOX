@@ -56,7 +56,7 @@ docs/
 .travis.yml
 
 # Project specific
-tests/
+backend/tests/
 
 # Bedrock AgentCore specific - keep config but exclude runtime files
 .bedrock_agentcore.yaml

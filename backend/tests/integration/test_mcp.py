@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from genai.tools.mcp.mcp_server_manager import mcp_server_manager
-from genai.tools.provider import tool_provider
+from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
+from backend.genai.tools.provider import tool_provider
 
 pytestmark = pytest.mark.integration
 

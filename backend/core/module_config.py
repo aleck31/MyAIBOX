@@ -4,9 +4,9 @@ Module configuration management
 from typing import Dict, Optional, Any, List
 from decimal import Decimal
 from botocore.exceptions import ClientError
-from core.config import env_config
-from common.logger import logger
-from utils.aws import get_aws_session
+from backend.core.config import env_config
+from backend.common.logger import logger
+from backend.utils.aws import get_aws_session
 
 
 class AppConf:

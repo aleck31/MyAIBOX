@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from common.auth import cognito_auth
+from backend.common.auth import cognito_auth
 
 pytestmark = pytest.mark.integration
 

@@ -1,8 +1,8 @@
 from typing import Dict, Optional, AsyncIterator
-from core.session import Session
-from core.module_config import module_config
-from genai.models.providers import LLMMessage, LLMProviderError
-from genai.models.model_manager import model_manager
+from backend.core.session import Session
+from backend.core.module_config import module_config
+from backend.genai.models.providers import LLMMessage, LLMProviderError
+from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
 
 

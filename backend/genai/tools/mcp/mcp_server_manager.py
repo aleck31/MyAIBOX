@@ -3,8 +3,8 @@ MCP server management and configuration
 """
 from typing import Dict, Optional, Any
 from decimal import Decimal
-from core.config import env_config
-from utils.aws import get_aws_resource
+from backend.core.config import env_config
+from backend.utils.aws import get_aws_resource
 from .. import logger
 
 

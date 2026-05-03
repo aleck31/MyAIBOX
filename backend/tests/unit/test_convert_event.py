@@ -4,7 +4,7 @@ Critical: tool_use -> toolResult pairing must survive interleaved text.
 """
 from __future__ import annotations
 
-from genai.agents.provider import AgentProvider
+from backend.genai.agents.provider import AgentProvider
 
 
 def _convert(provider, event, state):

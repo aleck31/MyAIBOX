@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from common import sso
+from backend.common import sso
 
 
 @pytest.fixture(autouse=True)

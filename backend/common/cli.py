@@ -5,7 +5,8 @@ import json
 import re
 
 UNIT = "my-aibox"
-DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # project root
+# cli.py lives at backend/common/cli.py — project root is three levels up.
+DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 SYSTEMCTL = ["systemctl", "--user"]
 JOURNALCTL = ["journalctl", "--user"]
@@ -35,7 +36,7 @@ def _require_unit_installed() -> None:
 
 
 def _cmd_install():
-    src = os.path.join(DIR, f"{UNIT}.service")
+    src = os.path.join(DIR, "deploy", f"{UNIT}.service")
     dst_dir = os.path.expanduser("~/.config/systemd/user")
     dst = os.path.join(dst_dir, f"{UNIT}.service")
 
@@ -116,10 +117,8 @@ def _lan_ip() -> str | None:
 
 
 def _cmd_run():
-    os.execvp(
-        os.path.join(DIR, ".venv", "bin", "python"),
-        [os.path.join(DIR, ".venv", "bin", "python"), "app.py"],
-    )
+    python = os.path.join(DIR, ".venv", "bin", "python")
+    os.execvp(python, [python, "app.py"])
 
 
 def _cmd_status():
@@ -133,7 +132,7 @@ def _cmd_status():
         capture=True,
     ).stdout
     props = dict(line.split("=", 1) for line in show.strip().splitlines() if "=" in line)
-    from core.config import app_config
+    from backend.core.config import app_config
     port = app_config.server_config.get("port", 8080)
     lines = [f"{UNIT}: running", f"  port:    {port}"]
     if pid := props.get("MainPID"):
@@ -174,7 +173,7 @@ def main():
             past = {"start": "started", "stop": "stopped", "restart": "restarted"}[cmd]
             print(f"✓ {UNIT}.service {past}")
             if cmd in ("start", "restart"):
-                from core.config import app_config
+                from backend.core.config import app_config
                 server = app_config.server_config
                 for url in _listen_urls(server["host"], server["port"]):
                     print(f"  listening on {url}")

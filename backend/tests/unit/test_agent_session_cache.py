@@ -14,8 +14,8 @@ from typing import List, Optional
 
 import pytest
 
-from core.service import agent_service as agent_service_module
-from core.service.agent_service import AgentService
+from backend.core.service import agent_service as agent_service_module
+from backend.core.service.agent_service import AgentService
 
 
 class FakeProvider:

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 """Helper utilities for working with Amazon Bedrock from Python notebooks"""
 from typing import Optional
-from utils.aws import get_aws_client
+from backend.utils.aws import get_aws_client
 from . import logger
 
 

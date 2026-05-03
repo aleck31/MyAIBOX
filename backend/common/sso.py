@@ -18,8 +18,8 @@ from typing import Optional
 
 import aiohttp
 
-from core.config import env_config
-from common.logger import logger
+from backend.core.config import env_config
+from backend.common.logger import logger
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@ import asyncio
 import aiohttp
 from cachetools import TTLCache
 from urllib.parse import urlparse
-from common.logger import logger
+from backend.common.logger import logger
 
 # Constants
 CACHE_TTL = 86400  # Cache for 1 day

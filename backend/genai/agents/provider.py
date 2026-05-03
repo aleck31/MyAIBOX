@@ -1,17 +1,17 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, AsyncIterator, Optional, List
-from common.logger import logger
-from core.config import env_config
+from backend.common.logger import logger
+from backend.core.config import env_config
 from strands import Agent
 from strands.models import BedrockModel
 from strands.models.openai import OpenAIModel
 from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
-from utils.aws import get_aws_session, get_secret
-from genai.models.model_manager import model_manager
-from genai.tools.provider import tool_provider
-from genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
+from backend.utils.aws import get_aws_session, get_secret
+from backend.genai.models.model_manager import model_manager
+from backend.genai.tools.provider import tool_provider
+from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
 
 
 class AgentProvider:

@@ -1,8 +1,8 @@
 import json
 from typing import Dict, List, Optional, Iterator, Union
 from botocore import exceptions as boto_exceptions
-from core.config import env_config
-from utils.aws import get_aws_client
+from backend.core.config import env_config
+from backend.utils.aws import get_aws_client
 from . import LLMAPIProvider, LLMParameters, GenImageParameters, LLMMessage, LLMResponse, LLMProviderError
 from .. import logger
 
@@ -193,7 +193,7 @@ class BedrockInvoke(LLMAPIProvider):
 
 def create_creative_provider(provider_name: str, model_id: str, image_params: GenImageParameters, region: str = None) -> 'BedrockInvoke':
     """Factory function to create creative content generation provider instance"""
-    from genai.models.providers.bedrock_invoke import BedrockInvoke
+    from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
 
     # Only BedrockInvoke supports creative content generation
     if provider_name.upper() != 'BEDROCKINVOKE':

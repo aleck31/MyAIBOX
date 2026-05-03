@@ -8,8 +8,8 @@ import time
 
 import pytest
 
-from core.service import agent_service as agent_service_module
-from core.service.agent_service import AgentService, shutdown_all
+from backend.core.service import agent_service as agent_service_module
+from backend.core.service.agent_service import AgentService, shutdown_all
 
 
 class FakeProvider:

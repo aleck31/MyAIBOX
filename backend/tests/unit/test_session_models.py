@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from core.session.models import Session, SessionMetadata
+from backend.core.session.models import Session, SessionMetadata
 
 
 def test_session_round_trip_preserves_core_fields():

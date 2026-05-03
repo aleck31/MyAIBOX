@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from common.async_stream import aiter_sync
+from backend.common.async_stream import aiter_sync
 
 
 @pytest.mark.asyncio

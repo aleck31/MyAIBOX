@@ -15,12 +15,12 @@ from ag_ui.core import (
     BaseEvent, EventType,
 )
 from ag_ui.encoder import EventEncoder
-from core.service.service_factory import ServiceFactory
-from core.module_config import module_config
-from genai.models.model_manager import model_manager
-from api.auth import get_auth_user
-from api.prompts.assistant import ASSISTANT_PROMPT
-from common.logger import setup_logger
+from backend.core.service.service_factory import ServiceFactory
+from backend.core.module_config import module_config
+from backend.genai.models.model_manager import model_manager
+from backend.api.auth import get_auth_user
+from backend.api.prompts.assistant import ASSISTANT_PROMPT
+from backend.common.logger import setup_logger
 
 logger = setup_logger('api.assistant')
 

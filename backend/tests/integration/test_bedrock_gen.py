@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pytest
 
-from core.service.chat_service import ChatService
-from core.service.gen_service import GenService
-from genai.models.model_manager import model_manager
+from backend.core.service.chat_service import ChatService
+from backend.core.service.gen_service import GenService
+from backend.genai.models.model_manager import model_manager
 
 pytestmark = pytest.mark.integration
 

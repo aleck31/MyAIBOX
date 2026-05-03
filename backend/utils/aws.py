@@ -6,7 +6,7 @@ import ast
 import boto3
 from typing import Optional, Dict, Any
 from botocore.config import Config
-from core.config import env_config
+from backend.core.config import env_config
 from . import logger
 
 

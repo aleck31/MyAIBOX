@@ -3,12 +3,12 @@ import json
 import asyncio
 from typing import Dict, List, Optional, Iterator, Any, Union
 from botocore.exceptions import ClientError, ParamValidationError
-from core.config import env_config
-from utils.aws import get_aws_client
-from utils.file import FileProcessor
-from genai.models.model_manager import model_manager
-from genai.tools.legacy.tool_registry import legacy_tool_registry
-from genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
+from backend.core.config import env_config
+from backend.utils.aws import get_aws_client
+from backend.utils.file import FileProcessor
+from backend.genai.models.model_manager import model_manager
+from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
+from backend.genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
 from . import LLMAPIProvider, LLMProviderError
 from .. import logger
 

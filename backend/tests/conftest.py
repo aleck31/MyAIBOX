@@ -13,7 +13,7 @@ from typing import Optional
 
 import pytest
 
-from core.session.models import Session, SessionMetadata
+from backend.core.session.models import Session, SessionMetadata
 
 
 @pytest.fixture

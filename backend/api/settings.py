@@ -4,12 +4,12 @@ import json
 from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from core.session.store import SessionStore
-from core.module_config import module_config
-from genai.models.model_manager import model_manager
-from genai.tools.legacy.tool_registry import legacy_tool_registry
-from api.auth import get_auth_user
-from common.logger import setup_logger
+from backend.core.session.store import SessionStore
+from backend.core.module_config import module_config
+from backend.genai.models.model_manager import model_manager
+from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
+from backend.api.auth import get_auth_user
+from backend.common.logger import setup_logger
 
 logger = setup_logger('api.settings')
 
@@ -159,7 +159,7 @@ class ModelRequest(BaseModel):
 
 @router.post("/models/add")
 async def add_model(body: ModelRequest, username: str = Depends(get_auth_user)):
-    from genai.models import LLMModel, LLM_CAPABILITIES
+    from backend.genai.models import LLMModel, LLM_CAPABILITIES
     try:
         caps = LLM_CAPABILITIES(
             input_modality=body.input_modality, output_modality=body.output_modality,
@@ -179,7 +179,7 @@ async def add_model(body: ModelRequest, username: str = Depends(get_auth_user)):
 
 @router.post("/models/update")
 async def update_model(body: ModelRequest, username: str = Depends(get_auth_user)):
-    from genai.models import LLMModel, LLM_CAPABILITIES
+    from backend.genai.models import LLMModel, LLM_CAPABILITIES
     try:
         caps = LLM_CAPABILITIES(
             input_modality=body.input_modality, output_modality=body.output_modality,
@@ -210,8 +210,8 @@ async def delete_model(model_id: str, username: str = Depends(get_auth_user)):
 
 @router.get("/mcp-servers")
 async def list_mcp_servers(username: str = Depends(get_auth_user)):
-    from genai.tools.mcp.mcp_server_manager import mcp_server_manager
-    from genai.tools.provider import tool_provider
+    from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
+    from backend.genai.tools.provider import tool_provider
     servers = mcp_server_manager.get_mcp_servers()
     # Pre-compute per-server tool counts
     try:
@@ -246,7 +246,7 @@ class McpServerRequest(BaseModel):
 
 @router.post("/mcp-servers/add")
 async def add_mcp_server(body: McpServerRequest, username: str = Depends(get_auth_user)):
-    from genai.tools.mcp.mcp_server_manager import mcp_server_manager
+    from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
         config: dict = {"type": body.type, "disabled": False}
         if body.type in ("http", "sse"):
@@ -262,7 +262,7 @@ async def add_mcp_server(body: McpServerRequest, username: str = Depends(get_aut
 
 @router.delete("/mcp-servers/{server_name}")
 async def delete_mcp_server(server_name: str, username: str = Depends(get_auth_user)):
-    from genai.tools.mcp.mcp_server_manager import mcp_server_manager
+    from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
         mcp_server_manager.delete_mcp_server(server_name)
         return {"ok": True}
@@ -277,7 +277,7 @@ class McpToggleRequest(BaseModel):
 
 @router.post("/mcp-servers/toggle")
 async def toggle_mcp_server(body: McpToggleRequest, username: str = Depends(get_auth_user)):
-    from genai.tools.mcp.mcp_server_manager import mcp_server_manager
+    from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
         cfg = mcp_server_manager.get_mcp_server(body.name)
         if not cfg:

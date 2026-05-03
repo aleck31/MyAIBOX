@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from genai.tools.legacy.tool_registry import legacy_tool_registry
+from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 
 pytestmark = pytest.mark.integration
 
