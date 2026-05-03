@@ -196,7 +196,12 @@ export default function AskingProcessor() {
           {/* Thinking (collapsible) */}
           <details className="asking-details" open={thinkingOpen} onToggle={(e) => setThinkingOpen(e.currentTarget.open)}>
             <summary className="asking-summary">
-              Thinking
+              <span className="asking-summary-label">
+                <svg className="asking-summary-marker" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 2l4 3-4 3" />
+                </svg>
+                Thinking
+              </span>
               {thinking && (
                 <button className="aui-action-bar-button" onClick={(e) => { e.preventDefault(); handleCopy(thinking) }} title="Copy">
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -209,21 +214,21 @@ export default function AskingProcessor() {
             <div className="asking-content asking-thinking">{thinking || 'Thinking process will appear here...'}</div>
           </details>
 
-          {/* Response */}
-          <details className="asking-details" open>
-            <summary className="asking-summary">
-              Final Response
+          {/* Response (always shown, auto-expands) */}
+          <div className="asking-response">
+            <div className="asking-response-header">
+              <span className="asking-response-label">Final Response</span>
               {response && (
-                <button className="aui-action-bar-button" onClick={(e) => { e.preventDefault(); handleCopy(response) }} title="Copy">
+                <button className="aui-action-bar-button" onClick={() => handleCopy(response)} title="Copy">
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <rect x="5" y="5" width="9" height="9" rx="1.5" />
                     <path d="M10 5V3.5A1.5 1.5 0 008.5 2h-5A1.5 1.5 0 002 3.5v5A1.5 1.5 0 003.5 10H5" />
                   </svg>
                 </button>
               )}
-            </summary>
+            </div>
             <div className="asking-content">{response || 'Response will appear here...'}</div>
-          </details>
+          </div>
         </div>
       </div>
 
