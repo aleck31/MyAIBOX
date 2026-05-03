@@ -213,8 +213,9 @@ export async function updateModuleConfig(moduleName: string, config: { default_m
   return res.json()
 }
 
-export async function getModels() {
-  const res = await apiFetch(`${SETTINGS}/models`)
+export async function getModels({ refresh = false }: { refresh?: boolean } = {}) {
+  const url = refresh ? `${SETTINGS}/models?refresh=true` : `${SETTINGS}/models`
+  const res = await apiFetch(url)
   return res.json()
 }
 

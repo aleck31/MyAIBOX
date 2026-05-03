@@ -121,7 +121,10 @@ async def update_module(body: ModuleUpdateRequest, username: str = Depends(get_a
 # ─── Model Management ────────────────────────────────────────────────────────
 
 @router.get("/models")
-async def list_models(username: str = Depends(get_auth_user)):
+async def list_models(refresh: bool = False, username: str = Depends(get_auth_user)):
+    # Models are cached in-process; DDB changes outside the app won't show up until the cache is flushed.
+    if refresh:
+        model_manager.flush_cache()
     models = model_manager.get_models()
     return [
         {

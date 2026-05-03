@@ -25,9 +25,22 @@ export default function ModelsPanel() {
   const [editing, setEditing] = useState<ModelInfo | null>(null)
   const [isNew, setIsNew] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const load = useCallback(async () => setModels(await getModels()), [])
-  useEffect(() => { load() }, [])
+  const load = useCallback(async (refresh = false) => {
+    if (refresh) setRefreshing(true)
+    try {
+      // Hold the spinner for at least 400ms so fast responses still register visually.
+      const [data] = await Promise.all([
+        getModels({ refresh }),
+        refresh ? new Promise(r => setTimeout(r, 400)) : Promise.resolve(),
+      ])
+      setModels(data)
+    } finally {
+      if (refresh) setRefreshing(false)
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
 
   const openAdd = () => { setEditing(emptyForm()); setIsNew(true) }
   const openEdit = (m: ModelInfo) => { setEditing({ ...m, capabilities: { ...m.capabilities } }); setIsNew(false) }
@@ -57,7 +70,10 @@ export default function ModelsPanel() {
       <div className="module-options-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Model Management</span>
         <div className="module-options">
-          <Button onClick={load} style={{ fontSize: 11, padding: '2px 10px' }}>🔄 Refresh</Button>
+          <Button onClick={() => load(true)} disabled={refreshing} style={{ fontSize: 11, padding: '2px 10px' }}>
+            <span className={refreshing ? 'spin' : ''} style={{ display: 'inline-block' }}>🔄</span>
+            {' '}{refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
           <Button variant="primary" onClick={openAdd} style={{ fontSize: 11, padding: '2px 10px' }}>➕ Add Model</Button>
         </div>
       </div>
