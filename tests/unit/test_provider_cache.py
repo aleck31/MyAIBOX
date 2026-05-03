@@ -72,6 +72,31 @@ def test_none_params_treated_as_empty():
     assert factory.n == 1
 
 
+def test_nested_list_and_dict_values_are_hashable():
+    """Regression: params like {stop_sequences: [...], thinking: {...}}
+    used to raise TypeError: unhashable type: 'list'."""
+    cache = ProviderCache()
+    factory = _Counter()
+    params = {
+        "stop_sequences": ["end_turn"],
+        "thinking": {"type": "enabled", "budget_tokens": 4096},
+        "temperature": 1.0,
+    }
+    a = cache.get_or_create("m1", params, factory)
+    b = cache.get_or_create("m1", params, factory)
+    assert a == b
+    assert factory.n == 1
+
+
+def test_nested_values_differ_rebuilds():
+    cache = ProviderCache()
+    factory = _Counter()
+    a = cache.get_or_create("m1", {"stop_sequences": ["a"]}, factory)
+    b = cache.get_or_create("m1", {"stop_sequences": ["b"]}, factory)
+    assert a != b
+    assert factory.n == 2
+
+
 def test_clear_drops_all_entries():
     cache = ProviderCache()
     factory = _Counter()
