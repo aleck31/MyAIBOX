@@ -242,7 +242,6 @@ async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
 
             thinking_started = False
             text_started = False
-            active_tool_calls = set()  # Track tool calls already started
 
             async for chunk in service.streaming_reply_with_history(
                 session=session,
@@ -277,44 +276,43 @@ async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
                         message_id=message_id, delta=text
                     ))
 
-                # Tool use events — emit as reasoning (CoT) + structured tool call events
+                # Hold the AG-UI sequence until the terminal chunk, then emit
+                # START → ARGS(final params) → END (→ RESULT) atomically. Candidates the model
+                # reconsiders mid-stream never get a terminal, so they stay invisible.
                 if tool_use := chunk.get('tool_use'):
                     tool_name = tool_use.get('name', 'unknown')
                     tool_status = tool_use.get('status', 'running')
                     tc_id = tool_use.get('tool_use_id') or f"tc-{uuid.uuid4().hex[:8]}"
+                    if tool_status == 'running':
+                        continue
+
+                    # Terminal: completed / success / failed / cancelled.
                     if not thinking_started and not text_started:
                         yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
                         thinking_started = True
-                    if thinking_started:
-                        if tool_status == 'running' and tc_id not in active_tool_calls:
-                            yield _enc.encode(ReasoningMessageContentEvent(
-                                message_id=thinking_id, delta=f"\n🔧 Calling: {tool_name}\n"
-                            ))
-                            active_tool_calls.add(tc_id)
-                            yield _enc.encode(ToolCallStartEvent(
-                                tool_call_id=tc_id, tool_call_name=tool_name,
-                                parent_message_id=message_id,
-                            ))
-                            yield _enc.encode(ToolCallArgsEvent(
-                                tool_call_id=tc_id,
-                                delta=json.dumps(tool_use.get('params', {})),
-                            ))
-                        elif tool_status in ('completed', 'success'):
-                            yield _enc.encode(ReasoningMessageContentEvent(
-                                message_id=thinking_id, delta=f"✅ {tool_name} done\n"
-                            ))
-                            if tc_id in active_tool_calls:
-                                active_tool_calls.discard(tc_id)
-                                yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
-                                # Send tool result for Generative UI rendering
-                                result_str = tool_use.get('result', '')
-                                if result_str:
-                                    yield _enc.encode(ToolCallResultEvent(
-                                        tool_call_id=tc_id,
-                                        message_id=message_id,
-                                        content=result_str if isinstance(result_str, str) else json.dumps(result_str),
-                                        role='tool',
-                                    ))
+                    ok = tool_status in ('completed', 'success')
+                    mark = "✅" if ok else "⚠️"
+                    yield _enc.encode(ReasoningMessageContentEvent(
+                        message_id=thinking_id,
+                        delta=f"\n🔧 {tool_name} {mark}\n",
+                    ))
+                    yield _enc.encode(ToolCallStartEvent(
+                        tool_call_id=tc_id, tool_call_name=tool_name,
+                        parent_message_id=message_id,
+                    ))
+                    yield _enc.encode(ToolCallArgsEvent(
+                        tool_call_id=tc_id,
+                        delta=json.dumps(tool_use.get('params', {})),
+                    ))
+                    yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
+                    result_str = tool_use.get('result', '')
+                    if result_str:
+                        yield _enc.encode(ToolCallResultEvent(
+                            tool_call_id=tc_id,
+                            message_id=message_id,
+                            content=result_str if isinstance(result_str, str) else json.dumps(result_str),
+                            role='tool',
+                        ))
 
             if thinking_started and not text_started:
                 yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
