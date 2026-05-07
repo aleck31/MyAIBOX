@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { updateRole, updateSessionModel, syncHistory, updateCloudSync } from '../api/client'
+import { updateRole, updateSessionModel, syncHistory, updateCloudSync, clearPersonaHistory } from '../api/client'
 import { clearRuntimeCache } from '../hooks/useAGUIRuntime'
 import RoleSelector from './RoleSelector'
 import ModelSelector from './ModelSelector'
@@ -53,10 +53,11 @@ export default function PersonaChat({ config, initialPrefs }: PersonaChatProps) 
     }
   }, [])
 
-  const handleClear = useCallback(() => {
+  const handleClear = useCallback(async () => {
     clearRuntimeCache(initialPrefs.session_id)
     setChatHistory([])
     setChatKey(k => k + 1)
+    try { await clearPersonaHistory() } catch (err) { console.error('Clear failed:', err) }
   }, [initialPrefs.session_id])
 
   return (

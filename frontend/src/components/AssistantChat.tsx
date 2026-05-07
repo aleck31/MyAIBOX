@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { updateAssistantModel, syncAssistantHistory, updateAssistantCloudSync } from '../api/client'
+import { updateAssistantModel, syncAssistantHistory, updateAssistantCloudSync, clearAssistantHistory } from '../api/client'
 import { clearRuntimeCache } from '../hooks/useAGUIRuntime'
 import ModelSelector from './ModelSelector'
 import ChatWindow, { type ChatWindowHandle } from './ChatWindow'
@@ -45,10 +45,11 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
     }
   }, [])
 
-  const handleClear = useCallback(() => {
+  const handleClear = useCallback(async () => {
     clearRuntimeCache(initialPrefs.session_id)
     setChatHistory([])
     setChatKey(k => k + 1)
+    try { await clearAssistantHistory() } catch (err) { console.error('Clear failed:', err) }
   }, [initialPrefs.session_id])
 
   return (

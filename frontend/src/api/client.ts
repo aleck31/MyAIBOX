@@ -78,6 +78,11 @@ export async function syncAssistantHistory(messages: Array<{ role: string; conte
   return res.json()
 }
 
+export async function clearAssistantHistory() {
+  const res = await apiFetch(`${ASSISTANT}/session/history`, { method: 'DELETE' })
+  return res.json()
+}
+
 export async function updateAssistantCloudSync(enabled: boolean) {
   const res = await apiFetch(`${ASSISTANT}/session/cloud-sync`, {
     method: 'POST',
@@ -122,6 +127,11 @@ export async function syncHistory(messages: Array<{ role: string; content: unkno
     method: 'POST',
     body: JSON.stringify({ messages }),
   })
+  return res.json()
+}
+
+export async function clearPersonaHistory() {
+  const res = await apiFetch(`${PERSONA}/session/history`, { method: 'DELETE' })
   return res.json()
 }
 
