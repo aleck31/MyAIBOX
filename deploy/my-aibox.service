@@ -8,6 +8,11 @@ After=network-online.target
 [Service]
 Type=simple
 WorkingDirectory={project_dir}
+# Include user-local bins (uvx, npx, etc.) so MCP stdio servers can be launched.
+Environment=PATH={home}/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Strands file_write/editor prompt for interactive confirmation by default;
+# disable it so tool calls complete non-interactively on the server.
+Environment=BYPASS_TOOL_CONSENT=true
 ExecStart={project_dir}/.venv/bin/python app.py
 EnvironmentFile={project_dir}/.env
 Restart=on-failure

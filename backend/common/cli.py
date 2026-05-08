@@ -42,7 +42,7 @@ def _cmd_install():
 
     with open(src) as f:
         template = f.read()
-    rendered = template.format(project_dir=DIR)
+    rendered = template.format(project_dir=DIR, home=os.path.expanduser("~"))
 
     os.makedirs(dst_dir, exist_ok=True)
     with open(dst, "w") as f:

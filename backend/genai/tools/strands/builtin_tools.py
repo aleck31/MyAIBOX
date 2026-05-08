@@ -14,6 +14,9 @@ BUILTIN_TOOLS = [
     'http_request',
     'sleep',
     'speak',
+    'file_write',
+    'file_read',
+    'editor',
 ]
 
 

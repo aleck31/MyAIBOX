@@ -1,10 +1,11 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import json
+import os
 import uuid
 from typing import Any, List, Literal
-from fastapi import APIRouter, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from ag_ui.core import (
     RunAgentInput,
@@ -21,6 +22,9 @@ from backend.genai.models.model_manager import model_manager
 from backend.api.auth import get_auth_user
 from backend.api.prompts.assistant import ASSISTANT_PROMPT
 from backend.common.logger import setup_logger
+from backend.core import workspace
+
+MODULE_NAME = 'assistant'
 
 logger = setup_logger('api.assistant')
 
@@ -80,7 +84,7 @@ async def get_session(username: str = Depends(get_auth_user)):
     try:
         service = get_agent_service()
         session = await service.get_or_create_session(
-            user_name=username, module_name='assistant'
+            user_name=username, module_name=MODULE_NAME
         )
         model_id = await service.get_session_model(session)
         history = await service.load_session_history(session)
@@ -101,7 +105,7 @@ async def update_model(body: ModelUpdate, username: str = Depends(get_auth_user)
     try:
         service = get_agent_service()
         session = await service.get_or_create_session(
-            user_name=username, module_name='assistant'
+            user_name=username, module_name=MODULE_NAME
         )
         await service.update_session_model(session, body.model_id)
         return {"ok": True}
@@ -115,7 +119,7 @@ async def update_cloud_sync(body: CloudSyncUpdate, username: str = Depends(get_a
     try:
         service = get_agent_service()
         session = await service.get_or_create_session(
-            user_name=username, module_name='assistant'
+            user_name=username, module_name=MODULE_NAME
         )
         session.context['cloud_sync'] = body.enabled
         await service.session_store.save_session(session)
@@ -130,7 +134,7 @@ async def sync_history(body: HistorySync, username: str = Depends(get_auth_user)
     try:
         service = get_agent_service()
         session = await service.get_or_create_session(
-            user_name=username, module_name='assistant'
+            user_name=username, module_name=MODULE_NAME
         )
         session.history = [{"role": m.role, "content": m.content} for m in body.messages]
         await service.session_store.save_session(session)
@@ -145,13 +149,63 @@ async def clear_history(username: str = Depends(get_auth_user)):
     try:
         service = get_agent_service()
         session = await service.get_or_create_session(
-            user_name=username, module_name='assistant'
+            user_name=username, module_name=MODULE_NAME
         )
         await service.clear_history(session)
         return {"ok": True}
     except Exception as e:
         logger.error(f"Failed to clear history: {e}", exc_info=True)
         return {"ok": False, "error": str(e)}
+
+
+# ─── Workspace ───────────────────────────────────────────────────────────────
+# Files the agent writes via file_write live here. They persist across
+# sessions (workspace is per-user-per-module, not per-session) and are
+# served back through these endpoints for the UI's side panel.
+
+@router.get("/workspace")
+async def list_workspace(username: str = Depends(get_auth_user)):
+    """List all files in the caller's Assistant workspace."""
+    try:
+        files = workspace.list_files(username, MODULE_NAME)
+        return {
+            "files": [
+                {"name": f.name, "size": f.size, "mtime": f.mtime}
+                for f in files
+            ],
+        }
+    except Exception as e:
+        logger.error(f"Failed to list workspace for {username}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list workspace")
+
+
+@router.get("/workspace/{filename}")
+async def get_workspace_file(filename: str, username: str = Depends(get_auth_user)):
+    """Serve one file from the caller's Assistant workspace.
+
+    FileResponse handles Range requests, which PDF viewers use for
+    partial loads on large documents.
+    """
+    try:
+        ws_dir = workspace.path_for(username, MODULE_NAME)
+        path = workspace.safe_join(ws_dir, filename)
+    except workspace.WorkspaceError:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(path, filename=filename)
+
+
+@router.delete("/workspace/{filename}")
+async def delete_workspace_file(filename: str, username: str = Depends(get_auth_user)):
+    """Delete one file from the caller's Assistant workspace."""
+    try:
+        removed = workspace.delete_file(username, MODULE_NAME, filename)
+    except workspace.WorkspaceError:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    if not removed:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
 
 
 @router.post("/chat")
@@ -223,7 +277,7 @@ async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
         try:
             service = get_agent_service()
             session = await service.get_or_create_session(
-                user_name=username, module_name='assistant'
+                user_name=username, module_name=MODULE_NAME
             )
 
             # Load tool config
@@ -243,10 +297,15 @@ async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
             thinking_started = False
             text_started = False
 
+            # Ensure the user's workspace exists and surface its path to the
+            # agent so file_write/file_read calls land inside it.
+            workspace_dir = workspace.ensure(username, MODULE_NAME)
+            system_prompt = ASSISTANT_PROMPT.format(workspace_dir=workspace_dir)
+
             async for chunk in service.streaming_reply_with_history(
                 session=session,
                 message=msg_text,
-                system_prompt=ASSISTANT_PROMPT,
+                system_prompt=system_prompt,
                 history=history,
                 tool_config=tool_config,
                 persist=cloud_sync,
