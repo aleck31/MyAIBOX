@@ -91,6 +91,26 @@ export async function updateAssistantCloudSync(enabled: boolean) {
   return res.json()
 }
 
+export interface WorkspaceFile {
+  name: string
+  size: number
+  mtime: number
+}
+
+export async function listAssistantWorkspace(): Promise<{ files: WorkspaceFile[] }> {
+  const res = await apiFetch(`${ASSISTANT}/workspace`)
+  return res.json()
+}
+
+export function assistantWorkspaceFileUrl(name: string): string {
+  return `${ASSISTANT}/workspace/${encodeURIComponent(name)}`
+}
+
+export async function deleteAssistantWorkspaceFile(name: string) {
+  const res = await apiFetch(`${ASSISTANT}/workspace/${encodeURIComponent(name)}`, { method: 'DELETE' })
+  return res.json()
+}
+
 // ─── Persona ─────────────────────────────────────────────────────────────────
 
 const PERSONA = '/api/persona'

@@ -100,24 +100,33 @@ def generate_image(
         img_base64 = response["images"][0]
         image = Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
-        # Save to project's assets directory
-        images_dir = Path("storage/generated/images")
-        images_dir.mkdir(parents=True, exist_ok=True)
+        # Destination: caller's workspace if an agent context is set (Assistant
+        # module), otherwise fall back to the shared global path used by the
+        # Draw module.
+        from backend.core.agent_context import current_workspace_dir
+        workspace_dir = current_workspace_dir.get()
 
-        # Create a unique filename with timestamp and seed
         timestamp = int(time.time())
         filename = f"img_{timestamp}_{used_seed}.png"
-        file_path = images_dir / filename
 
-        # Save the image
+        if workspace_dir:
+            images_dir = Path(workspace_dir)
+            images_dir.mkdir(parents=True, exist_ok=True)
+            file_path = images_dir / filename
+            public_url = f"/api/assistant/workspace/{filename}"
+        else:
+            images_dir = Path("storage/generated/images")
+            images_dir.mkdir(parents=True, exist_ok=True)
+            file_path = images_dir / filename
+            public_url = f"/api/draw/image/{filename}"
+
         image.save(file_path, format="PNG")
-
         logger.info(f"[generate_image] Image saved to: {file_path}")
 
         # Return the file path and metadata with success status
         return {
             "status": "success",
-            "public_url": f"/api/draw/image/{filename}",
+            "public_url": public_url,
             "file_path": str(file_path),
             "metadata": {
                 "seed": used_seed,

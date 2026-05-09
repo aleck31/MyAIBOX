@@ -11,8 +11,6 @@ __pycache__/
 build/
 dist/
 node_modules
-storage/generated/*
-storage/uploads/*
 
 # vscode
 .vscode
@@ -32,6 +30,7 @@ venv/
 
 flagged
 config.json
+storage/*
 logs/*
 *.log
 tmp

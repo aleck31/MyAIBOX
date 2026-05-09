@@ -9,6 +9,7 @@
 @import "./styles/vision.css";
 @import "./styles/draw.css";
 @import "./styles/settings.css";
+@import "./styles/workspace.css";
 @import "./styles/tools.css";
 
 /* Scan @assistant-ui component dist files so Tailwind generates all referenced utilities */

@@ -1,0 +1,267 @@
+/* ─── Assistant workspace panel ─────────────────────────────────────────── */
+
+.assistant-layout {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+}
+
+.assistant-chat-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* allow chat to shrink when side panel opens */
+}
+
+/* Side panel mode — desktop >= 1280px (width driven by inline style) */
+.assistant-workspace--side {
+  position: relative;
+  min-width: 320px;
+  max-width: 900px;
+  border-left: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Drag handle on the panel's left edge to resize horizontally. */
+.assistant-workspace-resizer {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 1;
+  background: transparent;
+  transition: background 0.12s;
+}
+.assistant-workspace-resizer:hover,
+.assistant-workspace-resizer:active {
+  background: hsl(var(--primary) / 0.3);
+}
+
+/* Overlay mode — tablet 1024-1279px */
+.assistant-workspace-backdrop {
+  position: fixed;
+  inset: 0;
+  background: hsl(var(--foreground) / 0.2);
+  z-index: var(--z-overlay);
+}
+
+.assistant-workspace--overlay {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(440px, 90vw);
+  background: hsl(var(--background));
+  border-left: 1px solid hsl(var(--border));
+  box-shadow: -4px 0 12px hsl(var(--foreground) / 0.08);
+  z-index: calc(var(--z-overlay) + 1);
+  display: flex;
+  flex-direction: column;
+  animation: workspace-slide-in 0.18s ease;
+}
+
+@keyframes workspace-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Modal mode — < 1024px. Reuses .modal (already full-viewport < 768px) */
+.assistant-workspace--modal {
+  width: min(640px, 95vw);
+  max-width: 95vw;
+  height: 85vh;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Panel internals ───────────────────────────────────────────────────── */
+
+.workspace-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: hsl(var(--background));
+}
+
+.workspace-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.3);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.workspace-title { font-size: 13px; font-weight: 500; }
+.workspace-count { color: hsl(var(--muted-foreground)); font-weight: 400; }
+.workspace-actions { margin-left: auto; display: flex; gap: 4px; }
+
+/* File list (top third-ish, with max-height so viewer gets room). Keep a
+   visible band even when there's just one file so users always see the
+   list/viewer split. */
+.workspace-file-list-container {
+  min-height: 44px;
+  max-height: 240px;
+  overflow-y: auto;
+  border-bottom: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.15);
+  flex-shrink: 0;
+}
+
+.workspace-empty {
+  padding: 16px 12px;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.workspace-file-list { list-style: none; margin: 0; padding: 4px; }
+
+.workspace-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.12s;
+}
+
+.workspace-file:hover { background: hsl(var(--muted) / 0.5); }
+.workspace-file.is-selected { background: hsl(var(--muted)); }
+
+.workspace-file-icon { flex-shrink: 0; }
+
+.workspace-file-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-file-size {
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-file-mtime {
+  margin-left: auto;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.workspace-file-delete {
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+}
+.workspace-file:hover .workspace-file-delete { opacity: 1; }
+.workspace-file-delete:hover {
+  color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.08);
+}
+
+/* Viewer (bottom, takes remaining space) */
+.workspace-viewer-container {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+  padding: 12px;
+}
+
+/* Floating close button — top-right of the viewer, layers above content. */
+.workspace-viewer-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-sm);
+  background: hsl(var(--background) / 0.9);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.workspace-viewer-close:hover {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--foreground) / 0.4);
+  background: hsl(var(--muted));
+}
+
+.workspace-viewer-empty,
+.workspace-viewer-loading,
+.workspace-viewer-error {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  text-align: center;
+  padding: 32px 16px;
+}
+.workspace-viewer-error { color: hsl(var(--destructive)); }
+
+.workspace-viewer-fallback {
+  text-align: center;
+  padding: 24px 16px;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+.workspace-viewer-fallback code {
+  background: hsl(var(--muted));
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+/* Markdown — leverage @tailwindcss/typography via .aui-md already in the app */
+.workspace-md {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Image */
+.workspace-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+.workspace-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* PDF */
+.workspace-pdf {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  border: none;
+}

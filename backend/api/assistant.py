@@ -4,7 +4,7 @@ import json
 import os
 import uuid
 from typing import Any, List, Literal
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from ag_ui.core import (
@@ -23,6 +23,7 @@ from backend.api.auth import get_auth_user
 from backend.api.prompts.assistant import ASSISTANT_PROMPT
 from backend.common.logger import setup_logger
 from backend.core import workspace
+from backend.core.agent_context import current_workspace_dir
 
 MODULE_NAME = 'assistant'
 
@@ -162,12 +163,23 @@ async def clear_history(username: str = Depends(get_auth_user)):
 # Files the agent writes via file_write live here. They persist across
 # sessions (workspace is per-user-per-module, not per-session) and are
 # served back through these endpoints for the UI's side panel.
+#
+# Workspace directories use the human-readable Cognito username (populated
+# into request.state.user by get_auth_user) — NOT the sub — so operators
+# can `ls storage/workspace/` and see who owns what.
+
+def _workspace_user(request: Request, sub: str) -> str:
+    """Resolve the current user's display name; fall back to sub if absent."""
+    user = getattr(request.state, 'user', None) or {}
+    return user.get('username') or sub
+
 
 @router.get("/workspace")
-async def list_workspace(username: str = Depends(get_auth_user)):
+async def list_workspace(request: Request, sub: str = Depends(get_auth_user)):
     """List all files in the caller's Assistant workspace."""
+    user = _workspace_user(request, sub)
     try:
-        files = workspace.list_files(username, MODULE_NAME)
+        files = workspace.list_files(user, MODULE_NAME)
         return {
             "files": [
                 {"name": f.name, "size": f.size, "mtime": f.mtime}
@@ -175,19 +187,20 @@ async def list_workspace(username: str = Depends(get_auth_user)):
             ],
         }
     except Exception as e:
-        logger.error(f"Failed to list workspace for {username}: {e}", exc_info=True)
+        logger.error(f"Failed to list workspace for {user}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to list workspace")
 
 
 @router.get("/workspace/{filename}")
-async def get_workspace_file(filename: str, username: str = Depends(get_auth_user)):
+async def get_workspace_file(filename: str, request: Request, sub: str = Depends(get_auth_user)):
     """Serve one file from the caller's Assistant workspace.
 
     FileResponse handles Range requests, which PDF viewers use for
     partial loads on large documents.
     """
+    user = _workspace_user(request, sub)
     try:
-        ws_dir = workspace.path_for(username, MODULE_NAME)
+        ws_dir = workspace.path_for(user, MODULE_NAME)
         path = workspace.safe_join(ws_dir, filename)
     except workspace.WorkspaceError:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -197,10 +210,11 @@ async def get_workspace_file(filename: str, username: str = Depends(get_auth_use
 
 
 @router.delete("/workspace/{filename}")
-async def delete_workspace_file(filename: str, username: str = Depends(get_auth_user)):
+async def delete_workspace_file(filename: str, request: Request, sub: str = Depends(get_auth_user)):
     """Delete one file from the caller's Assistant workspace."""
+    user = _workspace_user(request, sub)
     try:
-        removed = workspace.delete_file(username, MODULE_NAME, filename)
+        removed = workspace.delete_file(user, MODULE_NAME, filename)
     except workspace.WorkspaceError:
         raise HTTPException(status_code=400, detail="Invalid filename")
     if not removed:
@@ -209,8 +223,9 @@ async def delete_workspace_file(filename: str, username: str = Depends(get_auth_
 
 
 @router.post("/chat")
-async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
+async def chat(body: RunAgentInput, request: Request, username: str = Depends(get_auth_user)):
     """AG-UI SSE streaming endpoint for Assistant with tool use."""
+    workspace_user = _workspace_user(request, username)
     run_id = body.run_id or str(uuid.uuid4())
     message_id = str(uuid.uuid4())
     thinking_id = str(uuid.uuid4())
@@ -298,80 +313,86 @@ async def chat(body: RunAgentInput, username: str = Depends(get_auth_user)):
             text_started = False
 
             # Ensure the user's workspace exists and surface its path to the
-            # agent so file_write/file_read calls land inside it.
-            workspace_dir = workspace.ensure(username, MODULE_NAME)
+            # agent so file_write/file_read calls land inside it. The same
+            # path is published via ContextVar so legacy tools without a
+            # session argument (e.g. generate_image) can also target it.
+            workspace_dir = workspace.ensure(workspace_user, MODULE_NAME)
             system_prompt = ASSISTANT_PROMPT.format(workspace_dir=workspace_dir)
+            ctx_token = current_workspace_dir.set(workspace_dir)
 
-            async for chunk in service.streaming_reply_with_history(
-                session=session,
-                message=msg_text,
-                system_prompt=system_prompt,
-                history=history,
-                tool_config=tool_config,
-                persist=cloud_sync,
-                files=files,
-            ):
-                if not isinstance(chunk, dict):
-                    continue
-
-                if thinking := chunk.get('thinking'):
-                    if not thinking_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                        thinking_started = True
-                    yield _enc.encode(ReasoningMessageContentEvent(
-                        message_id=thinking_id, delta=thinking
-                    ))
-
-                if text := chunk.get('text'):
-                    if not text_started:
-                        if thinking_started:
-                            yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-                            thinking_started = False
-                        yield _enc.encode(TextMessageStartEvent(
-                            message_id=message_id, role='assistant'
-                        ))
-                        text_started = True
-                    yield _enc.encode(TextMessageContentEvent(
-                        message_id=message_id, delta=text
-                    ))
-
-                # Hold the AG-UI sequence until the terminal chunk, then emit
-                # START → ARGS(final params) → END (→ RESULT) atomically. Candidates the model
-                # reconsiders mid-stream never get a terminal, so they stay invisible.
-                if tool_use := chunk.get('tool_use'):
-                    tool_name = tool_use.get('name', 'unknown')
-                    tool_status = tool_use.get('status', 'running')
-                    tc_id = tool_use.get('tool_use_id') or f"tc-{uuid.uuid4().hex[:8]}"
-                    if tool_status == 'running':
+            try:
+                async for chunk in service.streaming_reply_with_history(
+                    session=session,
+                    message=msg_text,
+                    system_prompt=system_prompt,
+                    history=history,
+                    tool_config=tool_config,
+                    persist=cloud_sync,
+                    files=files,
+                ):
+                    if not isinstance(chunk, dict):
                         continue
 
-                    # Terminal: completed / success / failed / cancelled.
-                    if not thinking_started and not text_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                        thinking_started = True
-                    ok = tool_status in ('completed', 'success')
-                    mark = "✅" if ok else "⚠️"
-                    yield _enc.encode(ReasoningMessageContentEvent(
-                        message_id=thinking_id,
-                        delta=f"\n🔧 {tool_name} {mark}\n",
-                    ))
-                    yield _enc.encode(ToolCallStartEvent(
-                        tool_call_id=tc_id, tool_call_name=tool_name,
-                        parent_message_id=message_id,
-                    ))
-                    yield _enc.encode(ToolCallArgsEvent(
-                        tool_call_id=tc_id,
-                        delta=json.dumps(tool_use.get('params', {})),
-                    ))
-                    yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
-                    result_str = tool_use.get('result', '')
-                    if result_str:
-                        yield _enc.encode(ToolCallResultEvent(
-                            tool_call_id=tc_id,
-                            message_id=message_id,
-                            content=result_str if isinstance(result_str, str) else json.dumps(result_str),
-                            role='tool',
+                    if thinking := chunk.get('thinking'):
+                        if not thinking_started:
+                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
+                            thinking_started = True
+                        yield _enc.encode(ReasoningMessageContentEvent(
+                            message_id=thinking_id, delta=thinking
                         ))
+
+                    if text := chunk.get('text'):
+                        if not text_started:
+                            if thinking_started:
+                                yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
+                                thinking_started = False
+                            yield _enc.encode(TextMessageStartEvent(
+                                message_id=message_id, role='assistant'
+                            ))
+                            text_started = True
+                        yield _enc.encode(TextMessageContentEvent(
+                            message_id=message_id, delta=text
+                        ))
+
+                    # Hold the AG-UI sequence until the terminal chunk, then emit
+                    # START → ARGS(final params) → END (→ RESULT) atomically. Candidates the model
+                    # reconsiders mid-stream never get a terminal, so they stay invisible.
+                    if tool_use := chunk.get('tool_use'):
+                        tool_name = tool_use.get('name', 'unknown')
+                        tool_status = tool_use.get('status', 'running')
+                        tc_id = tool_use.get('tool_use_id') or f"tc-{uuid.uuid4().hex[:8]}"
+                        if tool_status == 'running':
+                            continue
+
+                        # Terminal: completed / success / failed / cancelled.
+                        if not thinking_started and not text_started:
+                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
+                            thinking_started = True
+                        ok = tool_status in ('completed', 'success')
+                        mark = "✅" if ok else "⚠️"
+                        yield _enc.encode(ReasoningMessageContentEvent(
+                            message_id=thinking_id,
+                            delta=f"\n🔧 {tool_name} {mark}\n",
+                        ))
+                        yield _enc.encode(ToolCallStartEvent(
+                            tool_call_id=tc_id, tool_call_name=tool_name,
+                            parent_message_id=message_id,
+                        ))
+                        yield _enc.encode(ToolCallArgsEvent(
+                            tool_call_id=tc_id,
+                            delta=json.dumps(tool_use.get('params', {})),
+                        ))
+                        yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
+                        result_str = tool_use.get('result', '')
+                        if result_str:
+                            yield _enc.encode(ToolCallResultEvent(
+                                tool_call_id=tc_id,
+                                message_id=message_id,
+                                content=result_str if isinstance(result_str, str) else json.dumps(result_str),
+                                role='tool',
+                            ))
+            finally:
+                current_workspace_dir.reset(ctx_token)
 
             if thinking_started and not text_started:
                 yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
