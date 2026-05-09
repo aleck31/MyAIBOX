@@ -106,6 +106,7 @@ class AgentService(BaseService):
         system_prompt: str,
         history: Optional[List[Dict]] = None,
         tool_config: Optional[Dict] = None,
+        skills: Optional[List] = None,
     ) -> AgentProvider:
         """Get cached provider or create new one with history recovery."""
         session_id = session.session_id
@@ -133,6 +134,7 @@ class AgentService(BaseService):
             model_id=model_id,
             system_prompt=system_prompt,
             tool_config=tool_config or self._get_default_tool_config(),
+            skills=skills,
         )
         # Trigger agent creation with history
         provider._ensure_agent(strands_history)
@@ -184,6 +186,7 @@ class AgentService(BaseService):
         history: Optional[List[Dict]] = None,
         tool_config: Optional[Dict[str, Any]] = None,
         files: Optional[List[str]] = None,
+        skills: Optional[List] = None,
     ) -> AsyncIterator[Dict]:
         """Streaming generation with cached Agent."""
         if not prompt:
@@ -193,7 +196,7 @@ class AgentService(BaseService):
         try:
             model_id = await self.get_session_model(session)
             provider = await self._get_or_create_provider(
-                session, model_id, system_prompt, history, tool_config
+                session, model_id, system_prompt, history, tool_config, skills=skills,
             )
 
             agent_prompt = self._build_multimodal_prompt(prompt, files)
@@ -214,6 +217,7 @@ class AgentService(BaseService):
         tool_config: Dict[str, Any],
         persist: bool = False,
         files: Optional[List[str]] = None,
+        skills: Optional[List] = None,
     ) -> AsyncIterator[Dict]:
         """Generate streaming response with conversation history."""
         accumulated_text = []
@@ -225,6 +229,7 @@ class AgentService(BaseService):
                 history=history,
                 tool_config=tool_config,
                 files=files,
+                skills=skills,
             ):
                 if text := chunk.get('text'):
                     accumulated_text.append(text)

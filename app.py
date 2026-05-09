@@ -12,8 +12,6 @@ from backend.core.config import app_config
 from backend.core.service.agent_service import shutdown_all as shutdown_agents
 from backend.genai.models.model_manager import model_manager
 from backend.api.auth import router as auth_api_router
-from backend.api.assistant import router as assistant_router
-from backend.api.persona import router as persona_router
 from backend.api.chat import router as chat_router
 from backend.api.text import router as text_router
 from backend.api.summary import router as summary_router
@@ -79,8 +77,6 @@ async def health_check():
 
 # Include API routes
 app.include_router(auth_api_router, prefix="/api")
-app.include_router(assistant_router, prefix="/api")
-app.include_router(persona_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(text_router, prefix="/api")
 app.include_router(summary_router, prefix="/api")

@@ -23,10 +23,17 @@ class FakeProvider:
 
     instances: list["FakeProvider"] = []
 
-    def __init__(self, model_id: str, system_prompt: str = "", tool_config: Optional[dict] = None):
+    def __init__(
+        self,
+        model_id: str,
+        system_prompt: str = "",
+        tool_config: Optional[dict] = None,
+        skills: Optional[List] = None,
+    ):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.tool_config = tool_config or {}
+        self.skills = list(skills or [])
         self.messages: List[dict] = []
         self.destroyed = False
         self.init_history: Optional[List] = None

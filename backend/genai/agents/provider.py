@@ -17,10 +17,19 @@ from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_ch
 class AgentProvider:
     """Strands Agent provider with cached Agent instance and MCP connections."""
 
-    def __init__(self, model_id: str, system_prompt: str = '', tool_config: Optional[Dict] = None):
+    def __init__(
+        self,
+        model_id: str,
+        system_prompt: str = '',
+        tool_config: Optional[Dict] = None,
+        skills: Optional[List] = None,
+    ):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.tool_config = tool_config or {}
+        # Strands `Skill` objects; wrapped into an AgentSkills plugin at
+        # Agent creation. Empty list = no plugin injected.
+        self.skills: List = list(skills or [])
         self._agent: Optional[Agent] = None
         self._mcp_clients: list = []
         # HTTP clients shared across model swaps so update_model() does not
@@ -107,16 +116,28 @@ class AgentProvider:
         model = self._get_strands_model()
         tools = self._load_tools()
 
-        self._agent = Agent(
+        plugins = []
+        if self.skills:
+            from strands.vended_plugins.skills import AgentSkills
+            plugins.append(AgentSkills(skills=self.skills))
+
+        agent_kwargs = dict(
             tools=tools or None,
             system_prompt=self.system_prompt,
             model=model,
             messages=history_messages or [],
             callback_handler=None,
-            conversation_manager=SlidingWindowConversationManager(window_size=40)
+            conversation_manager=SlidingWindowConversationManager(window_size=40),
         )
+        if plugins:
+            agent_kwargs["plugins"] = plugins
+
+        self._agent = Agent(**agent_kwargs)
         msg_count = len(history_messages) if history_messages else 0
-        logger.info(f"[AgentProvider] Created Agent: model={self.model_id}, history={msg_count}, tools={len(tools)}")
+        logger.info(
+            f"[AgentProvider] Created Agent: model={self.model_id}, "
+            f"history={msg_count}, tools={len(tools)}, skills={len(self.skills)}"
+        )
         return self._agent
 
     def update_model(self, model_id: str):

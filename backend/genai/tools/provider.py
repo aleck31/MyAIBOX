@@ -2,7 +2,7 @@
 Simplified Tool Provider for MyAIBOX
 Leverages Strands native mixed tool support for unified tool management
 """
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from . import logger
 
 
@@ -46,29 +46,40 @@ class ToolProvider:
         if not tool_config.get('enabled', True):
             logger.debug("Tools disabled by configuration")
             return [], []
-            
+
         tools = []
         context_managers = []
-        
-        # Load specific legacy tools
+
+        # Legacy tools — always name-listed.
         legacy_tool_names = tool_config.get('legacy_tools', [])
         if legacy_tool_names:
             legacy_tools = self._get_specific_legacy_tools(legacy_tool_names)
             tools.extend(legacy_tools)
             logger.debug(f"Added {len(legacy_tools)} legacy tools")
-        
-        # Strands builtin tools
-        if tool_config.get('strands_tools_enabled', True):
+
+        # Strands builtin tools — prefer explicit name list (`builtin_tools`);
+        # fall back to the legacy boolean for older callers that want all of them.
+        builtin_names = tool_config.get('builtin_tools')
+        if builtin_names is not None:
+            strands_tools = self._get_strands_tools(builtin_names)
+            tools.extend(strands_tools)
+            logger.debug(f"Added {len(strands_tools)} Strands tools (filtered)")
+        elif tool_config.get('strands_tools_enabled', True):
             strands_tools = self._get_strands_tools()
             tools.extend(strands_tools)
-            logger.debug(f"Added {len(strands_tools)} Strands tools")
-        
-        # MCP tools (require context management)
-        if tool_config.get('mcp_tools_enabled', False):
+            logger.debug(f"Added {len(strands_tools)} Strands tools (all)")
+
+        # MCP — same pattern: explicit name list wins over the boolean.
+        mcp_names = tool_config.get('mcp_servers')
+        if mcp_names is not None:
+            mcp_clients = self._get_mcp_clients(mcp_names)
+            context_managers.extend(mcp_clients)
+            logger.debug(f"Added {len(mcp_clients)} MCP clients (filtered)")
+        elif tool_config.get('mcp_tools_enabled', False):
             mcp_clients = self._get_mcp_clients()
             context_managers.extend(mcp_clients)
-            logger.debug(f"Added {len(mcp_clients)} MCP clients")
-        
+            logger.debug(f"Added {len(mcp_clients)} MCP clients (all enabled)")
+
         logger.debug(f"Total: {len(tools)} direct tools, {len(context_managers)} MCP clients")
         return tools, context_managers
 
@@ -95,27 +106,37 @@ class ToolProvider:
         
         return tools
     
-    def _get_strands_tools(self) -> List:
-        """Get all Strands builtin tools"""
+    def _get_strands_tools(self, names: Optional[List[str]] = None) -> List:
+        """Get Strands builtin tools.
+
+        Args:
+            names: If provided, load only the listed builtin tools. Otherwise
+                load every tool in :data:`BUILTIN_TOOLS`.
+        """
         try:
             from backend.genai.tools.strands.builtin_tools import load_builtin_tools
-            # Load all Strands tools by default
-            return load_builtin_tools()
+            return load_builtin_tools(names)
         except ImportError:
             logger.warning("Strands builtin tools not available")
             return []
-    
-    def _get_mcp_clients(self) -> List:
-        """Get all enabled MCP clients"""
-        
+
+    def _get_mcp_clients(self, names: Optional[List[str]] = None) -> List:
+        """Get enabled MCP clients.
+
+        Args:
+            names: If provided, load only servers whose name is in the list
+                (still filtered by `disabled`). Otherwise load everything not
+                marked disabled.
+        """
         clients = []
         servers = self.mcp_server_manager.get_mcp_servers()
-        
+
         for server_name, server_config in servers.items():
             if server_config.get('disabled', False):
                 logger.debug(f"Skipping disabled MCP server: {server_name}")
                 continue
-            
+            if names is not None and server_name not in names:
+                continue
             try:
                 client = self._create_mcp_client(server_config)
                 if client:
@@ -123,7 +144,7 @@ class ToolProvider:
                     logger.debug(f"Created MCP client: {server_name}")
             except Exception as e:
                 logger.warning(f"Failed to create MCP client {server_name}: {e}")
-        
+
         return clients
     
     def _create_mcp_client(self, server_config: Dict):
