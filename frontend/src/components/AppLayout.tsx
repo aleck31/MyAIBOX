@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { logoutApi } from '../api/client'
+import { useChatAgents } from '../hooks/useChatAgents'
+import type { ChatAgent } from '../api/client'
 
 interface NavModule {
   key: string
@@ -113,9 +115,8 @@ function IconLogout() {
   )
 }
 
-const MODULES: NavModule[] = [
-  { key: 'assistant', label: 'Assistant',  route: '/assistant', icon: <IconBot />, title: 'Agentic AI assistant with tool use' },
-  { key: 'persona',   label: 'Persona',    route: '/persona', icon: <IconChat />, title: 'Multimodal chatbot with personality profiles' },
+// Static "Tools" nav group — the chat section is rendered dynamically from /api/chat/agents.
+const TOOLS: NavModule[] = [
   { key: 'text',      label: 'Text',       route: '/text', icon: <IconText />, title: 'Proofreading, rewriting, reduction, expansion' },
   { key: 'summary',   label: 'Summary',    route: '/summary', icon: <IconSummary />, title: 'Text or webpage summarization' },
   { key: 'vision',    label: 'Vision',     route: '/vision', icon: <IconVision />, title: 'I can see 乛◡乛' },
@@ -138,6 +139,7 @@ export default function AppLayout({ username }: AppLayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { agents: chatAgents, loading: chatLoading } = useChatAgents()
 
   async function handleLogout() {
     await logoutApi()
@@ -148,8 +150,17 @@ export default function AppLayout({ username }: AppLayoutProps) {
     return location.pathname.startsWith(mod.route)
   }
 
+  function isAgentActive(agent: ChatAgent) {
+    return location.pathname === `/chat/${agent.id}`
+  }
+
   function navigateTo(mod: NavModule) {
     navigate(mod.route)
+    setSidebarOpen(false)
+  }
+
+  function navigateToAgent(agent: ChatAgent) {
+    navigate(`/chat/${agent.id}`)
     setSidebarOpen(false)
   }
 
@@ -180,13 +191,29 @@ export default function AppLayout({ username }: AppLayoutProps) {
         {/* Navigation */}
         <nav className="sidebar-nav">
           <div className="sidebar-nav-section">
-            <div className="sidebar-nav-label">Modules</div>
-            {MODULES.map((mod) => (
+            <div className="sidebar-nav-label">Chat with Agent</div>
+            {chatLoading && <div className="sidebar-nav-hint">Loading…</div>}
+            {!chatLoading && chatAgents.map((agent) => (
+              <button
+                key={agent.id}
+                className={`nav-item${isAgentActive(agent) ? ' active' : ''}`}
+                onClick={() => navigateToAgent(agent)}
+                title={agent.description || agent.name}
+              >
+                <span className="nav-item-icon nav-item-emoji">{agent.avatar || <IconBot />}</span>
+                {agent.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="sidebar-nav-section">
+            <div className="sidebar-nav-label">Tools</div>
+            {TOOLS.map((mod) => (
               <button
                 key={mod.key}
-                className={`nav-item ${isActive(mod) ? 'active' : ''}`}
+                className={`nav-item${isActive(mod) ? ' active' : ''}`}
                 onClick={() => navigateTo(mod)}
-                title={mod.title}
+                title={mod.title || mod.label}
               >
                 {mod.icon}
                 {mod.label}
@@ -194,13 +221,14 @@ export default function AppLayout({ username }: AppLayoutProps) {
             ))}
           </div>
 
-          <div className="sidebar-nav-section" style={{ marginTop: '8px' }}>
+          <div className="sidebar-nav-section">
             <div className="sidebar-nav-label">Settings</div>
             {SETTINGS.map((mod) => (
               <button
                 key={mod.key}
-                className={`nav-item ${isActive(mod) ? 'active' : ''}`}
+                className={`nav-item${isActive(mod) ? ' active' : ''}`}
                 onClick={() => navigateTo(mod)}
+                title={mod.title || mod.label}
               >
                 {mod.icon}
                 {mod.label}

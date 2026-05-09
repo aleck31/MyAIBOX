@@ -262,6 +262,22 @@ body {
 
 .nav-item.active .nav-item-icon { opacity: 1; }
 
+.nav-item-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 1;
+}
+
+.sidebar-nav-hint {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: hsl(var(--background) / 0.35);
+  font-style: italic;
+}
+
 .nav-item-badge {
   margin-left: auto;
   font-size: 9px;

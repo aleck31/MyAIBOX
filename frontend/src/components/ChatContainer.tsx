@@ -1,35 +1,40 @@
-import { useRef, useState, useCallback } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
-  updateAssistantModel,
-  syncAssistantHistory,
-  updateAssistantCloudSync,
-  clearAssistantHistory,
+  chatStreamUrl,
+  clearChatHistory,
+  syncChatHistory,
+  updateChatCloudSync,
+  updateChatModel,
+  type ChatAgent,
+  type ChatSession,
 } from '../api/client'
 import { clearRuntimeCache } from '../hooks/useAGUIRuntime'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
-import ModelSelector from './ModelSelector'
+import ModelSelector, { type ModelOption } from './ModelSelector'
 import ChatWindow, { type ChatWindowHandle } from './ChatWindow'
 import WorkspacePanel, { type WorkspacePanelHandle } from './workspace/WorkspacePanel'
-import type { AssistantConfig, AssistantPrefs } from '../types/assistant'
 
-interface AssistantChatProps {
-  config: AssistantConfig
-  initialPrefs: AssistantPrefs
+interface Props {
+  agent: ChatAgent
+  session: ChatSession
+  models: ModelOption[]
 }
 
-export default function AssistantChat({ config, initialPrefs }: AssistantChatProps) {
-  const [modelId, setModelId] = useState(initialPrefs.model_id || '')
-  const [cloudSync, setCloudSync] = useState(initialPrefs.cloud_sync ?? false)
+export default function ChatContainer({ agent, session, models }: Props) {
+  const [modelId, setModelId] = useState(session.model_id || agent.default_model || '')
+  const [cloudSync, setCloudSync] = useState(session.cloud_sync ?? false)
   const [syncing, setSyncing] = useState(false)
   const [syncDone, setSyncDone] = useState(false)
   const [chatKey, setChatKey] = useState(0)
-  const [chatHistory, setChatHistory] = useState(initialPrefs.history || [])
-  const [workspaceOpen, setWorkspaceOpen] = useStoredState('assistant-workspace-open', false)
+  const [chatHistory, setChatHistory] = useState(session.history || [])
+  const [workspaceOpen, setWorkspaceOpen] = useStoredState(
+    `chat-workspace-open:${agent.id}`,
+    false,
+  )
   const chatRef = useRef<ChatWindowHandle>(null)
   const workspaceRef = useRef<WorkspacePanelHandle>(null)
 
-  // Layout mode: side ≥ 1280px, overlay 1024-1279px, modal < 1024px.
   const isDesktop = useMediaQuery('(min-width: 1280px)')
   const isTablet = useMediaQuery('(min-width: 1024px) and (max-width: 1279.9px)')
   const layoutMode: 'side' | 'overlay' | 'modal' =
@@ -37,21 +42,21 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
 
   const handleModelChange = useCallback(async (newModelId: string) => {
     setModelId(newModelId)
-    try { await updateAssistantModel(newModelId) } catch (err) { console.error(err) }
-  }, [])
+    try { await updateChatModel(agent.id, newModelId) } catch (err) { console.error(err) }
+  }, [agent.id])
 
   const handleCloudSyncToggle = useCallback(async () => {
     const next = !cloudSync
     setCloudSync(next)
-    try { await updateAssistantCloudSync(next) } catch (err) { console.error(err) }
-  }, [cloudSync])
+    try { await updateChatCloudSync(agent.id, next) } catch (err) { console.error(err) }
+  }, [cloudSync, agent.id])
 
   const handleSync = useCallback(async () => {
     const messages = chatRef.current?.getMessages() ?? []
     setSyncing(true)
     setSyncDone(false)
     try {
-      await syncAssistantHistory(messages)
+      await syncChatHistory(agent.id, messages)
       setSyncDone(true)
       setTimeout(() => setSyncDone(false), 2000)
     } catch (err) {
@@ -59,27 +64,26 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
     } finally {
       setSyncing(false)
     }
-  }, [])
+  }, [agent.id])
 
   const handleClear = useCallback(async () => {
-    clearRuntimeCache(initialPrefs.session_id)
+    clearRuntimeCache(session.session_id)
     setChatHistory([])
     setChatKey(k => k + 1)
-    try { await clearAssistantHistory() } catch (err) { console.error('Clear failed:', err) }
-  }, [initialPrefs.session_id])
+    try { await clearChatHistory(agent.id) } catch (err) { console.error('Clear failed:', err) }
+  }, [agent.id, session.session_id])
 
   const toggleWorkspace = useCallback(() => {
     setWorkspaceOpen(o => {
       const next = !o
-      // Re-list when opening — catches files the agent wrote while closed.
       if (next) setTimeout(() => workspaceRef.current?.refresh(), 0)
       return next
     })
   }, [setWorkspaceOpen])
 
-  // Persist side-panel width across sessions. Tablet overlay / mobile modal
-  // have fixed sizing; only the desktop side panel is user-resizable.
-  const [sideWidth, setSideWidth] = useStoredState('assistant-workspace-width', 420)
+  const closeWorkspace = useCallback(() => setWorkspaceOpen(false), [setWorkspaceOpen])
+
+  const [sideWidth, setSideWidth] = useStoredState('chat-workspace-width', 420)
   const onResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     const startX = e.clientX
@@ -98,23 +102,28 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
     window.addEventListener('mouseup', onUp)
   }, [sideWidth, setSideWidth])
 
-  const closeWorkspace = useCallback(() => setWorkspaceOpen(false), [setWorkspaceOpen])
-
-  // Backend emits `workspace_updated` CUSTOM events after every tool call.
-  // Refresh the file list whenever one arrives; the panel doesn't need to
-  // be open — it keeps its state fresh for the next toggle.
   const handleCustomEvent = useCallback((name: string) => {
     if (name === 'workspace_updated') workspaceRef.current?.refresh()
   }, [])
 
-  const workspacePanel = <WorkspacePanel ref={workspaceRef} onClose={layoutMode !== 'side' ? closeWorkspace : undefined} />
+  const workspacePanel = (
+    <WorkspacePanel
+      ref={workspaceRef}
+      agentId={agent.id}
+      onClose={layoutMode !== 'side' ? closeWorkspace : undefined}
+    />
+  )
 
   return (
     <div className="assistant-layout">
       <div className="assistant-chat-col">
         <div className="section-bar">
+          <span className="chat-agent-title" title={agent.description}>
+            <span className="chat-agent-avatar">{agent.avatar}</span>
+            {agent.name}
+          </span>
           <ModelSelector
-            models={config.models}
+            models={models}
             value={modelId}
             onChange={handleModelChange}
           />
@@ -142,29 +151,33 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
               onClick={handleCloudSyncToggle}
               title={cloudSync ? 'Auto-sync ON (click to disable)' : 'Auto-sync OFF (click to enable)'}
             >
-              {cloudSync ? '☁️' : '☁️'}
+              ☁️
             </button>
-            <button
-              className={`bar-icon-btn${workspaceOpen ? ' active' : ''}`}
-              onClick={toggleWorkspace}
-              title="Workspace"
-            >
-              📁
-            </button>
+            {agent.workspace_enabled && (
+              <button
+                className={`bar-icon-btn${workspaceOpen ? ' active' : ''}`}
+                onClick={toggleWorkspace}
+                title="Workspace"
+              >
+                📁
+              </button>
+            )}
           </div>
         </div>
 
         <ChatWindow
           key={chatKey}
           ref={chatRef}
-          threadId={initialPrefs.session_id}
+          threadId={session.session_id}
           initialHistory={chatHistory}
-          url="/api/assistant/chat"
+          url={chatStreamUrl}
           onCustomEvent={handleCustomEvent}
+          forwardedProps={{ agent_id: agent.id }}
+          onMessagesEdited={(msgs) => { syncChatHistory(agent.id, msgs).catch(() => {}) }}
         />
       </div>
 
-      {workspaceOpen && layoutMode === 'side' && (
+      {agent.workspace_enabled && workspaceOpen && layoutMode === 'side' && (
         <div
           className="assistant-workspace assistant-workspace--side"
           style={{ flex: `0 0 ${sideWidth}px` }}
@@ -174,7 +187,7 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
         </div>
       )}
 
-      {workspaceOpen && layoutMode === 'overlay' && (
+      {agent.workspace_enabled && workspaceOpen && layoutMode === 'overlay' && (
         <>
           <div className="assistant-workspace-backdrop" onClick={closeWorkspace} />
           <div className="assistant-workspace assistant-workspace--overlay">
@@ -183,7 +196,7 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
         </>
       )}
 
-      {workspaceOpen && layoutMode === 'modal' && (
+      {agent.workspace_enabled && workspaceOpen && layoutMode === 'modal' && (
         <div className="overlay" onClick={closeWorkspace}>
           <div className="modal assistant-workspace--modal" onClick={e => e.stopPropagation()}>
             {workspacePanel}

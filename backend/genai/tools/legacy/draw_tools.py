@@ -100,20 +100,21 @@ def generate_image(
         img_base64 = response["images"][0]
         image = Image.open(io.BytesIO(base64.b64decode(img_base64)))
 
-        # Destination: caller's workspace if an agent context is set (Assistant
+        # Destination: caller's workspace if an agent context is set (Chat
         # module), otherwise fall back to the shared global path used by the
         # Draw module.
-        from backend.core.agent_context import current_workspace_dir
+        from backend.core.agent_context import current_workspace_dir, current_agent_id
         workspace_dir = current_workspace_dir.get()
+        agent_id = current_agent_id.get()
 
         timestamp = int(time.time())
         filename = f"img_{timestamp}_{used_seed}.png"
 
-        if workspace_dir:
+        if workspace_dir and agent_id:
             images_dir = Path(workspace_dir)
             images_dir.mkdir(parents=True, exist_ok=True)
             file_path = images_dir / filename
-            public_url = f"/api/assistant/workspace/{filename}"
+            public_url = f"/api/chat/workspace/{filename}?agent_id={agent_id}"
         else:
             images_dir = Path("storage/generated/images")
             images_dir.mkdir(parents=True, exist_ok=True)

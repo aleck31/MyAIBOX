@@ -70,8 +70,12 @@ class ChatAgentRegistry:
     # ── Public API ──────────────────────────────────────────────────────
 
     def list_agents(self, user_id: str) -> list[Agent]:
-        """Return every built-in agent with the user's overrides applied."""
-        return [self.get_agent(user_id, aid) for aid in BUILTIN_AGENTS]
+        """Return every built-in agent with the user's overrides applied.
+
+        Sorted by ``order`` (lower first); id breaks ties for determinism.
+        """
+        agents = [self.get_agent(user_id, aid) for aid in BUILTIN_AGENTS]
+        return sorted(agents, key=lambda a: (a.order, a.id))
 
     def get_agent(self, user_id: str, agent_id: str) -> Agent:
         """Resolve a single agent for this user.

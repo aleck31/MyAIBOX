@@ -21,3 +21,9 @@ from typing import Optional
 current_workspace_dir: ContextVar[Optional[str]] = ContextVar(
     "current_workspace_dir", default=None
 )
+
+# ID of the current chat agent, used by legacy tools to construct
+# workspace URLs that include the required ``agent_id`` query param.
+current_agent_id: ContextVar[Optional[str]] = ContextVar(
+    "current_agent_id", default=None
+)

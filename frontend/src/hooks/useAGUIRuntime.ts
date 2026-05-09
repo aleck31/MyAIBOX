@@ -4,7 +4,6 @@ import type { ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallSta
 import { useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike, AppendMessage } from '@assistant-ui/react'
 import { FileUploadAdapter } from './FileUploadAdapter'
-import { syncHistory } from '../api/client'
 
 function generateId() {
   return crypto.randomUUID()
@@ -79,6 +78,10 @@ interface UseAGUIRuntimeOptions {
   initialMessages?: Array<{ role: 'user' | 'assistant'; content: unknown }>
   /** AG-UI CUSTOM events out-of-band (e.g. workspace_updated). */
   onCustomEvent?: (name: string, value: unknown) => void
+  /** Extra JSON merged into the runAgent payload (server reads `forwarded_props`). */
+  forwardedProps?: Record<string, unknown>
+  /** Called when the message history is edited locally (e.g. edit/retry). Caller typically persists to backend. */
+  onMessagesEdited?: (messages: Array<{ role: 'user' | 'assistant'; content: string }>) => void
 }
 
 // Module-level cache: survives route changes, cleared on tab close
@@ -142,10 +145,15 @@ function parseHistoryContent(content: unknown): { text: string; attachments: Loc
   return { text: String(content), attachments: [] }
 }
 
-export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEvent }: UseAGUIRuntimeOptions) {
+export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEvent, forwardedProps, onMessagesEdited }: UseAGUIRuntimeOptions) {
   // Ref so subscriber captures the latest callback without re-binding.
   const onCustomEventRef = useRef(onCustomEvent)
   onCustomEventRef.current = onCustomEvent
+  // Ref so the runAgent call always sees the current props without re-creating the agent.
+  const forwardedPropsRef = useRef(forwardedProps)
+  forwardedPropsRef.current = forwardedProps
+  const onMessagesEditedRef = useRef(onMessagesEdited)
+  onMessagesEditedRef.current = onMessagesEdited
   const [localMessages, setLocalMessagesRaw] = useState<LocalMessage[]>(() => {
     // Restore from cache if available (route switch)
     const cached = _msgCache.get(threadId)
@@ -195,7 +203,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   const runAgent = useCallback((assistantId: string) => {
     agentRef.current
       .runAgent(
-        { runId: generateId() },
+        { runId: generateId(), forwardedProps: forwardedPropsRef.current },
         {
           onTextMessageContentEvent({ event }: { event: TextMessageContentEvent }) {
             setLocalMessages(prev =>
@@ -370,8 +378,8 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
     )
     setLocalMessages(trimmed)
 
-    // Sync to backend session
-    syncHistory(trimmed.map(m => ({ role: m.role, content: m.content }))).catch(() => {})
+    // Notify caller so backend can persist the trimmed history (e.g. on edit/retry).
+    onMessagesEditedRef.current?.(trimmed.map(m => ({ role: m.role, content: m.content })))
 
     return userText
   }, [])

@@ -47,48 +47,31 @@ export async function logoutApi() {
   return res.ok
 }
 
-// ─── Assistant ───────────────────────────────────────────────────────────────
+// ─── Chat (unified agent/persona) ────────────────────────────────────────────
 
-const ASSISTANT = '/api/assistant'
+const CHAT = '/api/chat'
 
-export async function getAssistantConfig() {
-  const res = await apiFetch(`${ASSISTANT}/config`)
-  return res.json()
+export interface ChatAgent {
+  id: string
+  name: string
+  description: string
+  avatar: string
+  default_model: string | null
+  preset_questions: string[]
+  enabled_legacy_tools: string[]
+  enabled_builtin_tools: string[]
+  enabled_mcp_servers: string[]
+  enabled_skills: string[]
+  parameters: Record<string, unknown>
+  workspace_enabled: boolean
+  order: number
 }
 
-export async function getAssistantSession() {
-  const res = await apiFetch(`${ASSISTANT}/session`)
-  if (!res.ok) throw new Error('Session load failed')
-  return res.json()
-}
-
-export async function updateAssistantModel(model_id: string) {
-  const res = await apiFetch(`${ASSISTANT}/session/model`, {
-    method: 'POST',
-    body: JSON.stringify({ model_id }),
-  })
-  return res.json()
-}
-
-export async function syncAssistantHistory(messages: Array<{ role: string; content: unknown }>) {
-  const res = await apiFetch(`${ASSISTANT}/session/history`, {
-    method: 'POST',
-    body: JSON.stringify({ messages }),
-  })
-  return res.json()
-}
-
-export async function clearAssistantHistory() {
-  const res = await apiFetch(`${ASSISTANT}/session/history`, { method: 'DELETE' })
-  return res.json()
-}
-
-export async function updateAssistantCloudSync(enabled: boolean) {
-  const res = await apiFetch(`${ASSISTANT}/session/cloud-sync`, {
-    method: 'POST',
-    body: JSON.stringify({ enabled }),
-  })
-  return res.json()
+export interface ChatSession {
+  session_id: string
+  model_id: string | null
+  cloud_sync: boolean
+  history: Array<{ role: 'user' | 'assistant'; content: unknown }>
 }
 
 export interface WorkspaceFile {
@@ -97,71 +80,96 @@ export interface WorkspaceFile {
   mtime: number
 }
 
-export async function listAssistantWorkspace(): Promise<{ files: WorkspaceFile[] }> {
-  const res = await apiFetch(`${ASSISTANT}/workspace`)
+// Agent registry --------------------------------------------------------------
+
+export async function listChatAgents(): Promise<{ agents: ChatAgent[] }> {
+  const res = await apiFetch(`${CHAT}/agents`)
   return res.json()
 }
 
-export function assistantWorkspaceFileUrl(name: string): string {
-  return `${ASSISTANT}/workspace/${encodeURIComponent(name)}`
-}
-
-export async function deleteAssistantWorkspaceFile(name: string) {
-  const res = await apiFetch(`${ASSISTANT}/workspace/${encodeURIComponent(name)}`, { method: 'DELETE' })
+export async function getChatAgent(agentId: string): Promise<ChatAgent> {
+  const res = await apiFetch(`${CHAT}/agents/${encodeURIComponent(agentId)}`)
+  if (!res.ok) throw new Error(`Agent ${agentId} not found`)
   return res.json()
 }
 
-// ─── Persona ─────────────────────────────────────────────────────────────────
-
-const PERSONA = '/api/persona'
-
-export async function getConfig() {
-  const res = await apiFetch(`${PERSONA}/config`)
-  return res.json()
-}
-
-export async function getSession() {
-  const res = await apiFetch(`${PERSONA}/session`)
-  if (!res.ok) throw new Error('Session load failed')
-  return res.json()
-}
-
-export async function updateRole(persona_role: string) {
-  const res = await apiFetch(`${PERSONA}/session/role`, {
-    method: 'POST',
-    body: JSON.stringify({ persona_role }),
+export async function patchChatAgent(agentId: string, patch: Partial<ChatAgent>): Promise<ChatAgent> {
+  const res = await apiFetch(`${CHAT}/agents/${encodeURIComponent(agentId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
   })
   return res.json()
 }
 
-export async function updateSessionModel(model_id: string) {
-  const res = await apiFetch(`${PERSONA}/session/model`, {
+export async function resetChatAgent(agentId: string): Promise<ChatAgent> {
+  const res = await apiFetch(`${CHAT}/agents/${encodeURIComponent(agentId)}/reset`, { method: 'POST' })
+  return res.json()
+}
+
+export async function listChatSkills(): Promise<{ skills: Array<{ name: string; description: string }> }> {
+  const res = await apiFetch(`${CHAT}/skills`)
+  return res.json()
+}
+
+// Session per agent -----------------------------------------------------------
+
+export async function getChatSession(agentId: string): Promise<ChatSession> {
+  const res = await apiFetch(`${CHAT}/session?agent_id=${encodeURIComponent(agentId)}`)
+  if (!res.ok) throw new Error('Session load failed')
+  return res.json()
+}
+
+export async function updateChatModel(agentId: string, model_id: string) {
+  const res = await apiFetch(`${CHAT}/session/model?agent_id=${encodeURIComponent(agentId)}`, {
     method: 'POST',
     body: JSON.stringify({ model_id }),
   })
   return res.json()
 }
 
-export async function syncHistory(messages: Array<{ role: string; content: unknown }>) {
-  const res = await apiFetch(`${PERSONA}/session/history`, {
+export async function updateChatCloudSync(agentId: string, enabled: boolean) {
+  const res = await apiFetch(`${CHAT}/session/cloud-sync?agent_id=${encodeURIComponent(agentId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ enabled }),
+  })
+  return res.json()
+}
+
+export async function syncChatHistory(agentId: string, messages: Array<{ role: string; content: unknown }>) {
+  const res = await apiFetch(`${CHAT}/session/history?agent_id=${encodeURIComponent(agentId)}`, {
     method: 'POST',
     body: JSON.stringify({ messages }),
   })
   return res.json()
 }
 
-export async function clearPersonaHistory() {
-  const res = await apiFetch(`${PERSONA}/session/history`, { method: 'DELETE' })
-  return res.json()
-}
-
-export async function updateCloudSync(enabled: boolean) {
-  const res = await apiFetch(`${PERSONA}/session/cloud-sync`, {
-    method: 'POST',
-    body: JSON.stringify({ enabled }),
+export async function clearChatHistory(agentId: string) {
+  const res = await apiFetch(`${CHAT}/session/history?agent_id=${encodeURIComponent(agentId)}`, {
+    method: 'DELETE',
   })
   return res.json()
 }
+
+// Workspace per agent ---------------------------------------------------------
+
+export async function listChatWorkspace(agentId: string): Promise<{ files: WorkspaceFile[] }> {
+  const res = await apiFetch(`${CHAT}/workspace?agent_id=${encodeURIComponent(agentId)}`)
+  return res.json()
+}
+
+export function chatWorkspaceFileUrl(agentId: string, name: string): string {
+  return `${CHAT}/workspace/${encodeURIComponent(name)}?agent_id=${encodeURIComponent(agentId)}`
+}
+
+export async function deleteChatWorkspaceFile(agentId: string, name: string) {
+  const res = await apiFetch(
+    `${CHAT}/workspace/${encodeURIComponent(name)}?agent_id=${encodeURIComponent(agentId)}`,
+    { method: 'DELETE' },
+  )
+  return res.json()
+}
+
+export const chatStreamUrl = `${CHAT}/stream`
 
 // ─── Text ────────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,7 @@
-import type { ModelOption } from '../types/persona'
+export interface ModelOption {
+  model_id: string
+  name: string
+}
 
 interface ModelSelectorProps {
   models: ModelOption[]

@@ -1,9 +1,10 @@
 import MarkdownViewer from './MarkdownViewer'
 import ImageViewer from './ImageViewer'
 import PdfViewer from './PdfViewer'
-import { assistantWorkspaceFileUrl } from '../../api/client'
+import { chatWorkspaceFileUrl } from '../../api/client'
 
 interface Props {
+  agentId: string
   name: string
 }
 
@@ -12,8 +13,8 @@ function extensionOf(name: string): string {
   return i < 0 ? '' : name.slice(i + 1).toLowerCase()
 }
 
-export default function WorkspaceFileViewer({ name }: Props) {
-  const url = assistantWorkspaceFileUrl(name)
+export default function WorkspaceFileViewer({ agentId, name }: Props) {
+  const url = chatWorkspaceFileUrl(agentId, name)
   const ext = extensionOf(name)
 
   if (ext === 'md' || ext === 'markdown') return <MarkdownViewer url={url} />

@@ -34,7 +34,7 @@ from backend.api.auth import get_auth_user
 from backend.api.prompts.chat import Agent, BUILTIN_AGENTS, OVERRIDABLE_FIELDS
 from backend.common.logger import setup_logger
 from backend.core import workspace
-from backend.core.agent_context import current_workspace_dir
+from backend.core.agent_context import current_workspace_dir, current_agent_id
 from backend.core.chat_agents import chat_agent_registry
 from backend.core.service.service_factory import ServiceFactory
 from backend.core.skills import skill_registry
@@ -227,10 +227,12 @@ async def list_skills(sub: str = Depends(get_auth_user)):
 def _session_module(agent_id: str) -> str:
     """Session module name for the given agent.
 
-    AgentService / ChatService use ``module_name`` as the suffix of the
-    session key, so using ``agent_id`` directly yields per-agent isolation.
+    Format: ``chat.<agent_id>`` — the ``chat.`` prefix groups all Chat-module
+    sessions so future queries can ``begins_with("chat.")`` to fetch the
+    whole module; the suffix keeps per-agent isolation (each agent gets its
+    own session thread).
     """
-    return agent_id
+    return f"chat.{agent_id}"
 
 
 @router.get("/session")
@@ -420,20 +422,24 @@ async def delete_workspace_file(
 
 # ─── Streaming chat ─────────────────────────────────────────────────────────
 
-class ChatRequest(RunAgentInput):
-    agent_id: str
-
-
 @router.post("/stream")
 async def chat_stream(
-    body: ChatRequest,
+    body: RunAgentInput,
     request: Request,
     sub: str = Depends(get_auth_user),
 ):
     """AG-UI SSE streaming endpoint — dispatches to ChatService or AgentService
     depending on whether the selected agent has any tools/skills enabled.
+
+    Expects ``forwarded_props.agent_id`` — the AG-UI client's HttpAgent is
+    configured with ``forwardedProps: { agent_id }`` so the field rides
+    along on every runAgent call.
     """
-    agent = _resolve_agent(sub, body.agent_id)
+    forwarded = body.forwarded_props or {}
+    agent_id = forwarded.get("agent_id") if isinstance(forwarded, dict) else None
+    if not agent_id:
+        raise HTTPException(status_code=400, detail="agent_id is required")
+    agent = _resolve_agent(sub, agent_id)
     run_id = body.run_id or str(uuid.uuid4())
     message_id = str(uuid.uuid4())
     thinking_id = str(uuid.uuid4())
@@ -489,7 +495,7 @@ async def _stream_agent(
     msg_text: str,
     files: List[str],
     history: List[Dict],
-    body: ChatRequest,
+    body: RunAgentInput,
     run_id: str,
     message_id: str,
     thinking_id: str,
@@ -514,6 +520,7 @@ async def _stream_agent(
             else:
                 system_prompt = agent.prompt
                 ctx_token = None
+            agent_id_token = current_agent_id.set(agent.id)
 
             tool_config = _build_tool_config(agent)
             skills = skill_registry.get_many(agent.enabled_skills)
@@ -597,6 +604,7 @@ async def _stream_agent(
             finally:
                 if ctx_token is not None:
                     current_workspace_dir.reset(ctx_token)
+                current_agent_id.reset(agent_id_token)
 
             if thinking_started and not text_started:
                 yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
@@ -622,7 +630,7 @@ async def _stream_chat(
     msg_text: str,
     files: List[str],
     history: List[Dict],
-    body: ChatRequest,
+    body: RunAgentInput,
     run_id: str,
     message_id: str,
     thinking_id: str,

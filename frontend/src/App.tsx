@@ -12,8 +12,7 @@ function lazyLoad(loader: () => Promise<{ default: React.ComponentType }>) {
   }))
 }
 
-const AssistantPage = lazyLoad(() => import('./pages/AssistantPage'))
-const PersonaPage = lazyLoad(() => import('./pages/PersonaPage'))
+const ChatPage = lazyLoad(() => import('./pages/ChatPage'))
 const TextPage = lazyLoad(() => import('./pages/TextPage'))
 const SummaryPage = lazyLoad(() => import('./pages/SummaryPage'))
 const AskingPage = lazyLoad(() => import('./pages/AskingPage'))
@@ -68,10 +67,14 @@ export default function App() {
             </AuthGuard>
           }
         >
-          {/* Default: redirect to assistant */}
-          <Route index element={<Navigate to="/assistant" replace />} />
-          <Route path="assistant" element={<Suspense><AssistantPage /></Suspense>} />
-          <Route path="persona" element={<Suspense><PersonaPage /></Suspense>} />
+          {/* Default: redirect to the built-in assistant agent */}
+          <Route index element={<Navigate to="/chat/assistant" replace />} />
+          {/* Chat with agent — unified endpoint for all built-in agents */}
+          <Route path="chat" element={<Navigate to="/chat/assistant" replace />} />
+          <Route path="chat/:agentId" element={<Suspense><ChatPage /></Suspense>} />
+          {/* Legacy aliases — redirect to the new /chat path */}
+          <Route path="assistant" element={<Navigate to="/chat/assistant" replace />} />
+          <Route path="persona" element={<Navigate to="/chat/assistant" replace />} />
           <Route path="text" element={<Suspense><TextPage /></Suspense>} />
           <Route path="summary" element={<Suspense><SummaryPage /></Suspense>} />
           <Route path="asking" element={<Suspense><AskingPage /></Suspense>} />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import {
-  listAssistantWorkspace,
-  deleteAssistantWorkspaceFile,
+  listChatWorkspace,
+  deleteChatWorkspaceFile,
   type WorkspaceFile,
 } from '../../api/client'
 import WorkspaceFileList from './WorkspaceFileList'
@@ -12,10 +12,11 @@ export interface WorkspacePanelHandle {
 }
 
 interface Props {
+  agentId: string
   onClose?: () => void
 }
 
-function WorkspacePanel({ onClose }: Props, ref: React.Ref<WorkspacePanelHandle>) {
+function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePanelHandle>) {
   const [files, setFiles] = useState<WorkspaceFile[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -23,9 +24,8 @@ function WorkspacePanel({ onClose }: Props, ref: React.Ref<WorkspacePanelHandle>
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await listAssistantWorkspace()
+      const res = await listChatWorkspace(agentId)
       setFiles(res.files || [])
-      // Keep current selection if still present; otherwise fall back to first.
       setSelected(prev => {
         if (prev && res.files?.some(f => f.name === prev)) return prev
         return res.files?.[0]?.name ?? null
@@ -35,7 +35,7 @@ function WorkspacePanel({ onClose }: Props, ref: React.Ref<WorkspacePanelHandle>
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [agentId])
 
   useImperativeHandle(ref, () => ({ refresh }), [refresh])
 
@@ -44,12 +44,12 @@ function WorkspacePanel({ onClose }: Props, ref: React.Ref<WorkspacePanelHandle>
   const handleDelete = useCallback(async (name: string) => {
     if (!confirm(`Delete "${name}"?`)) return
     try {
-      await deleteAssistantWorkspaceFile(name)
+      await deleteChatWorkspaceFile(agentId, name)
       await refresh()
     } catch (err) {
       console.error('Delete failed:', err)
     }
-  }, [refresh])
+  }, [agentId, refresh])
 
   return (
     <div className="workspace-panel">
@@ -82,7 +82,7 @@ function WorkspacePanel({ onClose }: Props, ref: React.Ref<WorkspacePanelHandle>
               onClick={() => setSelected(null)}
               title={`Close ${selected}`}
             >✕</button>
-            <WorkspaceFileViewer key={selected} name={selected} />
+            <WorkspaceFileViewer key={selected} agentId={agentId} name={selected} />
           </>
         ) : (
           <div className="workspace-viewer-empty">Select a file to preview</div>

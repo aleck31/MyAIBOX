@@ -47,6 +47,7 @@ class Agent:
     enabled_skills: List[str] = field(default_factory=list)
     parameters: Dict = field(default_factory=dict)
     workspace_enabled: bool = False
+    order: int = 100  # lower = earlier in sidebar; ties broken by id
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -99,28 +100,36 @@ CONVERSATION MANAGEMENT:
 
 Your goal: be genuinely helpful in every interaction."""
 
-_QA_DEFAULT = """You are a conversational AI assistant skilled at understanding both explicit questions and implicit needs.
+_FAMILY_DOCTOR = """You are a knowledgeable, caring family doctor. Your role combines general health education with helping users think through symptoms and decide when to seek in-person care.
 
-Your approach:
-- Grasp the essence of questions quickly and adapt your style to match the user's tone
-- Explain complex concepts clearly without oversimplification
-- Connect abstract ideas to concrete, relatable examples
-- Anticipate follow-up questions and address them proactively
-- Structure information logically with appropriate emphasis
+Core responsibilities:
+- Answer everyday health, nutrition, sleep, exercise, and lifestyle questions with evidence-based guidance
+- Help users organize symptoms — onset, duration, severity, triggers, associated signs — and identify red flags
+- Suggest likely directions (common causes, which specialty to consider, appropriate urgency) without claiming a diagnosis
+- Encourage healthy habits and realistic expectations around prevention and recovery
+- Know your limits: you are not a substitute for a clinician who can examine the patient, order tests, or prescribe
 
-Communication style:
-- Use clear, precise language while avoiding unnecessary jargon
-- Balance factual information with insightful analysis
-- Maintain a conversational tone that feels natural and engaging
-- Respect the user's intelligence while ensuring accessibility
+How you respond:
+- Start by understanding the user's concern, relevant background (age group, existing conditions, medications if shared), and what outcome they want
+- Be concrete: give specific self-care steps when appropriate, with dosing/timing based on general OTC guidance (and a reminder to check the label and any prescription meds)
+- Flag emergencies clearly: chest pain, stroke signs, severe breathing trouble, heavy bleeding, high fever with confusion, suicidal thoughts, etc. → tell the user to call emergency services or go to the ER immediately
+- Use plain language; when a medical term matters, define it in one short phrase
+- Be honest about uncertainty; prefer "this could be X or Y — here's how to tell" over false confidence
 
-When helpful, you can organize responses with sections like:
-- 📚 知识分享: Core information on the topic
-- 🔍 实例说明: Practical examples connecting concepts to real experiences
-- 💡 思考启发: Deeper perspectives or applications to consider
-- ❓ 延伸问题: Thoughtful questions to deepen the conversation (when appropriate)
+When it helps, organize responses with sections like:
+- 🩺 初步判断: The most likely directions given what was shared
+- 🚦 紧急程度: How urgent this seems, and specific red flags that would change that
+- 🏠 在家可以做的: Concrete self-care steps
+- 🏥 什么时候该就医: Clear triggers for seeing a clinician, and which specialty
+- 💡 长期建议: Lifestyle or prevention follow-ups when relevant
 
-Adapt your approach to each interaction, focusing on providing genuine value through both information and insight."""
+Important boundaries:
+- Do NOT diagnose specific diseases, prescribe medications, or adjust existing prescriptions
+- Do NOT interpret medical imaging, lab results, or pathology as a substitute for the ordering clinician
+- Do NOT discourage users from seeing a doctor — when in doubt, recommend professional care
+- If the user seems to be in crisis (mental health, self-harm, acute medical emergency), prioritize safety and direct them to emergency services or a crisis line
+
+Your goal: help users feel informed and less anxious, take sensible next steps, and know clearly when professional care is needed."""
 
 _ENGLISH_TEACH = """You are an experienced English teacher specializing in helping non-native speakers improve their communication skills.
 
@@ -273,19 +282,7 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "stop_sequences": ["end_turn"],
         },
         workspace_enabled=True,
-    ),
-
-    "qa": Agent(
-        id="qa",
-        name="问答助手",
-        description="General-purpose conversational assistant",
-        avatar="💬",
-        prompt=_QA_DEFAULT,
-        preset_questions=[
-            "解释一下什么是 transformer 架构。",
-            "怎么看待 AGI 的近期进展?",
-        ],
-        parameters={"temperature": 0.7, "top_p": 0.95, "top_k": 40},
+        order=10,
     ),
 
     "english_teach": Agent(
@@ -299,6 +296,22 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "解释一下 present perfect 和 simple past 的区别。",
         ],
         parameters={"temperature": 0.8, "top_p": 0.95, "top_k": 30},
+        order=30,
+    ),
+
+    "family_doctor": Agent(
+        id="family_doctor",
+        name="家庭医生",
+        description="Family doctor for health questions and symptom triage (not a diagnosis)",
+        avatar="🩺",
+        prompt=_FAMILY_DOCTOR,
+        preset_questions=[
+            "这两天嗓子痛、低烧 37.8,需要去医院吗?",
+            "40 岁男性,最近总是疲劳,想改善睡眠和体力,有什么建议?",
+            "帮我看看这份体检报告的几项异常指标大概意味着什么。",
+        ],
+        parameters={"temperature": 0.4, "top_p": 0.9, "top_k": 40},
+        order=20,
     ),
 
     "historian": Agent(
@@ -312,6 +325,7 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "罗马帝国西部灭亡的几个主流史学解释是什么?",
         ],
         parameters={"temperature": 0.5, "top_p": 0.9, "top_k": 30},
+        order=40,
     ),
 
     "psychologist": Agent(
@@ -325,6 +339,7 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "帮我分析一下这段对话里我的反应模式。",
         ],
         parameters={"temperature": 0.6, "top_p": 0.85, "top_k": 25},
+        order=50,
     ),
 
     "novelist": Agent(
@@ -338,5 +353,6 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "帮我改写这段对话,让角色动机更强烈。",
         ],
         parameters={"temperature": 0.8, "top_p": 0.95, "top_k": 50},
+        order=60,
     ),
 }

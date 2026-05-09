@@ -22,6 +22,8 @@ interface ChatWindowProps {
   initialHistory: Array<{ role: 'user' | 'assistant'; content: unknown }>
   url?: string
   onCustomEvent?: (name: string, value: unknown) => void
+  forwardedProps?: Record<string, unknown>
+  onMessagesEdited?: (messages: Array<{ role: 'user' | 'assistant'; content: string }>) => void
 }
 
 const RetractContext = createContext<(() => string) | null>(null)
@@ -227,7 +229,7 @@ function Thread() {
 
 /* ── ChatWindow ──────────────────────────────────────────────────────────── */
 const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWindow(
-  { threadId, initialHistory, url = '/api/persona/chat', onCustomEvent },
+  { threadId, initialHistory, url = '/api/chat/stream', onCustomEvent, forwardedProps, onMessagesEdited },
   ref
 ) {
   const { runtime, getMessages, retractLast } = useAGUIRuntime({
@@ -235,6 +237,8 @@ const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWi
     threadId,
     initialMessages: initialHistory,
     onCustomEvent,
+    forwardedProps,
+    onMessagesEdited,
   })
 
   useImperativeHandle(ref, () => ({ getMessages }), [getMessages])
