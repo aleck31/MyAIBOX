@@ -22,6 +22,7 @@ const SettingsPage = lazyLoad(() => import('./pages/SettingsPage'))
 const ModulesPage = lazyLoad(() => import('./pages/ModulesPage'))
 const ModelsPage = lazyLoad(() => import('./pages/ModelsPage'))
 const McpPage = lazyLoad(() => import('./pages/McpPage'))
+const AgentsPage = lazyLoad(() => import('./pages/AgentsPage'))
 
 function AuthGuard({ children }: { children: (username: string) => React.ReactNode }) {
   const { username, loading } = useAuth()
@@ -81,6 +82,7 @@ export default function App() {
           <Route path="vision" element={<Suspense><VisionPage /></Suspense>} />
           <Route path="draw" element={<Suspense><DrawPage /></Suspense>} />
           <Route path="settings/session" element={<Suspense><SettingsPage /></Suspense>} />
+          <Route path="settings/agents" element={<Suspense><AgentsPage /></Suspense>} />
           <Route path="settings/modules" element={<Suspense><ModulesPage /></Suspense>} />
           <Route path="settings/models" element={<Suspense><ModelsPage /></Suspense>} />
           <Route path="settings/mcp" element={<Suspense><McpPage /></Suspense>} />

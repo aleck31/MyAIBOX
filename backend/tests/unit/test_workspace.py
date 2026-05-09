@@ -42,6 +42,27 @@ def test_safe_join_accepts_plain_filename(tmp_root):
     assert workspace.safe_join(p, "report.md").startswith(p)
 
 
+def test_safe_join_accepts_unicode_filename(tmp_root):
+    """Agents write in many languages — Unicode names must round-trip."""
+    p = workspace.ensure("alice", "assistant")
+    assert workspace.safe_join(p, "夏天感冒常见症状.md").startswith(p)
+    assert workspace.safe_join(p, "report (v2).md").startswith(p)
+
+
+def test_safe_join_rejects_hidden_file(tmp_root):
+    p = workspace.ensure("alice", "assistant")
+    with pytest.raises(workspace.WorkspaceError):
+        workspace.safe_join(p, ".env")
+
+
+def test_safe_join_rejects_control_chars(tmp_root):
+    p = workspace.ensure("alice", "assistant")
+    with pytest.raises(workspace.WorkspaceError):
+        workspace.safe_join(p, "a\x00b.md")
+    with pytest.raises(workspace.WorkspaceError):
+        workspace.safe_join(p, "a\nb.md")
+
+
 def test_safe_join_rejects_traversal(tmp_root):
     p = workspace.ensure("alice", "assistant")
     with pytest.raises(workspace.WorkspaceError):

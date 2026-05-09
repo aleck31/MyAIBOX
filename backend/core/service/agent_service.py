@@ -71,6 +71,26 @@ class AgentService(BaseService):
         if entry := self._agent_cache.pop(session_id, None):
             entry[0].destroy()
 
+    def invalidate_provider_for(self, user_name: str, module_name: str) -> bool:
+        """Drop the cached AgentProvider for the user's session under ``module_name``.
+
+        Called when agent config (tools, skills, params) changed so the next
+        message re-creates the provider with the fresh config. Returns True if
+        a provider was actually dropped.
+        """
+        session_entry = self._session_cache.get(f"{user_name}:{module_name}")
+        if not session_entry:
+            return False
+        session, _ = session_entry
+        if session.session_id in self._agent_cache:
+            self._remove_cached_provider(session.session_id)
+            logger.info(
+                f"[AgentService] Invalidated provider for {user_name}:{module_name} "
+                f"(session {session.session_id})"
+            )
+            return True
+        return False
+
     def _convert_to_strands_format(self, ui_history: List[Dict]) -> List:
         """Convert UI history messages to Strands Message format"""
         if not ui_history:

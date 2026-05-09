@@ -29,13 +29,16 @@ def load_builtin_tools(tool_filter: Optional[List[str]] = None) -> List:
     """Load builtin tools.
 
     Args:
-        tool_filter: Optional list of specific tool names to load.
+        tool_filter: When None, load every tool in :data:`BUILTIN_TOOLS`.
+            When a list (possibly empty), load only the listed tools — an
+            empty list means no builtin tools at all. This matters for
+            per-agent configs where the user has opted out of everything.
 
     Returns:
         List of loaded Strands tool modules.
     """
     tools = []
-    tools_to_load = tool_filter if tool_filter else BUILTIN_TOOLS
+    tools_to_load = BUILTIN_TOOLS if tool_filter is None else tool_filter
 
     for tool_name in tools_to_load:
         if tool_name not in BUILTIN_TOOLS:

@@ -111,6 +111,13 @@ export async function listChatSkills(): Promise<{ skills: Array<{ name: string; 
   return res.json()
 }
 
+export interface ChatToolInfo { name: string; description: string }
+
+export async function listChatTools(): Promise<{ legacy: ChatToolInfo[]; builtin: ChatToolInfo[] }> {
+  const res = await apiFetch(`${CHAT}/tools`)
+  return res.json()
+}
+
 // Session per agent -----------------------------------------------------------
 
 export async function getChatSession(agentId: string): Promise<ChatSession> {

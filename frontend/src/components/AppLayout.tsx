@@ -107,6 +107,15 @@ function IconLegacy() {
     </svg>
   )
 }
+function IconAgents() {
+  return (
+    <svg className="nav-item-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="5" cy="6" r="2" />
+      <circle cx="11" cy="6" r="2" />
+      <path d="M2 13c0-1.5 1.5-3 3-3s3 1.5 3 3M8 13c0-1.5 1.5-3 3-3s3 1.5 3 3" strokeLinecap="round" />
+    </svg>
+  )
+}
 function IconLogout() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -126,6 +135,7 @@ const TOOLS: NavModule[] = [
 
 const SETTINGS: NavModule[] = [
   { key: 'session', label: 'Sessions', route: '/settings/session', icon: <IconLegacy /> },
+  { key: 'agents', label: 'Agents', route: '/settings/agents', icon: <IconAgents /> },
   { key: 'modules', label: 'Modules', route: '/settings/modules', icon: <IconSettings /> },
   { key: 'models', label: 'Models', route: '/settings/models', icon: <IconModels /> },
   { key: 'mcp', label: 'MCP Server', route: '/settings/mcp', icon: <IconMcp /> },

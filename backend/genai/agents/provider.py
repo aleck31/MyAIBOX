@@ -89,11 +89,20 @@ class AgentProvider:
         if not self.tool_config.get('enabled', True):
             return all_tools
 
-        base_tools, mcp_clients = tool_provider.get_tools_and_contexts({
+        # Forward both the explicit per-agent name lists (`builtin_tools`,
+        # `mcp_servers`) and the older boolean fallbacks so ToolProvider can
+        # pick the right branch. Without forwarding `builtin_tools`, callers
+        # who opt out of e.g. `speak` would silently get every builtin tool.
+        forwarded_config = {
             'legacy_tools': self.tool_config.get('legacy_tools', []),
             'strands_tools_enabled': self.tool_config.get('strands_tools_enabled', True),
-            'mcp_tools_enabled': self.tool_config.get('mcp_tools_enabled', False)
-        })
+            'mcp_tools_enabled': self.tool_config.get('mcp_tools_enabled', False),
+        }
+        if 'builtin_tools' in self.tool_config:
+            forwarded_config['builtin_tools'] = self.tool_config['builtin_tools']
+        if 'mcp_servers' in self.tool_config:
+            forwarded_config['mcp_servers'] = self.tool_config['mcp_servers']
+        base_tools, mcp_clients = tool_provider.get_tools_and_contexts(forwarded_config)
         all_tools = base_tools
 
         # Start MCP clients and collect tools (persistent, not context manager)

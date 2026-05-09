@@ -33,9 +33,34 @@ from typing import List
 # WorkingDirectory to the project root).
 ROOT = os.path.join("storage", "workspace")
 
-# Filenames we tolerate. Anything else is rejected — no slashes, no
-# hidden files, no control chars, no unicode surprises.
-_SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+# Filenames we tolerate. Unicode letters/digits are allowed so agents
+# can write names like "夏天感冒常见症状.md"; what we reject are path
+# separators, traversal, hidden files, and anything unprintable.
+_MODULE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+
+# Module-internal names (username, agent_id) are ASCII — they come from
+# Cognito or code constants, so we keep the tighter regex for those.
+_SAFE_MODULE = _MODULE_NAME
+
+
+def _is_safe_filename(name: str) -> bool:
+    """Reject path separators, traversal, hidden/empty names, control chars.
+
+    Accepts arbitrary Unicode letters/digits/symbols otherwise, so names
+    like ``夏天感冒常见症状.md`` or ``report (v2).md`` work.
+    """
+    if not name or len(name) > 255:
+        return False
+    if name in (".", ".."):
+        return False
+    if name.startswith("."):
+        return False  # no hidden files
+    if any(c in name for c in ("/", "\\", "\x00")):
+        return False
+    # Any control character (tab, newline, etc.) is a red flag.
+    if not all(c.isprintable() for c in name):
+        return False
+    return True
 
 
 @dataclass(frozen=True)
@@ -56,9 +81,9 @@ def path_for(username: str, module: str) -> str:
     anything user-supplied should already be authenticated by the
     caller (username comes from Cognito, module is an app constant).
     """
-    if not _SAFE_NAME.match(username):
+    if not _SAFE_MODULE.match(username):
         raise WorkspaceError(f"invalid username: {username!r}")
-    if not _SAFE_NAME.match(module):
+    if not _SAFE_MODULE.match(module):
         raise WorkspaceError(f"invalid module: {module!r}")
     return os.path.abspath(os.path.join(ROOT, username, module))
 
@@ -77,7 +102,7 @@ def safe_join(workspace_dir: str, filename: str) -> str:
     intentionally do not support nested folders in MVP — flat layout
     matches what the UI shows and keeps security trivial.
     """
-    if not _SAFE_NAME.match(filename):
+    if not _is_safe_filename(filename):
         raise WorkspaceError(f"invalid filename: {filename!r}")
     root = os.path.realpath(workspace_dir)
     target = os.path.realpath(os.path.join(root, filename))

@@ -31,7 +31,12 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from backend.api.auth import get_auth_user
-from backend.api.prompts.chat import Agent, BUILTIN_AGENTS, OVERRIDABLE_FIELDS
+from backend.api.prompts.chat import (
+    Agent,
+    BUILTIN_AGENTS,
+    OVERRIDABLE_FIELDS,
+    WORKSPACE_INSTRUCTIONS,
+)
 from backend.common.logger import setup_logger
 from backend.core import workspace
 from backend.core.agent_context import current_workspace_dir, current_agent_id
@@ -187,6 +192,16 @@ class AgentPatchBody(BaseModel):
     parameters: Optional[Dict[str, Any]] = None
 
 
+def _invalidate_agent_provider(sub: str, agent_id: str) -> None:
+    """Drop any cached Strands AgentProvider for this user+agent so the next
+    message picks up fresh tools/skills/params. No-op for ChatService agents.
+    """
+    try:
+        _get_agent_service().invalidate_provider_for(sub, _session_module(agent_id))
+    except Exception as e:
+        logger.warning(f"[chat] provider invalidation failed for {agent_id}: {e}")
+
+
 @router.patch("/agents/{agent_id}")
 async def patch_agent(agent_id: str, body: AgentPatchBody, sub: str = Depends(get_auth_user)):
     patch = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -197,6 +212,7 @@ async def patch_agent(agent_id: str, body: AgentPatchBody, sub: str = Depends(ge
         agent = chat_agent_registry.set_override(sub, agent_id, patch)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
+    _invalidate_agent_provider(sub, agent_id)
     return _agent_dto(agent)
 
 
@@ -206,6 +222,7 @@ async def reset_agent(agent_id: str, sub: str = Depends(get_auth_user)):
         agent = chat_agent_registry.reset(sub, agent_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
+    _invalidate_agent_provider(sub, agent_id)
     return _agent_dto(agent)
 
 
@@ -215,6 +232,28 @@ async def list_skills(sub: str = Depends(get_auth_user)):
         "skills": [
             {"name": e.name, "description": e.description}
             for e in skill_registry.list_entries()
+        ],
+    }
+
+
+@router.get("/tools")
+async def list_tools(sub: str = Depends(get_auth_user)):
+    """Available legacy + Strands builtin tools for the Agents settings UI."""
+    from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
+    from backend.genai.tools.strands.builtin_tools import BUILTIN_TOOLS
+
+    def _legacy_desc(name: str) -> str:
+        spec = legacy_tool_registry.tool_specs.get(name) or {}
+        return (spec.get("toolSpec") or {}).get("description") or ""
+
+    return {
+        "legacy": [
+            {"name": n, "description": _legacy_desc(n)}
+            for n in sorted(legacy_tool_registry.tools.keys())
+        ],
+        "builtin": [
+            {"name": n, "description": ""}
+            for n in BUILTIN_TOOLS
         ],
     }
 
@@ -512,10 +551,15 @@ async def _stream_agent(
             cloud_sync = bool(session.context.get("cloud_sync", False))
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
 
-            # Prepare workspace + system prompt
+            # Prepare workspace + system prompt.
+            # Every agent gets a workspace dir; the user decides whether to
+            # actually use it by toggling file tools in the Agents settings.
             if agent.workspace_enabled:
                 workspace_dir = workspace.ensure(workspace_user, agent.id)
-                system_prompt = agent.prompt.format(workspace_dir=workspace_dir)
+                prompt_template = agent.prompt
+                if "{workspace_dir}" not in prompt_template:
+                    prompt_template = prompt_template + "\n\n" + WORKSPACE_INSTRUCTIONS
+                system_prompt = prompt_template.format(workspace_dir=workspace_dir)
                 ctx_token = current_workspace_dir.set(workspace_dir)
             else:
                 system_prompt = agent.prompt

@@ -46,7 +46,7 @@ class Agent:
     enabled_mcp_servers: List[str] = field(default_factory=list)
     enabled_skills: List[str] = field(default_factory=list)
     parameters: Dict = field(default_factory=dict)
-    workspace_enabled: bool = False
+    workspace_enabled: bool = True
     order: int = 100  # lower = earlier in sidebar; ties broken by id
 
     def to_dict(self) -> Dict:
@@ -54,6 +54,16 @@ class Agent:
 
 
 # ─── Prompts (same text as the legacy assistant / persona definitions) ──────
+
+WORKSPACE_INSTRUCTIONS = """WORKSPACE (persistent file storage):
+- Your workspace directory is: {workspace_dir}
+- Use file_write/file_read/editor with filenames inside this directory
+  (e.g. "{workspace_dir}/report.md") to save deliverables the user will
+  look at — reports, notes, generated charts, exported data.
+- The workspace is per-user and persists across sessions; the user can
+  see and download every file you save there.
+- Do not write outside this directory."""
+
 
 _ASSISTANT_PROMPT = """You are an intelligent AI assistant with multimodal capabilities and tool access.
 
@@ -77,15 +87,6 @@ TOOL USAGE:
 - Formulate precise queries for better results
 - Integrate tool results naturally into responses
 - If a tool fails, explain clearly and suggest alternatives
-
-WORKSPACE (persistent file storage):
-- Your workspace directory is: {workspace_dir}
-- Use file_write/file_read/editor with filenames inside this directory
-  (e.g. "{workspace_dir}/report.md") to save deliverables the user will
-  look at — reports, notes, generated charts, exported data.
-- The workspace is per-user and persists across sessions; the user can
-  see and download every file you save there.
-- Do not write outside this directory.
 
 MULTIMODAL CONTENT:
 - For images: focus on relevant details, not exhaustive description
@@ -281,7 +282,6 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "max_tokens": 4096,
             "stop_sequences": ["end_turn"],
         },
-        workspace_enabled=True,
         order=10,
     ),
 
@@ -296,7 +296,7 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "解释一下 present perfect 和 simple past 的区别。",
         ],
         parameters={"temperature": 0.8, "top_p": 0.95, "top_k": 30},
-        order=30,
+        order=20,
     ),
 
     "family_doctor": Agent(
@@ -311,7 +311,7 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
             "帮我看看这份体检报告的几项异常指标大概意味着什么。",
         ],
         parameters={"temperature": 0.4, "top_p": 0.9, "top_k": 40},
-        order=20,
+        order=30,
     ),
 
     "historian": Agent(
