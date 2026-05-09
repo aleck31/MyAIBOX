@@ -15,7 +15,10 @@ logger = setup_logger('api.settings')
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
-MODULE_LIST = ['assistant', 'persona', 'text', 'summary', 'vision', 'asking', 'draw']
+# Tool modules — pure-function features with their own frontend pages and
+# API routes. Chat-module agents (Assistant, 家庭医生, etc.) are configured
+# separately via /settings/agents.
+MODULE_LIST = ['text', 'summary', 'vision', 'asking', 'draw']
 
 _session_store = None
 

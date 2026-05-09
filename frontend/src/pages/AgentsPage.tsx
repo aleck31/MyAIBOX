@@ -95,7 +95,7 @@ export default function AgentsPage() {
   return (
     <div className="settings-panel">
       <div className="section-bar">
-        <span style={{ fontSize: 13, fontWeight: 600 }}>Agent settings</span>
+        <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Agent settings</span>
         <div className="section-actions">
           <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
             {agents.length} agents

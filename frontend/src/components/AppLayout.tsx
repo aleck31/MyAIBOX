@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { logoutApi } from '../api/client'
 import { useChatAgents } from '../hooks/useChatAgents'
 import type { ChatAgent } from '../api/client'
+import pkg from '../../package.json'
 
 interface NavModule {
   key: string
@@ -195,7 +196,9 @@ export default function AppLayout({ username }: AppLayoutProps) {
           <div className="sidebar-brand-name">
             AI<em>Box</em>
           </div>
-          <div className="sidebar-brand-sub">GenAI 百宝箱</div>
+          <div className="sidebar-brand-sub">
+            GenAI 百宝箱 <span className="sidebar-brand-version">· v{pkg.version}</span>
+          </div>
         </div>
 
         {/* Navigation */}
