@@ -6,6 +6,7 @@ import {
 } from '../../api/client'
 import WorkspaceFileList from './WorkspaceFileList'
 import WorkspaceFileViewer from './WorkspaceFileViewer'
+import { IconRefresh, IconClose } from '../icons'
 
 export interface WorkspacePanelHandle {
   refresh: () => void
@@ -54,13 +55,17 @@ function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePan
   return (
     <div className="workspace-panel">
       <div className="workspace-header">
-        <span className="workspace-title">📁 Workspace <span className="workspace-count">({files.length})</span></span>
+        <span className="workspace-title">
+          Workspace File <span className="workspace-count">({files.length})</span>
+        </span>
         <div className="workspace-actions">
           <button className="bar-icon-btn" onClick={refresh} disabled={loading} title="Refresh">
-            <span className={loading ? 'spin' : ''} style={{ display: 'inline-block' }}>🔄</span>
+            <IconRefresh size={14} className={loading ? 'spin' : ''} />
           </button>
           {onClose && (
-            <button className="bar-icon-btn" onClick={onClose} title="Close">✕</button>
+            <button className="bar-icon-btn" onClick={onClose} title="Close">
+              <IconClose size={14} />
+            </button>
           )}
         </div>
       </div>
@@ -81,7 +86,7 @@ function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePan
               className="workspace-viewer-close"
               onClick={() => setSelected(null)}
               title={`Close ${selected}`}
-            >✕</button>
+            ><IconClose size={12} /></button>
             <WorkspaceFileViewer key={selected} agentId={agentId} name={selected} />
           </>
         ) : (

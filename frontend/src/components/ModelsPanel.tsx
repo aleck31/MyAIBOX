@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getModels, addModel, updateModel, deleteModel } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
+import { IconRefresh, IconEdit, IconTrash, IconPlus } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -71,10 +72,10 @@ export default function ModelsPanel() {
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Model Management</span>
         <div className="section-actions">
           <Button onClick={() => load(true)} disabled={refreshing}>
-            <span className={refreshing ? 'spin' : ''} style={{ display: 'inline-block' }}>🔄</span>
+            <IconRefresh size={14} className={refreshing ? 'spin' : ''} style={{ marginRight: 4 }} />
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
-          <Button variant="primary" onClick={openAdd}>➕ Add Model</Button>
+          <Button variant="primary" onClick={openAdd}><IconPlus size={14} style={{ marginRight: 4 }} />Add Model</Button>
         </div>
       </div>
 
@@ -94,8 +95,8 @@ export default function ModelsPanel() {
                 <td>{m.capabilities.tool_use ? '✓' : ''}</td>
                 <td>{m.capabilities.reasoning ? '✓' : ''}</td>
                 <td>
-                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" style={ACTION_BTN_STYLE}>✏️</Button>
-                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}>🗑️</Button>
+                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" style={ACTION_BTN_STYLE}><IconEdit size={14} /></Button>
+                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={14} /></Button>
                 </td>
               </tr>
             ))}

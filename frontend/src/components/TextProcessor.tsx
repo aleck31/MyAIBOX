@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getTextConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import { Button } from './Button'
+import { IconTrash } from './icons'
 import ModelSelector from './ModelSelector'
 import type { TextConfig } from '../types/text'
 
@@ -92,16 +93,18 @@ export default function TextProcessor() {
     <div className="module-layout">
       {/* Controls bar */}
       <div className="section-bar">
-        <div className="text-operations">
+        <div className="segmented" role="tablist" aria-label="Operation">
           {config.operations.map((op) => (
-            <Button
+            <button
               key={op.key}
-              shape="pill"
-              active={operation === op.key}
+              type="button"
+              role="tab"
+              aria-selected={operation === op.key}
+              className={`segmented-item${operation === op.key ? ' is-active' : ''}`}
               onClick={() => setOperation(op.key)}
             >
               {op.label}
-            </Button>
+            </button>
           ))}
         </div>
         <div className="section-actions">
@@ -173,7 +176,7 @@ export default function TextProcessor() {
 
       {/* Action buttons */}
       <div className="module-action-bar">
-        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button onClick={handleClear}><IconTrash size={14} style={{ marginRight: 4 }} />Clear</Button>
         <Button
           variant="primary"
           onClick={handleProcess}

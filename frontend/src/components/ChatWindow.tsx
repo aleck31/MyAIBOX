@@ -13,6 +13,7 @@ import remarkGfm from 'remark-gfm'
 import { useAGUIRuntime } from '../hooks/useAGUIRuntime'
 import { WeatherToolUI } from './tools/WeatherCard'
 import AgentAvatar, { UserAvatar } from './AgentAvatar'
+import { IconClose, IconPaperclip } from './icons'
 import type { ChatAgent } from '../api/client'
 
 export interface ChatWindowHandle {
@@ -209,8 +210,11 @@ function Thread() {
           components={{
             Attachment: () => (
               <div className="composer-attachment-chip">
-                <span className="composer-attachment-name">📎 <AttachmentPrimitive.Name /></span>
-                <AttachmentPrimitive.Remove className="composer-attachment-remove">✕</AttachmentPrimitive.Remove>
+                <span className="composer-attachment-name">
+                  <IconPaperclip size={12} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+                  <AttachmentPrimitive.Name />
+                </span>
+                <AttachmentPrimitive.Remove className="composer-attachment-remove"><IconClose size={11} /></AttachmentPrimitive.Remove>
               </div>
             ),
           }}

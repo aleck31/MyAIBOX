@@ -4,6 +4,7 @@ import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
 import FilePreviewPanel from './FilePreviewPanel'
+import { IconTrash, IconWand, IconEdit } from './icons'
 import type { DrawConfig } from '../types/draw'
 
 const STORAGE_KEY = 'draw-processor-state'
@@ -186,9 +187,21 @@ export default function DrawProcessor() {
     <div className="module-layout">
       {/* Top bar */}
       <div className="section-bar">
-        <div className="draw-mode-tabs">
-          <button className={`draw-mode-tab ${!isEdit ? 'active' : ''}`} onClick={() => setMode('generate')}>🎨 Generate</button>
-          <button className={`draw-mode-tab ${isEdit ? 'active' : ''}`} onClick={() => setMode('edit')}>✏️ Edit</button>
+        <div className="segmented" role="tablist" aria-label="Mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isEdit}
+            className={`segmented-item${!isEdit ? ' is-active' : ''}`}
+            onClick={() => setMode('generate')}
+          ><IconWand size={14} />Generate</button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isEdit}
+            className={`segmented-item${isEdit ? ' is-active' : ''}`}
+            onClick={() => setMode('edit')}
+          ><IconEdit size={14} />Edit</button>
         </div>
         <div className="section-actions">
           <ModelSelector models={isEdit ? config.edit_models : config.models} value={modelId} onChange={setModelId} />
@@ -327,7 +340,7 @@ export default function DrawProcessor() {
 
       {/* Bottom actions */}
       <div className="module-action-bar">
-        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button onClick={handleClear}><IconTrash size={14} style={{ marginRight: 4 }} />Clear</Button>
         {!isEdit && (
           <Button
             onClick={handleOptimize}

@@ -12,6 +12,14 @@ import { clearRuntimeCache } from '../hooks/useAGUIRuntime'
 import { useAuth } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
+import {
+  IconTrash,
+  IconUpload,
+  IconCheck,
+  IconLoading,
+  IconCloud,
+  IconFolder,
+} from './icons'
 import ModelSelector, { type ModelOption } from './ModelSelector'
 import ChatWindow, { type ChatWindowHandle } from './ChatWindow'
 import WorkspacePanel, { type WorkspacePanelHandle } from './workspace/WorkspacePanel'
@@ -69,11 +77,12 @@ export default function ChatContainer({ agent, session, models }: Props) {
   }, [agent.id])
 
   const handleClear = useCallback(async () => {
+    if (!confirm(`Clear this conversation with ${agent.name}? This can't be undone.`)) return
     clearRuntimeCache(session.session_id)
     setChatHistory([])
     setChatKey(k => k + 1)
     try { await clearChatHistory(agent.id) } catch (err) { console.error('Clear failed:', err) }
-  }, [agent.id, session.session_id])
+  }, [agent.id, agent.name, session.session_id])
 
   const toggleWorkspace = useCallback(() => {
     setWorkspaceOpen(o => {
@@ -120,10 +129,6 @@ export default function ChatContainer({ agent, session, models }: Props) {
     <div className="assistant-layout">
       <div className="assistant-chat-col">
         <div className="section-bar">
-          <span className="chat-agent-title" title={agent.description}>
-            <span className="chat-agent-avatar">{agent.avatar}</span>
-            {agent.name}
-          </span>
           <ModelSelector
             models={models}
             value={modelId}
@@ -136,7 +141,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
               disabled={syncing}
               title="Clear conversation"
             >
-              🗑
+              <IconTrash size={14} />
             </button>
             {!cloudSync && (
               <button
@@ -145,7 +150,9 @@ export default function ChatContainer({ agent, session, models }: Props) {
                 disabled={syncing}
                 title="Sync to cloud"
               >
-                {syncing ? '⏳' : syncDone ? '✓' : '📤'}
+                {syncing ? <IconLoading size={14} className="spin" />
+                  : syncDone ? <IconCheck size={14} />
+                  : <IconUpload size={14} />}
               </button>
             )}
             <button
@@ -153,7 +160,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
               onClick={handleCloudSyncToggle}
               title={cloudSync ? 'Auto-sync ON (click to disable)' : 'Auto-sync OFF (click to enable)'}
             >
-              ☁️
+              <IconCloud size={14} />
             </button>
             {agent.workspace_enabled && (
               <button
@@ -161,7 +168,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
                 onClick={toggleWorkspace}
                 title="Workspace"
               >
-                📁
+                <IconFolder size={14} />
               </button>
             )}
           </div>

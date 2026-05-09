@@ -3,6 +3,7 @@ import { authFetch, getAskingConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
+import { IconTrash } from './icons'
 import type { AskingConfig, AskingHistory } from '../types/asking'
 
 const STORAGE_KEY = 'asking-processor-state'
@@ -234,7 +235,7 @@ export default function AskingProcessor() {
 
       {/* Bottom actions */}
       <div className="module-action-bar">
-        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button onClick={handleClear}><IconTrash size={14} style={{ marginRight: 4 }} />Clear</Button>
         <Button
           variant="primary"
           onClick={handleProcess}

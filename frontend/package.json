@@ -1,7 +1,7 @@
 {
   "name": "my-aibox-ui",
   "private": true,
-  "version": "3.5.3",
+  "version": "3.5.4",
   "type": "module",
   "overrides": {
     "@assistant-ui/core": "$@assistant-ui/core"
@@ -20,6 +20,7 @@
     "@assistant-ui/styles": "^0.3.7",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.0",
+    "lucide-react": "^1.14.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",

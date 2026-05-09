@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getMcpServers, addMcpServer, deleteMcpServer, toggleMcpServer } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
+import { IconRefresh, IconTrash } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -37,7 +38,7 @@ export default function McpPanel() {
       <div className="section-bar">
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>MCP Server Management</span>
         <div className="section-actions">
-          <Button onClick={load}>🔄 Refresh</Button>
+          <Button onClick={load}><IconRefresh size={14} style={{ marginRight: 4 }} />Refresh</Button>
           <Button variant="primary" onClick={() => setShowAdd(true)}>➕ Add Server</Button>
         </div>
       </div>
@@ -59,7 +60,7 @@ export default function McpPanel() {
                   <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
                     {s.status === 'Enabled' ? '❌' : '✅'}
                   </Button>
-                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}>🗑️</Button>
+                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={14} /></Button>
                 </td>
               </tr>
             ))}

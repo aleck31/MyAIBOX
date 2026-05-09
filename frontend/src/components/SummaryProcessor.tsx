@@ -3,6 +3,7 @@ import { authFetch, getSummaryConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
+import { IconTrash } from './icons'
 import type { SummaryConfig } from '../types/summary'
 
 const STORAGE_KEY = 'summary-processor-state'
@@ -147,7 +148,7 @@ export default function SummaryProcessor() {
 
       {/* Action buttons */}
       <div className="module-action-bar">
-        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button onClick={handleClear}><IconTrash size={14} style={{ marginRight: 4 }} />Clear</Button>
         <Button
           variant="primary"
           onClick={handleProcess}

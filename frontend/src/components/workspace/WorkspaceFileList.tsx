@@ -1,4 +1,5 @@
 import type { WorkspaceFile } from '../../api/client'
+import { IconTrash } from '../icons'
 
 interface Props {
   files: WorkspaceFile[]
@@ -58,7 +59,7 @@ export default function WorkspaceFileList({ files, selected, onSelect, onDelete 
             className="workspace-file-delete"
             title="Delete"
             onClick={(e) => { e.stopPropagation(); onDelete(f.name) }}
-          >🗑</button>
+          ><IconTrash size={13} /></button>
         </li>
       ))}
     </ul>

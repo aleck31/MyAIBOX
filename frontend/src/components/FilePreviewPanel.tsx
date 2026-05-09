@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Button } from './Button'
 import ResizablePreview from './ResizablePreview'
+import { IconFolder, IconClipboard, IconCamera } from './icons'
 
 interface Props {
   accept?: string
@@ -100,9 +101,9 @@ export default function FilePreviewPanel({
         </div>
       )}
       <div className="file-upload-actions">
-        <Button onClick={() => inputRef.current?.click()} title="Select file">📁 File</Button>
-        <Button onClick={handlePaste} title="Paste from clipboard">📋 Paste</Button>
-        <Button onClick={() => cameraRef.current?.click()} title="Take photo">📷 Camera</Button>
+        <Button onClick={() => inputRef.current?.click()} title="Select file"><IconFolder size={14} style={{ marginRight: 4 }} />File</Button>
+        <Button onClick={handlePaste} title="Paste from clipboard"><IconClipboard size={14} style={{ marginRight: 4 }} />Paste</Button>
+        <Button onClick={() => cameraRef.current?.click()} title="Take photo"><IconCamera size={14} style={{ marginRight: 4 }} />Camera</Button>
       </div>
       <input ref={inputRef} type="file" accept={accept} hidden onChange={handleSelect} />
       <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden onChange={handleSelect} />

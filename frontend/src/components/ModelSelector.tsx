@@ -17,7 +17,6 @@ export default function ModelSelector({ models, value, onChange, disabled }: Mod
       value={value ?? ''}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      style={{ maxWidth: '200px' }}
       title="Select model"
     >
       {!value && (

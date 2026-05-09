@@ -4,6 +4,7 @@ import { readSSE } from '../api/sse'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import FilePreviewPanel from './FilePreviewPanel'
+import { IconTrash } from './icons'
 import type { VisionConfig } from '../types/vision'
 
 const STORAGE_KEY = 'vision-processor-state'
@@ -163,7 +164,7 @@ export default function VisionProcessor() {
 
       {/* Bottom actions */}
       <div className="module-action-bar">
-        <Button onClick={handleClear}>🗑️ Clear</Button>
+        <Button onClick={handleClear}><IconTrash size={14} style={{ marginRight: 4 }} />Clear</Button>
         <Button
           variant="primary"
           onClick={handleAnalyze}
