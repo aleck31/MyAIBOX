@@ -21,6 +21,7 @@ interface ChatWindowProps {
   threadId: string
   initialHistory: Array<{ role: 'user' | 'assistant'; content: unknown }>
   url?: string
+  onCustomEvent?: (name: string, value: unknown) => void
 }
 
 const RetractContext = createContext<(() => string) | null>(null)
@@ -226,13 +227,14 @@ function Thread() {
 
 /* ── ChatWindow ──────────────────────────────────────────────────────────── */
 const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWindow(
-  { threadId, initialHistory, url = '/api/persona/chat' },
+  { threadId, initialHistory, url = '/api/persona/chat', onCustomEvent },
   ref
 ) {
   const { runtime, getMessages, retractLast } = useAGUIRuntime({
     url,
     threadId,
     initialMessages: initialHistory,
+    onCustomEvent,
   })
 
   useImperativeHandle(ref, () => ({ getMessages }), [getMessages])

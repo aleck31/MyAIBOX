@@ -13,6 +13,7 @@ from ag_ui.core import (
     TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
     ReasoningMessageContentEvent, ReasoningMessageEndEvent,
     ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent,
+    CustomEvent,
     BaseEvent, EventType,
 )
 from ag_ui.encoder import EventEncoder
@@ -383,6 +384,12 @@ async def chat(body: RunAgentInput, request: Request, username: str = Depends(ge
                             delta=json.dumps(tool_use.get('params', {})),
                         ))
                         yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
+                        # Cheap nudge to the client to re-list the workspace.
+                        # Emitted for every tool (not just file-writers); the
+                        # refetch is a few-ms no-op when nothing changed.
+                        yield _enc.encode(CustomEvent(
+                            name="workspace_updated", value={"tool": tool_name},
+                        ))
                         result_str = tool_use.get('result', '')
                         if result_str:
                             yield _enc.encode(ToolCallResultEvent(

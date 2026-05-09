@@ -100,6 +100,13 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
 
   const closeWorkspace = useCallback(() => setWorkspaceOpen(false), [setWorkspaceOpen])
 
+  // Backend emits `workspace_updated` CUSTOM events after every tool call.
+  // Refresh the file list whenever one arrives; the panel doesn't need to
+  // be open — it keeps its state fresh for the next toggle.
+  const handleCustomEvent = useCallback((name: string) => {
+    if (name === 'workspace_updated') workspaceRef.current?.refresh()
+  }, [])
+
   const workspacePanel = <WorkspacePanel ref={workspaceRef} onClose={layoutMode !== 'side' ? closeWorkspace : undefined} />
 
   return (
@@ -153,6 +160,7 @@ export default function AssistantChat({ config, initialPrefs }: AssistantChatPro
           threadId={initialPrefs.session_id}
           initialHistory={chatHistory}
           url="/api/assistant/chat"
+          onCustomEvent={handleCustomEvent}
         />
       </div>
 

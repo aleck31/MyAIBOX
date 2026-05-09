@@ -3,6 +3,8 @@ export interface SSECallbacks {
   onReasoning?: (delta: string) => void
   onError?: (message: string) => void
   onMetadata?: (data: Record<string, unknown>) => void
+  /** AG-UI `CUSTOM` events — used for out-of-band notifications like `workspace_updated`. */
+  onCustom?: (name: string, value: unknown) => void
 }
 
 export async function readSSE(res: Response, callbacks: SSECallbacks) {
@@ -32,6 +34,7 @@ export async function readSSE(res: Response, callbacks: SSECallbacks) {
         } else if (evt.type === 'TEXT_MESSAGE_CONTENT') callbacks.onText?.(evt.delta)
         else if (evt.type === 'REASONING_MESSAGE_CONTENT') callbacks.onReasoning?.(evt.delta)
         else if (evt.type === 'RUN_ERROR') callbacks.onError?.(evt.message || 'An error occurred.')
+        else if (evt.type === 'CUSTOM') callbacks.onCustom?.(evt.name, evt.value)
       } catch { /* incomplete JSON, skip */ }
       eventType = ''
     }

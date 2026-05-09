@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { HttpAgent } from '@ag-ui/client'
-import type { ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent } from '@ag-ui/core'
+import type { ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, CustomEvent } from '@ag-ui/core'
 import { useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike, AppendMessage } from '@assistant-ui/react'
 import { FileUploadAdapter } from './FileUploadAdapter'
@@ -77,6 +77,8 @@ interface UseAGUIRuntimeOptions {
   url: string
   threadId: string
   initialMessages?: Array<{ role: 'user' | 'assistant'; content: unknown }>
+  /** AG-UI CUSTOM events out-of-band (e.g. workspace_updated). */
+  onCustomEvent?: (name: string, value: unknown) => void
 }
 
 // Module-level cache: survives route changes, cleared on tab close
@@ -140,7 +142,10 @@ function parseHistoryContent(content: unknown): { text: string; attachments: Loc
   return { text: String(content), attachments: [] }
 }
 
-export function useAGUIRuntime({ url, threadId, initialMessages = [] }: UseAGUIRuntimeOptions) {
+export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEvent }: UseAGUIRuntimeOptions) {
+  // Ref so subscriber captures the latest callback without re-binding.
+  const onCustomEventRef = useRef(onCustomEvent)
+  onCustomEventRef.current = onCustomEvent
   const [localMessages, setLocalMessagesRaw] = useState<LocalMessage[]>(() => {
     // Restore from cache if available (route switch)
     const cached = _msgCache.get(threadId)
@@ -253,6 +258,9 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [] }: UseAGUIR
                   : m
               )
             )
+          },
+          onCustomEvent({ event }: { event: CustomEvent }) {
+            onCustomEventRef.current?.(event.name, event.value)
           },
         }
       )
