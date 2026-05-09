@@ -330,7 +330,7 @@ BUILTIN_AGENTS: Dict[str, Agent] = {
 
     "psychologist": Agent(
         id="psychologist",
-        name="心理咨询师",
+        name="心理咨询",
         description="Reflective counselor rooted in evidence-based approaches",
         avatar="🧠",
         prompt=_PSYCHOLOGIST,

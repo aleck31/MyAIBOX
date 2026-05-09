@@ -69,7 +69,9 @@
   to { transform: translateX(0); }
 }
 
-/* Modal mode — < 1024px. Reuses .modal (already full-viewport < 768px) */
+/* Modal mode — < 1024px. Tablet range uses a centered card; below the
+   sidebar breakpoint (--bp-md 768px) we fall through to .modal's
+   full-viewport rule and take the whole screen. */
 .assistant-workspace--modal {
   width: min(640px, 95vw);
   max-width: 95vw;
@@ -77,6 +79,15 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .assistant-workspace--modal {
+    width: 100%;
+    max-width: 100%;
+    height: 100vh;
+    height: 100dvh;  /* dynamic viewport excludes URL bar on mobile */
+  }
 }
 
 /* ─── Panel internals ───────────────────────────────────────────────────── */
@@ -92,11 +103,21 @@
 .workspace-header {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  /* Match .section-bar's computed height so the two bars align to the same horizontal line. */
+  padding: 8px 16px;
+  height: 51px;
+  gap: 8px;
   border-bottom: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.3);
   flex-shrink: 0;
-  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .workspace-header {
+    padding: 6px 10px;
+    height: 47px;
+    gap: 6px;
+  }
 }
 
 .workspace-title { font-size: 13px; font-weight: 500; }
@@ -241,7 +262,6 @@
 
 /* Markdown — leverage @tailwindcss/typography via .aui-md already in the app */
 .workspace-md {
-  font-size: 14px;
   line-height: 1.6;
 }
 

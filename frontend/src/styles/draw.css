@@ -73,25 +73,6 @@
   background: rgba(0,0,0,0.75);
 }
 
-/* Mode tabs */
-.draw-mode-tabs {
-  display: flex;
-  gap: 2px;
-}
-.draw-mode-tab {
-  background: none;
-  border: none;
-  padding: 4px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 4px;
-  color: hsl(var(--muted-foreground));
-}
-.draw-mode-tab.active {
-  background: hsl(var(--accent));
-  color: hsl(var(--foreground));
-}
-
 /* Edit source */
 .draw-edit-source {
   margin-bottom: 8px;

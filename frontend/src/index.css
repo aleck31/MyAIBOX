@@ -275,7 +275,6 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
   line-height: 1;
   opacity: 1;
 }
@@ -572,7 +571,8 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: inherit;
-  font-size: 12px;
+  /* 16px everywhere — no visual jump between desktop and mobile. */
+  font-size: 16px;
   cursor: pointer;
   outline: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%23999' stroke-width='1.5'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
@@ -580,14 +580,14 @@ body {
   background-position: right 8px center;
   transition: border-color 0.12s;
   max-width: 260px;
+  min-width: 160px;
 }
 .select:focus { border-color: hsl(var(--foreground)); }
 .select:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Mobile: bump input/select font to 16px to disable iOS auto-zoom on focus */
+/* Mobile: input / textarea also stay 16px to prevent iOS auto-zoom. */
 @media (max-width: 768px) {
-  .section-actions { margin-left: 0; }
-  .input, .select, .panel-textarea { font-size: 16px; }
+  .input, .panel-textarea { font-size: 16px; }
 }
 
 /* ─── Shared: overlay + modal ────────────────────────────────────────────── */
@@ -663,7 +663,7 @@ body {
 .file-preview-img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .file-preview-iframe { width: 100%; height: 100%; border: none; }
 .file-preview-pdf { width: 100%; height: 100%; min-height: 200px; border: none; }
-.file-preview-file { font-size: 14px; color: hsl(var(--foreground)); }
+.file-preview-file { color: hsl(var(--foreground)); }
 .file-preview-placeholder { font-size: 13px; color: hsl(var(--muted-foreground)); }
 .file-preview-empty {
   display: flex; align-items: center; justify-content: center;

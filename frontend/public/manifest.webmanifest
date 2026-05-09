@@ -1,13 +1,18 @@
 {
+  "id": "/",
   "name": "MyAIBOX · GenAI 百宝箱",
   "short_name": "AIBox",
   "description": "Comprehensive Gen-AI application suite — chat with agents, text / summary / vision / draw tools.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "portrait",
   "theme_color": "#2563eb",
   "background_color": "#ffffff",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "/pwa-192x192.png",

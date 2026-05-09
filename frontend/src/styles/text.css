@@ -1,15 +1,4 @@
 /* ── Text Processor ──────────────────────────────────────────────────────── */
 
-/* Top bar controls — base layout via .section-bar in index.css */
-
-.text-operations {
-  display: flex;
-  gap: 4px;
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .text-operations {
-    flex-wrap: wrap;
-  }
-}
+/* Top bar controls use the shared .section-bar and .segmented primitives.
+   This file is reserved for text-specific additions. */

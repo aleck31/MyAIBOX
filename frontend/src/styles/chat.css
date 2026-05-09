@@ -4,6 +4,8 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  /* Let messages and composer both fill the chat column */
+  --thread-max-width: 100%;
 }
 
 /* ── User action bar: horizontal row below the bubble ── */
@@ -15,16 +17,17 @@
   padding-top: 1px;
 }
 
-/* ── Assistant message: avatar + stacked body ── */
+/* ── Assistant message: avatar on the left, bubble hugging content ── */
 .aui-assistant-message-root {
   display: flex;
   align-items: flex-start;
+  justify-content: flex-start;
   gap: 10px;
 }
 
 .aui-assistant-message-body {
-  flex: 1;
   min-width: 0;
+  max-width: min(85%, 960px);
   display: flex;
   flex-direction: column;
 }
@@ -33,6 +36,8 @@
   background: hsl(var(--muted) / 0.5);
   border-radius: var(--radius-lg);
   padding: 10px 14px !important;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .aui-assistant-message-footer {
@@ -75,12 +80,32 @@
   gap: 10px;
 }
 
+.aui-user-message-content-wrapper {
+  min-width: 0;
+  max-width: min(85%, 960px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.aui-user-message-content {
+  width: fit-content;
+  max-width: 100%;
+  background: hsl(var(--primary) / 0.9) !important;
+  color: hsl(var(--primary-foreground));
+}
+
 /* Hide avatars on narrow screens — matches the sidebar collapse breakpoint
-   (--bp-md: 768px) so both layout shifts happen together. */
+   (--bp-md: 768px) so both layout shifts happen together. Bubbles also
+   give up the desktop 85% cap and fill the column to reclaim every pixel. */
 @media (max-width: 768px) {
   .aui-assistant-message-root .agent-avatar,
   .aui-user-message-root .agent-avatar {
     display: none;
+  }
+  .aui-assistant-message-body,
+  .aui-user-message-content-wrapper {
+    max-width: 100%;
   }
 }
 
@@ -167,12 +192,6 @@ details[open] .thinking-chevron { transform: rotate(180deg); }
 /* Hide disabled action bar buttons (e.g. Reload on non-last messages) */
 .aui-action-bar-button:disabled {
   display: none;
-}
-
-/* Touch devices: bump icon-button hit areas to meet tap-size guidelines */
-@media (pointer: coarse) {
-  .aui-action-bar-button,
-  .composer-add-attachment { width: var(--tap-size); height: var(--tap-size); }
 }
 
 /* ── Edit composer footer buttons ── */
