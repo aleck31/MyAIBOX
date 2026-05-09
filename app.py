@@ -14,6 +14,7 @@ from backend.genai.models.model_manager import model_manager
 from backend.api.auth import router as auth_api_router
 from backend.api.assistant import router as assistant_router
 from backend.api.persona import router as persona_router
+from backend.api.chat import router as chat_router
 from backend.api.text import router as text_router
 from backend.api.summary import router as summary_router
 from backend.api.asking import router as asking_router
@@ -80,6 +81,7 @@ async def health_check():
 app.include_router(auth_api_router, prefix="/api")
 app.include_router(assistant_router, prefix="/api")
 app.include_router(persona_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
 app.include_router(text_router, prefix="/api")
 app.include_router(summary_router, prefix="/api")
 app.include_router(asking_router, prefix="/api")

@@ -1,6 +1,6 @@
 [project]
 name = "my-aibox"
-version = "3.4.1"
+version = "3.4.2"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -13,7 +13,7 @@ dependencies = [
     "google-genai>=1.7.0",
     "openai>=1.0.0",
     # Strands Agents
-    "strands-agents>=1.20.0",
+    "strands-agents>=1.39",
     "strands-agents-tools>=0.1.7",
     # Utilities
     "uvicorn[standard]>=0.23.0",
