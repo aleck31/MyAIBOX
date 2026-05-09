@@ -9,6 +9,7 @@ import {
   type ChatSession,
 } from '../api/client'
 import { clearRuntimeCache } from '../hooks/useAGUIRuntime'
+import { useAuth } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
 import ModelSelector, { type ModelOption } from './ModelSelector'
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function ChatContainer({ agent, session, models }: Props) {
+  const { username } = useAuth()
   const [modelId, setModelId] = useState(session.model_id || agent.default_model || '')
   const [cloudSync, setCloudSync] = useState(session.cloud_sync ?? false)
   const [syncing, setSyncing] = useState(false)
@@ -174,6 +176,8 @@ export default function ChatContainer({ agent, session, models }: Props) {
           onCustomEvent={handleCustomEvent}
           forwardedProps={{ agent_id: agent.id }}
           onMessagesEdited={(msgs) => { syncChatHistory(agent.id, msgs).catch(() => {}) }}
+          agent={agent}
+          username={username ?? undefined}
         />
       </div>
 

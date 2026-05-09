@@ -12,6 +12,8 @@ import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useAGUIRuntime } from '../hooks/useAGUIRuntime'
 import { WeatherToolUI } from './tools/WeatherCard'
+import AgentAvatar, { UserAvatar } from './AgentAvatar'
+import type { ChatAgent } from '../api/client'
 
 export interface ChatWindowHandle {
   getMessages: () => Array<{ role: string; content: unknown }>
@@ -24,9 +26,15 @@ interface ChatWindowProps {
   onCustomEvent?: (name: string, value: unknown) => void
   forwardedProps?: Record<string, unknown>
   onMessagesEdited?: (messages: Array<{ role: 'user' | 'assistant'; content: string }>) => void
+  /** Agent whose avatar/name shows on assistant messages. */
+  agent?: Pick<ChatAgent, 'id' | 'name' | 'avatar'>
+  /** Current logged-in username — used for the user message avatar. */
+  username?: string
 }
 
 const RetractContext = createContext<(() => string) | null>(null)
+const AgentContext = createContext<Pick<ChatAgent, 'id' | 'name' | 'avatar'> | null>(null)
+const UserContext = createContext<string | null>(null)
 
 /* ── Icons ───────────────────────────────────────────────────────────────── */
 function IconCopy() {
@@ -69,6 +77,7 @@ function RetractButton() {
 
 /* ── User message ─────────────────────────────────────────────────────────── */
 function UserMessage() {
+  const username = useContext(UserContext)
   return (
     <MessagePrimitive.Root className="aui-user-message-root">
       <div className="aui-user-message-content-wrapper">
@@ -86,6 +95,7 @@ function UserMessage() {
           </ActionBarPrimitive.Copy>
         </ActionBarPrimitive.Root>
       </div>
+      {username && <UserAvatar username={username} />}
     </MessagePrimitive.Root>
   )
 }
@@ -126,8 +136,11 @@ function ToolFallback({ toolName, args }: { toolName: string; args: Record<strin
 }
 
 function AssistantMessage() {
+  const agent = useContext(AgentContext)
   return (
     <MessagePrimitive.Root className="aui-assistant-message-root">
+      {agent && <AgentAvatar agent={agent} />}
+      <div className="aui-assistant-message-body">
       <div className="aui-assistant-message-content">
         <MessagePrimitive.Parts
           components={{
@@ -163,6 +176,7 @@ function AssistantMessage() {
             <RetractButton />
           </MessagePrimitive.If>
         </ActionBarPrimitive.Root>
+      </div>
       </div>
     </MessagePrimitive.Root>
   )
@@ -229,7 +243,7 @@ function Thread() {
 
 /* ── ChatWindow ──────────────────────────────────────────────────────────── */
 const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWindow(
-  { threadId, initialHistory, url = '/api/chat/stream', onCustomEvent, forwardedProps, onMessagesEdited },
+  { threadId, initialHistory, url = '/api/chat/stream', onCustomEvent, forwardedProps, onMessagesEdited, agent, username },
   ref
 ) {
   const { runtime, getMessages, retractLast } = useAGUIRuntime({
@@ -244,12 +258,16 @@ const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWi
   useImperativeHandle(ref, () => ({ getMessages }), [getMessages])
 
   return (
+    <AgentContext.Provider value={agent ?? null}>
+    <UserContext.Provider value={username ?? null}>
     <RetractContext.Provider value={retractLast}>
       <AssistantRuntimeProvider runtime={runtime}>
         <WeatherToolUI />
         <Thread />
       </AssistantRuntimeProvider>
     </RetractContext.Provider>
+    </UserContext.Provider>
+    </AgentContext.Provider>
   )
 })
 
