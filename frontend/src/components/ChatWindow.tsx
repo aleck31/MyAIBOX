@@ -13,7 +13,7 @@ import remarkGfm from 'remark-gfm'
 import { useAGUIRuntime } from '../hooks/useAGUIRuntime'
 import { WeatherToolUI } from './tools/WeatherCard'
 import AgentAvatar, { UserAvatar } from './AgentAvatar'
-import { IconClose, IconPaperclip } from './icons'
+import { IconClose, IconPaperclip, IconBrain } from './icons'
 import type { ChatAgent } from '../api/client'
 
 export interface ChatWindowHandle {
@@ -153,6 +153,7 @@ function AssistantMessage() {
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="thinking-chevron">
                     <path d="M2.5 4.5L6 8l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
+                  <IconBrain size={12} style={{ marginRight: 4 }} />
                   Thinking
                 </summary>
                 {children}

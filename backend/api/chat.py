@@ -571,6 +571,7 @@ async def _stream_agent(
 
             thinking_started = False
             text_started = False
+            tool_started_ids: set = set()
 
             try:
                 async for chunk in service.streaming_reply_with_history(
@@ -608,13 +609,24 @@ async def _stream_agent(
                             message_id=message_id, delta=text,
                         ))
 
-                    # Hold AG-UI tool sequence until the terminal chunk — abandoned
-                    # mid-stream candidates never reach a terminal and stay invisible.
+                    # Hold the AG-UI 4-event tool sequence until the terminal
+                    # chunk (avoids ghost entries when the LLM abandons a
+                    # tool_use mid-stream). But on the *first* running chunk
+                    # for an id, surface a one-line reasoning hint so the UI
+                    # shows progress while a long file_write streams its args.
                     if tool_use := chunk.get("tool_use"):
                         tool_name = tool_use.get("name", "unknown")
                         tool_status = tool_use.get("status", "running")
                         tc_id = tool_use.get("tool_use_id") or f"tc-{uuid.uuid4().hex[:8]}"
                         if tool_status == "running":
+                            if tc_id not in tool_started_ids:
+                                tool_started_ids.add(tc_id)
+                                if not thinking_started and not text_started:
+                                    yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
+                                    thinking_started = True
+                                yield _enc.encode(ReasoningMessageContentEvent(
+                                    message_id=thinking_id, delta=f"\n🔧 {tool_name} …\n",
+                                ))
                             continue
 
                         if not thinking_started and not text_started:

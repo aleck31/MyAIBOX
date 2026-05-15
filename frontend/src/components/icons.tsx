@@ -1,14 +1,11 @@
 /**
  * Centralized icon imports from lucide-react.
  *
- * All functional buttons in the app (trash, refresh, close, etc.) should
- * pull from this file so the set stays curated and consistent. Agent and
- * persona avatars keep their emoji identity — those aren't icons, they're
- * characters.
- *
- * Default sizing: 14px stroke-1.5. Override with `size={...}` or
- * `className="..."` as needed.
+ * Plain icons are re-exported as-is. Icons with a semantic state color
+ * (on/off, success/error) are wrapped so the color stays in one place.
  */
+import { ToggleLeft, ToggleRight, type LucideProps } from 'lucide-react'
+
 export {
   Trash2 as IconTrash,
   RefreshCw as IconRefresh,
@@ -26,4 +23,14 @@ export {
   Paperclip as IconPaperclip,
   Sparkles as IconSparkles,
   Camera as IconCamera,
+  Brain as IconBrain,
+  Wrench as IconWrench,
 } from 'lucide-react'
+
+// Toggle: green when on, muted gray when off. Override with `color` prop.
+export const IconToggleOn = (props: LucideProps) => (
+  <ToggleRight color="hsl(142 60% 40%)" {...props} />
+)
+export const IconToggleOff = (props: LucideProps) => (
+  <ToggleLeft color="hsl(var(--muted-foreground))" {...props} />
+)

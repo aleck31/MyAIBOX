@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getMcpServers, addMcpServer, deleteMcpServer, toggleMcpServer } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
-import { IconRefresh, IconTrash } from './icons'
+import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -13,7 +13,11 @@ export default function McpPanel() {
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', type: 'http', url: '', args: '' })
 
-  const load = useCallback(async () => setServers(await getMcpServers()), [])
+  const load = useCallback(async () => {
+    const list: McpServer[] = await getMcpServers()
+    list.sort((a, b) => a.name.localeCompare(b.name))
+    setServers(list)
+  }, [])
   useEffect(() => { load() }, [])
 
   const handleAdd = async () => {
@@ -58,7 +62,7 @@ export default function McpPanel() {
                 <td className="settings-session-id" style={{ maxWidth: 300 }}>{s.url}</td>
                 <td>
                   <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
-                    {s.status === 'Enabled' ? '❌' : '✅'}
+                    {s.status === 'Enabled' ? <IconToggleOn size={16} /> : <IconToggleOff size={16} />}
                   </Button>
                   <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={14} /></Button>
                 </td>
