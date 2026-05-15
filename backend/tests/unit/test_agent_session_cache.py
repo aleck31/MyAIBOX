@@ -29,11 +29,13 @@ class FakeProvider:
         system_prompt: str = "",
         tool_config: Optional[dict] = None,
         skills: Optional[List] = None,
+        parameters: Optional[dict] = None,
     ):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.tool_config = tool_config or {}
         self.skills = list(skills or [])
+        self.parameters = dict(parameters or {})
         self.messages: List[dict] = []
         self.destroyed = False
         self.init_history: Optional[List] = None
@@ -51,6 +53,9 @@ class FakeProvider:
 
     def update_model(self, model_id: str):
         self.model_id = model_id
+
+    def mcp_healthy(self) -> bool:
+        return True
 
     async def generate_stream(self, prompt):
         self.stream_calls.append(prompt if isinstance(prompt, str) else str(prompt))

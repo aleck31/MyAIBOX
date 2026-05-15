@@ -127,16 +127,19 @@ class AgentService(BaseService):
         history: Optional[List[Dict]] = None,
         tool_config: Optional[Dict] = None,
         skills: Optional[List] = None,
+        parameters: Optional[Dict] = None,
     ) -> AgentProvider:
         """Get cached provider or create new one with history recovery."""
         session_id = session.session_id
 
-        # Return cached provider if available
+        # Return cached provider if its MCP sessions are still alive.
         if provider := self._get_cached_provider(session_id):
-            # Update model if changed
-            if provider.model_id != model_id:
-                provider.update_model(model_id)
-            return provider
+            if provider.mcp_healthy():
+                if provider.model_id != model_id:
+                    provider.update_model(model_id)
+                return provider
+            logger.info(f"[AgentService] MCP dead, rebuilding provider for {session_id}")
+            self._remove_cached_provider(session_id)
 
         # No cache — recover history: frontend first, then DynamoDB
         strands_history = None
@@ -155,6 +158,7 @@ class AgentService(BaseService):
             system_prompt=system_prompt,
             tool_config=tool_config or self._get_default_tool_config(),
             skills=skills,
+            parameters=parameters,
         )
         # Trigger agent creation with history
         provider._ensure_agent(strands_history)
@@ -207,6 +211,7 @@ class AgentService(BaseService):
         tool_config: Optional[Dict[str, Any]] = None,
         files: Optional[List[str]] = None,
         skills: Optional[List] = None,
+        parameters: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[Dict]:
         """Streaming generation with cached Agent."""
         if not prompt:
@@ -216,7 +221,8 @@ class AgentService(BaseService):
         try:
             model_id = await self.get_session_model(session)
             provider = await self._get_or_create_provider(
-                session, model_id, system_prompt, history, tool_config, skills=skills,
+                session, model_id, system_prompt, history, tool_config,
+                skills=skills, parameters=parameters,
             )
 
             agent_prompt = self._build_multimodal_prompt(prompt, files)
@@ -238,6 +244,7 @@ class AgentService(BaseService):
         persist: bool = False,
         files: Optional[List[str]] = None,
         skills: Optional[List] = None,
+        parameters: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[Dict]:
         """Generate streaming response with conversation history."""
         accumulated_text = []
@@ -250,6 +257,7 @@ class AgentService(BaseService):
                 tool_config=tool_config,
                 files=files,
                 skills=skills,
+                parameters=parameters,
             ):
                 if text := chunk.get('text'):
                     accumulated_text.append(text)

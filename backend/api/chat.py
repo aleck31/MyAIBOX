@@ -582,6 +582,7 @@ async def _stream_agent(
                     persist=cloud_sync,
                     files=files,
                     skills=skills,
+                    parameters=agent.parameters,
                 ):
                     if not isinstance(chunk, dict):
                         continue

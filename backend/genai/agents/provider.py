@@ -17,16 +17,29 @@ from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_ch
 class AgentProvider:
     """Strands Agent provider with cached Agent instance and MCP connections."""
 
+    def mcp_healthy(self) -> bool:
+        """True if every started MCP client is still reachable."""
+        for c in self._mcp_clients:
+            try:
+                c.list_tools_sync()
+            except Exception:
+                return False
+        return True
+
     def __init__(
         self,
         model_id: str,
         system_prompt: str = '',
         tool_config: Optional[Dict] = None,
         skills: Optional[List] = None,
+        parameters: Optional[Dict] = None,
     ):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.tool_config = tool_config or {}
+        # Per-agent inference params. Forward to BedrockModel, else Strands
+        # falls back to Bedrock defaults and ignores the UI config.
+        self.parameters: Dict = dict(parameters or {})
         # Strands `Skill` objects; wrapped into an AgentSkills plugin at
         # Agent creation. Empty list = no plugin injected.
         self.skills: List = list(skills or [])
@@ -49,10 +62,21 @@ class AgentProvider:
         if api_provider == 'BEDROCK':
             session = get_aws_session(region_name=env_config.bedrock_config['region_name'])
             kwargs = {"model_id": mid, "boto_session": session}
-            if model.capabilities.reasoning:
-                kwargs["additional_request_fields"] = {
-                    "thinking": {"type": "enabled", "budget_tokens": 4096}
-                }
+            # Extended thinking forces temperature=1, no top_p/top_k.
+            thinking = model.capabilities.reasoning
+            allowed = ("max_tokens", "stop_sequences") if thinking else (
+                "max_tokens", "temperature", "top_p", "stop_sequences"
+            )
+            for k in allowed:
+                if self.parameters.get(k) is not None:
+                    kwargs[k] = self.parameters[k]
+            additional_fields: Dict = {}
+            if thinking:
+                additional_fields["thinking"] = {"type": "enabled", "budget_tokens": 4096}
+            elif self.parameters.get("top_k") is not None:
+                additional_fields["top_k"] = self.parameters["top_k"]
+            if additional_fields:
+                kwargs["additional_request_fields"] = additional_fields
             return BedrockModel(**kwargs)
 
         elif api_provider == 'OPENAI':
