@@ -279,6 +279,14 @@ export async function deleteModel(modelId: string) {
   return res.json()
 }
 
+export async function toggleModel(modelId: string, enabled: boolean) {
+  const res = await apiFetch(`${SETTINGS}/models/toggle/${encodeURIComponent(modelId)}`, {
+    method: 'POST',
+    body: JSON.stringify({ enabled }),
+  })
+  return res.json()
+}
+
 export async function getMcpServers() {
   const res = await apiFetch(`${SETTINGS}/mcp-servers`)
   return res.json()

@@ -128,12 +128,13 @@ async def list_models(refresh: bool = False, username: str = Depends(get_auth_us
     # Models are cached in-process; DDB changes outside the app won't show up until the cache is flushed.
     if refresh:
         model_manager.flush_cache()
-    models = model_manager.get_models()
+    models = model_manager.get_models(include_disabled=True)
     return [
         {
             "name": m.name, "model_id": m.model_id, "api_provider": m.api_provider,
             "vendor": m.vendor, "category": m.category, "description": m.description or "",
             "region": m.region or "",
+            "enabled": getattr(m, 'enabled', True),
             "capabilities": {
                 "input_modality": m.capabilities.input_modality,
                 "output_modality": m.capabilities.output_modality,
@@ -161,6 +162,7 @@ class ModelRequest(BaseModel):
     tool_use: bool = False
     reasoning: bool = False
     context_window: int = 131072
+    enabled: bool = True
 
 
 @router.post("/models/add")
@@ -175,7 +177,7 @@ async def add_model(body: ModelRequest, username: str = Depends(get_auth_user)):
         model = LLMModel(
             name=body.name, model_id=body.model_id, api_provider=body.api_provider,
             vendor=body.vendor, category=body.category, description=body.description,
-            region=body.region, capabilities=caps,
+            region=body.region, enabled=body.enabled, capabilities=caps,
         )
         model_manager.add_model(model)
         return {"ok": True}
@@ -195,7 +197,7 @@ async def update_model(body: ModelRequest, username: str = Depends(get_auth_user
         model = LLMModel(
             name=body.name, model_id=body.model_id, api_provider=body.api_provider,
             vendor=body.vendor, category=body.category, description=body.description,
-            region=body.region, capabilities=caps,
+            region=body.region, enabled=body.enabled, capabilities=caps,
         )
         model_manager.update_model(model)
         return {"ok": True}
@@ -207,6 +209,19 @@ async def update_model(body: ModelRequest, username: str = Depends(get_auth_user
 async def delete_model(model_id: str, username: str = Depends(get_auth_user)):
     try:
         model_manager.delete_model_by_id(model_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+class ToggleModelRequest(BaseModel):
+    enabled: bool
+
+
+@router.post("/models/toggle/{model_id:path}")
+async def toggle_model(model_id: str, body: ToggleModelRequest, username: str = Depends(get_auth_user)):
+    try:
+        model_manager.toggle_model_by_id(model_id, body.enabled)
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}

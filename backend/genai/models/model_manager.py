@@ -83,7 +83,7 @@ class ModelManager:
             LLMModel if found, None otherwise
         """
         try:
-            models = self.get_models()
+            models = self.get_models(include_disabled=True)
             return next((model for model in models if model.model_id == model_id), None)
         except Exception as e:
             logger.error(f"Error getting model by ID {model_id}: {str(e)}")
@@ -119,16 +119,18 @@ class ModelManager:
         logger.debug("Flushing models cache")
         self._models_cache = None
 
-    def get_models(self, filter: Optional[Dict] = None) -> List[LLMModel]:
+    def get_models(self, filter: Optional[Dict] = None, include_disabled: bool = False) -> List[LLMModel]:
         """Get configured models from cache/database with optional filtering
 
         Args:
             filter: Optional dictionary of model properties to filter by.
                     Supported properties and capabilities: name, model_id, api_provider, vendor, input_modality, streaming etc.
                     Example: {'input_modality': ['vision']} returns only vision models
+            include_disabled: If True, return disabled models too. Default False so dropdowns
+                    automatically hide models the user has toggled off; settings page passes True.
 
         Returns:
-            List of LLMModel instances matching the filter criteria          
+            List of LLMModel instances matching the filter criteria
         """
         try:
             # Get models from cache or load from database
@@ -136,6 +138,9 @@ class ModelManager:
                 models = self._load_models_from_db()
             else:
                 models = self._models_cache
+
+            if not include_disabled:
+                models = [m for m in models if getattr(m, 'enabled', True)]
             
             # Apply filters if provided
             if filter:
@@ -177,7 +182,7 @@ class ModelManager:
         """Add a new LLM model to the configuration"""
         try:
             # Get current models
-            models = self.get_models()
+            models = self.get_models(include_disabled=True)
             
             # Check if model with same name or model_id exists
             for existing in models:
@@ -217,10 +222,10 @@ class ModelManager:
         try:
             if not model.model_id:
                 raise ValueError("Model ID is required")
-            
+
             # Get current models
-            models = self.get_models()
-            
+            models = self.get_models(include_disabled=True)
+
             # Find model to update
             model_exists = False
             updated_models = []
@@ -260,10 +265,10 @@ class ModelManager:
         try:
             if not model_id:
                 raise ValueError("Model ID is required")
-            
+
             # Get current models
-            models = self.get_models()
-            
+            models = self.get_models(include_disabled=True)
+
             # Find and remove model with matching model_id
             original_length = len(models)
             filtered_models = [m for m in models if m.model_id != model_id]
@@ -289,10 +294,31 @@ class ModelManager:
             logger.error(f"Error deleting LLM model: {str(e)}")
             raise
 
+    def toggle_model_by_id(self, model_id: str, enabled: bool) -> bool:
+        """Enable or disable a model without removing it."""
+        if not model_id:
+            raise ValueError("Model ID is required")
+        models = self.get_models(include_disabled=True)
+        found = False
+        for m in models:
+            if m.model_id == model_id:
+                m.enabled = enabled
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Model with ID '{model_id}' not found")
+        models_data = [self._float_to_decimal(m.to_dict()) for m in models]
+        self.table.put_item(
+            Item={'setting_name': 'model_manager', 'type': 'global', 'models': models_data}
+        )
+        self.flush_cache()
+        logger.info(f"{'Enabled' if enabled else 'Disabled'} model: {model_id}")
+        return True
+
     def init_default_models(self) -> Optional[List[LLMModel]]:
         """Initialize default LLM models if none exist"""
         try:
-            models = self.get_models()
+            models = self.get_models(include_disabled=True)
             if not models:
                 models_data = [self._float_to_decimal(model.to_dict()) for model in DEFAULT_MODELS]
                 self.table.put_item(

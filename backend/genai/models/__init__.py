@@ -33,6 +33,7 @@ class LLMModel:
     vendor: str = ""      # Optional
     description: str = "" # Optional
     region: str = ""      # Optional: override default region for this model
+    enabled: bool = True  # Disabled models are hidden from dropdowns but kept in storage
     capabilities: LLM_CAPABILITIES = field(default_factory=LLM_CAPABILITIES)
 
     def __post_init__(self):
@@ -98,6 +99,7 @@ class LLMModel:
             vendor=data.get('vendor', ''),
             description=data.get('description', ''),
             region=data.get('region', ''),
+            enabled=data.get('enabled', True),
             capabilities=capabilities
         )
 
