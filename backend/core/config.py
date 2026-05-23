@@ -68,7 +68,7 @@ class ENVConfig:
     def gemini_config(self) -> Dict[str, str]:
         """Get Gemini API configuration"""
         return {
-            # Default secret ID for AgentCore deployment
+            # Stored in AWS Secrets Manager
             'secret_id': os.getenv('GEMINI_SECRET_ID', 'dev_gemini_api')
         }
 
@@ -76,7 +76,7 @@ class ENVConfig:
     def openai_config(self) -> Dict[str, str]:
         """Get OpenAI API configuration"""
         return {
-            # Default secret ID for AgentCore deployment
+            # Stored in AWS Secrets Manager
             'secret_id': os.getenv('OPENAI_SECRET_ID', 'dev_openai_api'),
         }
 

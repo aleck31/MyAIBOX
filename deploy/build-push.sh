@@ -3,6 +3,9 @@
 # 多架构Docker镜像构建和推送脚本 - 支持amd64和arm64
 set -e
 
+# 切到脚本所在目录(deploy/),确保 Dockerfile 路径稳定
+cd "$(dirname "$0")"
+
 # 配置变量（优先从环境变量读取）
 AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
 AWS_REGION="${AWS_REGION:-ap-southeast-1}"
@@ -21,6 +24,7 @@ aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS 
 echo "🐳 构建并推送多架构镜像 (amd64, arm64)..."
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
+  --file full-stack/Dockerfile \
   --tag ${ECR_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} \
   --push \
   .

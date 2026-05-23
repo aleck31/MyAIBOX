@@ -196,14 +196,14 @@ def main():
         subprocess.run(["uv", "run", "ruff", "check", "."], cwd=DIR, check=True)
         print("✓ ruff check passed")
         subprocess.run(
-            ["uv", "run", "pytest", "-m", "not integration", "tests/unit"],
+            ["uv", "run", "pytest", "-m", "not integration", "backend/tests/unit"],
             cwd=DIR, check=True,
         )
         print("✓ unit tests passed")
 
     elif cmd == "test":
         # Pass-through: everything after `my-aibox test` goes to pytest.
-        extra = sys.argv[2:] or ["tests/unit"]
+        extra = sys.argv[2:] or ["backend/tests/unit"]
         subprocess.run(["uv", "run", "pytest", *extra], cwd=DIR, check=True)
 
     else:

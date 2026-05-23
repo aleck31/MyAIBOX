@@ -8,7 +8,13 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 
 The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with secure authentication via Amazon Cognito and session management backed by DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
-🎉 **What's New in v3.5**
+🎉 **What's New in v3.6**
+- **Models enable/disable**: toggle individual models off in Settings → Models without deleting them
+- **Per-agent inference parameters**: `temperature` / `top_p` / `max_tokens` configured in Agents settings are now actually applied
+- **Tool progress hints**: long-running tools (e.g. `file_write`) no longer make the UI look frozen
+- **MCP health check**: cached agent providers verify MCP sessions and rebuild on dead connections
+
+**v3.5**
 - **Unified Chat Module**: Assistant + Persona merged into a single `/chat/:agentId` route; each agent = system prompt + tools + params + skills
 - **Strands-native Skills**: Agents can load Anthropic-style skills via the `AgentSkills` plugin (requires `strands-agents>=1.39`)
 - **Per-agent Workspace**: Each agent gets its own isolated workspace at `storage/workspace/<username>/<agent_id>/`
@@ -63,8 +69,7 @@ Supported input formats: jpg/jpeg, png, gif, webp, pdf, csv, doc/docx, xls/xlsx,
 my-aibox/
 ├── app.py                        # FastAPI + uvicorn entry point
 ├── backend/                      # Backend Python modules
-│   ├── api/                          # REST + SSE endpoints (chat, text, summary,
-│   │                                 #   asking, vision, draw, settings, upload)
+│   ├── api/                          # REST + SSE endpoints (chat, text, summary, asking, vision, draw, settings, upload)
 │   ├── core/                         # Config, service layer, DynamoDB sessions
 │   ├── common/                       # Auth, logger, CLI, provider cache, async stream
 │   ├── genai/                        # LLM providers (Bedrock/Gemini/OpenAI), agents, tools
@@ -79,7 +84,8 @@ my-aibox/
 ├── logs/                         # Application logs (gitignored)
 ├── deploy/                       # Deployment artifacts
 │   ├── my-aibox.service              # systemd user unit template
-│   └── full-stack/                   # Dockerfile + IAM + K8s manifests
+│   ├── build-push.sh                 # build & push multi-arch image to ECR
+│   └── full-stack/                   # Dockerfile + EKS reference (examples/)
 ├── docs/                         # README screenshots, etc.
 ├── pyproject.toml
 └── README.md
@@ -137,16 +143,27 @@ uv run python app.py
 ### Local / EC2
 
 ```bash
-my-aibox install           # set up the systemd user service (one-time)
-my-aibox run               # run in the foreground (skips systemd)
+my-aibox install            # set up the systemd user service (one-time)
+my-aibox run                # run in the foreground (skips systemd)
 my-aibox start|stop|restart # manage the systemd user service
-my-aibox status            # show service status
-my-aibox logs [-f]         # tail journalctl logs
-my-aibox build             # build frontend (syncs version)
-my-aibox check             # lint (ruff) + run unit tests
-my-aibox test              # run pytest (default: tests/unit)
-                           # use `my-aibox test -m integration` for real-service tests
+my-aibox status             # show service status
+my-aibox logs [-f]          # tail journalctl logs
+my-aibox build              # build frontend (syncs version)
+my-aibox check              # lint (ruff) + run unit tests
+my-aibox test               # run pytest (default: tests/unit)
+                            # use `my-aibox test -m integration` for real-service tests
 ```
+
+### Container / EKS
+
+The image in `deploy/full-stack/Dockerfile` is thin: it ships uv + git only, and the start script `git pull` the latest code at pod startup. So most code changes do not require a rebuild — just `kubectl rollout restart`.
+
+```bash
+deploy/build-push.sh           # build & push multi-arch (amd64 + arm64) to ECR
+kubectl rollout restart deployment my-aibox   # roll pods, picks up latest commit + uv sync
+```
+
+`deploy/full-stack/examples/` contains reference IAM role/policy and a k8s manifest with our values baked in — copy them as a starting point, do not `kubectl apply` directly.
 
 ## License
 

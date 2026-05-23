@@ -33,7 +33,6 @@ from pydantic import BaseModel
 from backend.api.auth import get_auth_user
 from backend.api.prompts.chat import (
     Agent,
-    BUILTIN_AGENTS,
     OVERRIDABLE_FIELDS,
     WORKSPACE_INSTRUCTIONS,
 )
