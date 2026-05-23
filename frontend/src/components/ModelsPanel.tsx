@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getModels, addModel, updateModel, deleteModel } from '../api/client'
+import { getModels, addModel, updateModel, deleteModel, toggleModel } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
-import { IconRefresh, IconEdit, IconTrash, IconPlus } from './icons'
+import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -12,12 +12,12 @@ const MODALITIES = ['text', 'document', 'image', 'video', 'audio']
 
 interface ModelInfo {
   name: string; model_id: string; api_provider: string; vendor: string
-  category: string; description: string; region: string
+  category: string; description: string; region: string; enabled: boolean
   capabilities: { input_modality: string[]; output_modality: string[]; streaming: boolean; tool_use: boolean; reasoning: boolean; context_window: number }
 }
 
 const emptyForm = (): ModelInfo => ({
-  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '', region: '',
+  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '', region: '', enabled: true,
   capabilities: { input_modality: ['text'], output_modality: ['text'], streaming: true, tool_use: false, reasoning: false, context_window: 131072 },
 })
 
@@ -63,6 +63,10 @@ export default function ModelsPanel() {
     await deleteModel(id); load()
   }
 
+  const handleToggle = async (id: string, currentEnabled: boolean) => {
+    await toggleModel(id, !currentEnabled); load()
+  }
+
   const cap = editing?.capabilities
   const setCap = (k: string, v: unknown) => setEditing(e => e ? { ...e, capabilities: { ...e.capabilities, [k]: v } } : e)
 
@@ -85,8 +89,10 @@ export default function ModelsPanel() {
             <tr><th>Name</th><th>Model ID</th><th>Provider</th><th>Category</th><th>Streaming</th><th>Tool Use</th><th>Reasoning</th><th>Actions</th></tr>
           </thead>
           <tbody>
-            {models.map((m) => (
-              <tr key={m.model_id}>
+            {models.map((m) => {
+              const enabled = m.enabled !== false
+              return (
+              <tr key={m.model_id} style={{ opacity: enabled ? 1 : 0.5 }}>
                 <td>{m.name}</td>
                 <td className="settings-session-id">{m.model_id}</td>
                 <td>{m.api_provider}</td>
@@ -95,11 +101,15 @@ export default function ModelsPanel() {
                 <td>{m.capabilities.tool_use ? '✓' : ''}</td>
                 <td>{m.capabilities.reasoning ? '✓' : ''}</td>
                 <td>
-                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" style={ACTION_BTN_STYLE}><IconEdit size={14} /></Button>
-                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={14} /></Button>
+                  <Button variant="ghost" onClick={() => handleToggle(m.model_id, enabled)} title={enabled ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
+                    {enabled ? <IconToggleOn size={18} /> : <IconToggleOff size={18} />}
+                  </Button>
+                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" style={ACTION_BTN_STYLE}><IconEdit size={16} /></Button>
+                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={16} /></Button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
 
@@ -146,9 +156,10 @@ export default function ModelsPanel() {
                 </div>
               </div>
 
-              <label className="panel-label" style={{ marginTop: 8 }}>Context Window</label>
-              <input className="input" type="number" style={{ width: 160 }} value={cap?.context_window ?? 0}
-                onChange={e => setCap('context_window', Number(e.target.value))} />
+              <label className="panel-label" style={{ marginTop: 8 }}>Context Window (K tokens)</label>
+              <input className="input" type="number" style={{ width: 160 }}
+                value={Math.round((cap?.context_window ?? 0) / 1024)}
+                onChange={e => setCap('context_window', Number(e.target.value) * 1024)} />
 
               <label className="panel-label" style={{ marginTop: 8 }}>Input Modalities</label>
               <div className="settings-tools-grid">

@@ -34,3 +34,4 @@ storage/*
 logs/*
 *.log
 tmp
+.trash/

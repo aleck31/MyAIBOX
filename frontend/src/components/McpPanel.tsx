@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getMcpServers, addMcpServer, deleteMcpServer, toggleMcpServer } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
-import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff } from './icons'
+import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff, IconPlus } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
@@ -43,7 +43,7 @@ export default function McpPanel() {
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>MCP Server Management</span>
         <div className="section-actions">
           <Button onClick={load}><IconRefresh size={14} style={{ marginRight: 4 }} />Refresh</Button>
-          <Button variant="primary" onClick={() => setShowAdd(true)}>➕ Add Server</Button>
+          <Button variant="primary" onClick={() => setShowAdd(true)}><IconPlus size={14} style={{ marginRight: 4 }} />Add Server</Button>
         </div>
       </div>
 
@@ -62,9 +62,9 @@ export default function McpPanel() {
                 <td className="settings-session-id" style={{ maxWidth: 300 }}>{s.url}</td>
                 <td>
                   <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
-                    {s.status === 'Enabled' ? <IconToggleOn size={16} /> : <IconToggleOff size={16} />}
+                    {s.status === 'Enabled' ? <IconToggleOn size={18} /> : <IconToggleOff size={18} />}
                   </Button>
-                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={14} /></Button>
+                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={16} /></Button>
                 </td>
               </tr>
             ))}
@@ -105,7 +105,7 @@ export default function McpPanel() {
 
             <ModalActions>
               <Button onClick={() => setShowAdd(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleAdd}>➕ Add</Button>
+              <Button variant="primary" onClick={handleAdd}><IconPlus size={14} style={{ marginRight: 4 }} />Add</Button>
             </ModalActions>
           </Modal>
         )}
