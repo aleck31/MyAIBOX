@@ -11,10 +11,11 @@ Dispatch rules at stream time:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
 from ag_ui.core import (
     RunAgentInput,
@@ -437,7 +438,12 @@ async def get_workspace_file(
         raise HTTPException(status_code=400, detail="Invalid filename")
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(path, filename=filename)
+    # Workspace files are mutable (agents can overwrite). Force the browser
+    # to revalidate every time so the viewer never serves stale content.
+    return FileResponse(
+        path, filename=filename,
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @router.delete("/workspace/{filename}")
@@ -525,6 +531,57 @@ async def chat_stream(
         )
 
 
+# SSE comment that proxies and browsers ignore — used to keep the connection
+# warm during long idle gaps (e.g. file_write streaming or model thinking
+# silently). CloudFront's idle timeout is the binding constraint (default 30s,
+# max 60s); 15s gives a 2x safety margin.
+_KEEPALIVE_INTERVAL = 15.0
+_KEEPALIVE_FRAME = b": ping\n\n"
+
+
+async def _with_keepalive(
+    source: AsyncIterator[bytes], interval: float = _KEEPALIVE_INTERVAL,
+) -> AsyncIterator[bytes]:
+    """Forward chunks from `source`, injecting an SSE-comment ping when idle > `interval`.
+
+    The producer runs in a single long-lived task so its ContextVar set/reset
+    pairs both happen in the same Context (Token reset would otherwise blow up
+    if reset ran in a different context than set).
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+    _DONE = object()
+
+    async def _producer():
+        try:
+            async for chunk in source:
+                await queue.put(chunk)
+        except Exception as e:
+            await queue.put(e)
+        finally:
+            await queue.put(_DONE)
+
+    producer = asyncio.create_task(_producer())
+    try:
+        while True:
+            try:
+                item = await asyncio.wait_for(queue.get(), timeout=interval)
+            except asyncio.TimeoutError:
+                yield _KEEPALIVE_FRAME
+                continue
+            if item is _DONE:
+                return
+            if isinstance(item, Exception):
+                raise item
+            yield item
+    finally:
+        if not producer.done():
+            producer.cancel()
+            try:
+                await producer
+            except (asyncio.CancelledError, Exception):
+                pass
+
+
 async def _stream_agent(
     *,
     agent: Agent,
@@ -553,17 +610,21 @@ async def _stream_agent(
             # Prepare workspace + system prompt.
             # Every agent gets a workspace dir; the user decides whether to
             # actually use it by toggling file tools in the Agents settings.
+            # ContextVar set without reset: each request runs in its own task,
+            # so the ContextVar is naturally scoped and cleaned up when the task
+            # ends. Token-based reset would crash on cancellation because the
+            # async generator may resume the finally block in a different
+            # Context than the one that produced the Token.
             if agent.workspace_enabled:
                 workspace_dir = workspace.ensure(workspace_user, agent.id)
                 prompt_template = agent.prompt
                 if "{workspace_dir}" not in prompt_template:
                     prompt_template = prompt_template + "\n\n" + WORKSPACE_INSTRUCTIONS
                 system_prompt = prompt_template.format(workspace_dir=workspace_dir)
-                ctx_token = current_workspace_dir.set(workspace_dir)
+                current_workspace_dir.set(workspace_dir)
             else:
                 system_prompt = agent.prompt
-                ctx_token = None
-            agent_id_token = current_agent_id.set(agent.id)
+            current_agent_id.set(agent.id)
 
             tool_config = _build_tool_config(agent)
             skills = skill_registry.get_many(agent.enabled_skills)
@@ -572,95 +633,90 @@ async def _stream_agent(
             text_started = False
             tool_started_ids: set = set()
 
-            try:
-                async for chunk in service.streaming_reply_with_history(
-                    session=session,
-                    message=msg_text,
-                    system_prompt=system_prompt,
-                    history=history,
-                    tool_config=tool_config,
-                    persist=cloud_sync,
-                    files=files,
-                    skills=skills,
-                    parameters=agent.parameters,
-                ):
-                    if not isinstance(chunk, dict):
+            async for chunk in service.streaming_reply_with_history(
+                session=session,
+                message=msg_text,
+                system_prompt=system_prompt,
+                history=history,
+                tool_config=tool_config,
+                persist=cloud_sync,
+                files=files,
+                skills=skills,
+                parameters=agent.parameters,
+            ):
+                if not isinstance(chunk, dict):
+                    continue
+
+                if thinking := chunk.get("thinking"):
+                    if not thinking_started:
+                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
+                        thinking_started = True
+                    yield _enc.encode(ReasoningMessageContentEvent(
+                        message_id=thinking_id, delta=thinking,
+                    ))
+
+                if text := chunk.get("text"):
+                    if not text_started:
+                        if thinking_started:
+                            yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
+                            thinking_started = False
+                        yield _enc.encode(TextMessageStartEvent(
+                            message_id=message_id, role="assistant",
+                        ))
+                        text_started = True
+                    yield _enc.encode(TextMessageContentEvent(
+                        message_id=message_id, delta=text,
+                    ))
+
+                # Hold the AG-UI 4-event tool sequence until the terminal
+                # chunk (avoids ghost entries when the LLM abandons a
+                # tool_use mid-stream). But on the *first* running chunk
+                # for an id, surface a one-line reasoning hint so the UI
+                # shows progress while a long file_write streams its args.
+                if tool_use := chunk.get("tool_use"):
+                    tool_name = tool_use.get("name", "unknown")
+                    tool_status = tool_use.get("status", "running")
+                    tc_id = tool_use.get("tool_use_id") or f"tc-{uuid.uuid4().hex[:8]}"
+                    if tool_status == "running":
+                        if tc_id not in tool_started_ids:
+                            tool_started_ids.add(tc_id)
+                            if not thinking_started and not text_started:
+                                yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
+                                thinking_started = True
+                            yield _enc.encode(ReasoningMessageContentEvent(
+                                message_id=thinking_id, delta=f"\n🔧 {tool_name} …\n",
+                            ))
                         continue
 
-                    if thinking := chunk.get("thinking"):
-                        if not thinking_started:
-                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                            thinking_started = True
-                        yield _enc.encode(ReasoningMessageContentEvent(
-                            message_id=thinking_id, delta=thinking,
+                    if not thinking_started and not text_started:
+                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
+                        thinking_started = True
+                    ok = tool_status in ("completed", "success")
+                    mark = "✅" if ok else "⚠️"
+                    yield _enc.encode(ReasoningMessageContentEvent(
+                        message_id=thinking_id, delta=f"\n🔧 {tool_name} {mark}\n",
+                    ))
+                    yield _enc.encode(ToolCallStartEvent(
+                        tool_call_id=tc_id, tool_call_name=tool_name,
+                        parent_message_id=message_id,
+                    ))
+                    yield _enc.encode(ToolCallArgsEvent(
+                        tool_call_id=tc_id,
+                        delta=json.dumps(tool_use.get("params", {})),
+                    ))
+                    yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
+                    if agent.workspace_enabled:
+                        yield _enc.encode(CustomEvent(
+                            name="workspace_updated", value={"tool": tool_name},
                         ))
-
-                    if text := chunk.get("text"):
-                        if not text_started:
-                            if thinking_started:
-                                yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-                                thinking_started = False
-                            yield _enc.encode(TextMessageStartEvent(
-                                message_id=message_id, role="assistant",
-                            ))
-                            text_started = True
-                        yield _enc.encode(TextMessageContentEvent(
-                            message_id=message_id, delta=text,
-                        ))
-
-                    # Hold the AG-UI 4-event tool sequence until the terminal
-                    # chunk (avoids ghost entries when the LLM abandons a
-                    # tool_use mid-stream). But on the *first* running chunk
-                    # for an id, surface a one-line reasoning hint so the UI
-                    # shows progress while a long file_write streams its args.
-                    if tool_use := chunk.get("tool_use"):
-                        tool_name = tool_use.get("name", "unknown")
-                        tool_status = tool_use.get("status", "running")
-                        tc_id = tool_use.get("tool_use_id") or f"tc-{uuid.uuid4().hex[:8]}"
-                        if tool_status == "running":
-                            if tc_id not in tool_started_ids:
-                                tool_started_ids.add(tc_id)
-                                if not thinking_started and not text_started:
-                                    yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                                    thinking_started = True
-                                yield _enc.encode(ReasoningMessageContentEvent(
-                                    message_id=thinking_id, delta=f"\n🔧 {tool_name} …\n",
-                                ))
-                            continue
-
-                        if not thinking_started and not text_started:
-                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                            thinking_started = True
-                        ok = tool_status in ("completed", "success")
-                        mark = "✅" if ok else "⚠️"
-                        yield _enc.encode(ReasoningMessageContentEvent(
-                            message_id=thinking_id, delta=f"\n🔧 {tool_name} {mark}\n",
-                        ))
-                        yield _enc.encode(ToolCallStartEvent(
-                            tool_call_id=tc_id, tool_call_name=tool_name,
-                            parent_message_id=message_id,
-                        ))
-                        yield _enc.encode(ToolCallArgsEvent(
+                    result_str = tool_use.get("result", "")
+                    if result_str:
+                        yield _enc.encode(ToolCallResultEvent(
                             tool_call_id=tc_id,
-                            delta=json.dumps(tool_use.get("params", {})),
+                            message_id=message_id,
+                            content=result_str if isinstance(result_str, str) else json.dumps(result_str),
+                            role="tool",
                         ))
-                        yield _enc.encode(ToolCallEndEvent(tool_call_id=tc_id))
-                        if agent.workspace_enabled:
-                            yield _enc.encode(CustomEvent(
-                                name="workspace_updated", value={"tool": tool_name},
-                            ))
-                        result_str = tool_use.get("result", "")
-                        if result_str:
-                            yield _enc.encode(ToolCallResultEvent(
-                                tool_call_id=tc_id,
-                                message_id=message_id,
-                                content=result_str if isinstance(result_str, str) else json.dumps(result_str),
-                                role="tool",
-                            ))
-            finally:
-                if ctx_token is not None:
-                    current_workspace_dir.reset(ctx_token)
-                current_agent_id.reset(agent_id_token)
 
             if thinking_started and not text_started:
                 yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
@@ -673,7 +729,7 @@ async def _stream_agent(
             yield _enc.encode(RunErrorEvent(message="An error occurred during streaming."))
 
     return StreamingResponse(
-        event_stream(),
+        _with_keepalive(event_stream()),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )
@@ -756,7 +812,7 @@ async def _stream_chat(
             yield _enc.encode(RunErrorEvent(message="An error occurred during streaming."))
 
     return StreamingResponse(
-        event_stream(),
+        _with_keepalive(event_stream()),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )

@@ -21,6 +21,9 @@ function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePan
   const [files, setFiles] = useState<WorkspaceFile[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  // Bumped on each refresh so the viewer re-fetches when an agent overwrites
+  // the currently selected file (filename unchanged → useEffect wouldn't fire).
+  const [previewVersion, setPreviewVersion] = useState(0)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -31,6 +34,7 @@ function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePan
         if (prev && res.files?.some(f => f.name === prev)) return prev
         return res.files?.[0]?.name ?? null
       })
+      setPreviewVersion(v => v + 1)
     } catch (err) {
       console.error('Workspace load failed:', err)
     } finally {
@@ -87,7 +91,7 @@ function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePan
               onClick={() => setSelected(null)}
               title={`Close ${selected}`}
             ><IconClose size={12} /></button>
-            <WorkspaceFileViewer key={selected} agentId={agentId} name={selected} />
+            <WorkspaceFileViewer key={`${selected}#${previewVersion}`} agentId={agentId} name={selected} />
           </>
         ) : (
           <div className="workspace-viewer-empty">Select a file to preview</div>
