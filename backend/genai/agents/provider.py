@@ -226,6 +226,11 @@ class AgentProvider:
         """Get current Agent conversation messages."""
         return self._agent.messages if self._agent else []
 
+    def set_messages(self, history_messages: List) -> None:
+        """Replace the cached Agent's conversation history (e.g. after a UI retract)."""
+        if self._agent is not None:
+            self._agent.messages = list(history_messages)
+
     async def generate_stream(
         self,
         prompt: str,

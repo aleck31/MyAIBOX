@@ -40,6 +40,7 @@ class FakeProvider:
         self.destroyed = False
         self.init_history: Optional[List] = None
         self.stream_calls: list[str] = []
+        self.set_messages_calls: list[list] = []
         FakeProvider.instances.append(self)
 
     def _ensure_agent(self, history_messages=None):
@@ -56,6 +57,10 @@ class FakeProvider:
 
     def mcp_healthy(self) -> bool:
         return True
+
+    def set_messages(self, history_messages):
+        self.messages = list(history_messages)
+        self.set_messages_calls.append(list(history_messages))
 
     async def generate_stream(self, prompt):
         self.stream_calls.append(prompt if isinstance(prompt, str) else str(prompt))
@@ -108,15 +113,45 @@ async def test_turn_two_reuses_cached_provider(svc, make_session):
         session=session, message="hi", system_prompt="",
         history=[], tool_config={}, persist=False,
     ))
+    # Frontend sends the running history on turn 2 (mirrors what UI does).
     await _drain(svc.streaming_reply_with_history(
         session=session, message="hi again", system_prompt="",
-        history=[], tool_config={}, persist=False,
+        history=[
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "ok-reply"},
+        ], tool_config={}, persist=False,
     ))
 
     # Exactly one provider was constructed; both turns hit the same one
     assert len(FakeProvider.instances) == 1
     provider = FakeProvider.instances[0]
     assert len(provider.stream_calls) == 2
+
+
+async def test_retract_resyncs_cached_messages(svc, make_session):
+    """After a UI retract, the next turn's history is shorter than what the
+    cached Strands Agent holds. The cache must be re-synced so the model
+    doesn't keep replying to the retracted prompt."""
+    session = make_session(session_id="sid-retract", model_id="m1")
+
+    # Turn 1: builds cache with [user1, asst1]
+    await _drain(svc.streaming_reply_with_history(
+        session=session, message="question one", system_prompt="",
+        history=[], tool_config={}, persist=False,
+    ))
+    provider = FakeProvider.instances[0]
+    assert len(provider.messages) == 2
+
+    # User retracts in the UI -> sends a fresh prompt with empty history.
+    await _drain(svc.streaming_reply_with_history(
+        session=session, message="redo from scratch", system_prompt="",
+        history=[], tool_config={}, persist=False,
+    ))
+
+    # Same provider (cache hit) but messages were re-synced before the new turn.
+    assert len(FakeProvider.instances) == 1
+    assert provider.stream_calls == ["question one", "redo from scratch"]
+    assert provider.set_messages_calls == [[]]
 
 
 async def test_model_hot_swap_updates_same_provider(svc, make_session):

@@ -137,6 +137,14 @@ class AgentService(BaseService):
             if provider.mcp_healthy():
                 if provider.model_id != model_id:
                     provider.update_model(model_id)
+                # Sync history if frontend trimmed it (e.g. after retract);
+                # otherwise the cached Strands Agent keeps the pre-retract messages
+                # and the model would re-answer the retracted prompt.
+                if history is not None and len(history) < len(provider.messages):
+                    provider.set_messages(self._convert_to_strands_format(history))
+                    logger.info(
+                        f"[AgentService] Synced trimmed history ({len(history)} msgs) for {session_id}"
+                    )
                 return provider
             logger.info(f"[AgentService] MCP dead, rebuilding provider for {session_id}")
             self._remove_cached_provider(session_id)
