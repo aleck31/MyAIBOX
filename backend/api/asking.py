@@ -36,11 +36,16 @@ def _get_provider(model_id: str):
     if not model:
         raise ValueError(f"Model not found: {model_id}")
     params = module_config.get_inference_params('asking') or {}
+    tools = module_config.get_enabled_tools('asking') or []
+    # Fold the tool list into the cache fingerprint so toggling tools in the
+    # settings page rebuilds the provider instead of reusing a tool-less one.
+    fingerprint = {**params, '_tools': sorted(tools)}
     return _provider_cache.get_or_create(
-        model_id, params,
+        model_id, fingerprint,
         lambda: create_model_provider(
             model.api_provider, model_id,
             LLMParameters(**params) if params else LLMParameters(),
+            tools=tools,
         ),
     )
 
@@ -122,6 +127,7 @@ async def process_asking(
 
             thinking_started = False
             text_started = False
+            tool_seen: set = set()
             message = LLMMessage(role="user", content=content)
 
             async for chunk in aiter_sync(provider.generate_stream(
@@ -141,7 +147,21 @@ async def process_asking(
                         yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="assistant"))
                         thinking_started = True
                     yield _enc.encode(ReasoningMessageContentEvent(message_id=thinking_id, delta=delta_text))
-                
+
+                # Surface tool calls as a one-line note in the reasoning block so
+                # the UI shows progress instead of looking frozen during a search.
+                if tool_use := chunk.get('tool_use'):
+                    tc_id = tool_use.get('toolUseId')
+                    name = tool_use.get('name')
+                    if tc_id and name and tc_id not in tool_seen:
+                        tool_seen.add(tc_id)
+                        if not thinking_started:
+                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="assistant"))
+                            thinking_started = True
+                        yield _enc.encode(ReasoningMessageContentEvent(
+                            message_id=thinking_id, delta=f"\n🔧 {name} …\n",
+                        ))
+
                 if c := chunk.get('content'):
                     if txt := c.get('text'):
                         if thinking_started and not text_started:

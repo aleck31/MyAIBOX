@@ -760,6 +760,9 @@ class BedrockConverse(LLMAPIProvider):
                         has_tool_use = True
                         logger.debug(f"[BRConverseProvider] Tool use detected: {tool_use}")
 
+                        # Surface the call to the caller so the UI can show progress (e.g. "🔧 search_internet …")
+                        yield {'content': {}, 'thinking': '', 'tool_use': tool_use, 'metadata': {}}
+
                         # Add LLM message with thinking (if enabled) and toolUse
                         content_blocks = []
 
