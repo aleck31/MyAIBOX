@@ -23,10 +23,10 @@ _enc = EventEncoder()
 
 # Operations available for text processing
 TEXT_OPERATIONS = {
-    "proofread": "Proofreading ✍️",
-    "rewrite": "Rewrite 🔄",
-    "reduce": "Reduction ✂️",
-    "expand": "Expansion 📝",
+    "proofread": "Proofreading",
+    "rewrite": "Rewrite",
+    "reduce": "Reduction",
+    "expand": "Expansion",
 }
 
 LANGS = list(LANG_MAP.keys())

@@ -2,7 +2,22 @@ import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getTextConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import { Button } from './Button'
-import { IconTrash } from './icons'
+import {
+  IconTrash,
+  IconSpellCheck,
+  IconReplace,
+  IconScissors,
+  IconExpand,
+} from './icons'
+import type { LucideProps } from 'lucide-react'
+
+// Operation key → icon. Backend owns the label text, frontend owns the visual.
+const OPERATION_ICONS: Record<string, React.ComponentType<LucideProps>> = {
+  proofread: IconSpellCheck,
+  rewrite: IconReplace,
+  reduce: IconScissors,
+  expand: IconExpand,
+}
 import ModelSelector from './ModelSelector'
 import type { TextConfig } from '../types/text'
 
@@ -94,18 +109,22 @@ export default function TextProcessor() {
       {/* Controls bar */}
       <div className="section-bar">
         <div className="segmented" role="tablist" aria-label="Operation">
-          {config.operations.map((op) => (
-            <button
-              key={op.key}
-              type="button"
-              role="tab"
-              aria-selected={operation === op.key}
-              className={`segmented-item${operation === op.key ? ' is-active' : ''}`}
-              onClick={() => setOperation(op.key)}
-            >
-              {op.label}
-            </button>
-          ))}
+          {config.operations.map((op) => {
+            const Icon = OPERATION_ICONS[op.key]
+            return (
+              <button
+                key={op.key}
+                type="button"
+                role="tab"
+                aria-selected={operation === op.key}
+                className={`segmented-item${operation === op.key ? ' is-active' : ''}`}
+                onClick={() => setOperation(op.key)}
+              >
+                {Icon && <Icon size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />}
+                {op.label}
+              </button>
+            )
+          })}
         </div>
         <div className="section-actions">
           {operation === 'rewrite' && (

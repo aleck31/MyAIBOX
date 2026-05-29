@@ -45,10 +45,10 @@ export default function ChatContainer({ agent, session, models }: Props) {
   const chatRef = useRef<ChatWindowHandle>(null)
   const workspaceRef = useRef<WorkspacePanelHandle>(null)
 
+  // Desktop docks the workspace as a resizable side column; everything narrower
+  // slides it in as an overlay (full-screen on phones — see workspace.css).
   const isDesktop = useMediaQuery('(min-width: 1280px)')
-  const isTablet = useMediaQuery('(min-width: 1024px) and (max-width: 1279.9px)')
-  const layoutMode: 'side' | 'overlay' | 'modal' =
-    isDesktop ? 'side' : isTablet ? 'overlay' : 'modal'
+  const layoutMode: 'side' | 'overlay' = isDesktop ? 'side' : 'overlay'
 
   const handleModelChange = useCallback(async (newModelId: string) => {
     setModelId(newModelId)
@@ -205,14 +205,6 @@ export default function ChatContainer({ agent, session, models }: Props) {
             {workspacePanel}
           </div>
         </>
-      )}
-
-      {agent.workspace_enabled && workspaceOpen && layoutMode === 'modal' && (
-        <div className="overlay" onClick={closeWorkspace}>
-          <div className="modal assistant-workspace--modal" onClick={e => e.stopPropagation()}>
-            {workspacePanel}
-          </div>
-        </div>
       )}
     </div>
   )

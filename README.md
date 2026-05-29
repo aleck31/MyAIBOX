@@ -8,7 +8,11 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 
 The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with secure authentication via Amazon Cognito and session management backed by DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
-🎉 **What's New in v3.6**
+🎉 **What's New in v3.7**
+- **Voice input (Asking)**: speak your question — live transcription via AWS Transcribe streaming, with optional auto-send
+- **Research-style Asking**: questions and follow-ups stack as a scrollable thread (numbered Q/A blocks with collapsible reasoning), plus a resizable rail that indexes every question for quick navigation
+
+**v3.6**
 - **Models enable/disable**: toggle individual models off in Settings → Models without deleting them
 - **Per-agent inference parameters**: `temperature` / `top_p` / `max_tokens` configured in Agents settings are now actually applied
 - **Tool progress hints**: long-running tools (e.g. `file_write`) no longer make the UI look frozen
@@ -41,7 +45,7 @@ The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with
 * **Chat** 💬 — Unified conversational AI: pick an agent (Assistant, Q&A persona, etc.), each with its own tools, skills, system prompt, and workspace
 * **Text** 📝 — Proofreading, rewriting, reduction, expansion, multi-language support
 * **Summary** 📰 — Document and text summarization
-* **Asking** 🧠 — Deep reasoning with thinking + text dual-channel streaming
+* **Asking** 🧠 — Research-style deep Q&A: voice or text input, follow-up threads, per-question reasoning
 * **Vision** 👀 — Image analysis, document understanding (PDF), multi-model support
 * **Draw** 🎨 — AI image generation and editing with prompt optimization, style/ratio/seed options
 * **Settings** ⚙️ — Account management, module configuration, model registry, MCP server management
