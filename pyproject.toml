@@ -1,6 +1,6 @@
 [project]
 name = "my-aibox"
-version = "3.6.1"
+version = "3.7.0"
 description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,6 +25,8 @@ dependencies = [
     "duckduckgo-search>=8.1.1",
     "ddgs>=9.6.0",
     "ag-ui-protocol>=0.1.13",
+    # AWS Transcribe streaming for voice input on the Asking module
+    "amazon-transcribe>=0.6.4",
 ]
 
 [dependency-groups]

@@ -16,6 +16,7 @@ from backend.api.chat import router as chat_router
 from backend.api.text import router as text_router
 from backend.api.summary import router as summary_router
 from backend.api.asking import router as asking_router
+from backend.api.transcribe import router as transcribe_router
 from backend.api.vision import router as vision_router
 from backend.api.draw import router as draw_router
 from backend.api.settings import router as settings_router
@@ -81,6 +82,7 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(text_router, prefix="/api")
 app.include_router(summary_router, prefix="/api")
 app.include_router(asking_router, prefix="/api")
+app.include_router(transcribe_router, prefix="/api")
 app.include_router(vision_router, prefix="/api")
 app.include_router(draw_router, prefix="/api")
 app.include_router(settings_router, prefix="/api")

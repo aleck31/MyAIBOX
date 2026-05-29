@@ -25,6 +25,13 @@ export {
   Camera as IconCamera,
   Brain as IconBrain,
   Wrench as IconWrench,
+  Mic as IconMic,
+  Square as IconSquare,
+  SpellCheck as IconSpellCheck,
+  Replace as IconReplace,
+  Scissors as IconScissors,
+  Expand as IconExpand,
+  PanelRight as IconPanelRight,
 } from 'lucide-react'
 
 // Toggle: green when on, muted gray when off. Override with `color` prop.
