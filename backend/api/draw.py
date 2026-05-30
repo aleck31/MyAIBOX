@@ -74,6 +74,7 @@ class OptimizeRequest(BaseModel):
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available image models, styles, and ratios."""
+    from backend.core.module_config import module_config
     models = model_manager.get_models(filter={'category': 'image'}) or []
     return {
         "models": [
@@ -87,6 +88,7 @@ async def get_config(username: str = Depends(get_auth_user)):
         "styles": IMAGE_STYLES,
         "ratios": IMAGE_RATIOS,
         "resolutions": IMAGE_RESOLUTIONS,
+        "default_model": module_config.get_default_model('draw'),
     }
 
 

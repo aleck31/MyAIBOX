@@ -4,6 +4,8 @@ import { readSSE } from '../api/sse'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import { IconTrash } from './icons'
+import { useStoredState } from '../hooks/useStoredState'
+import { resolveDefaultModel } from '../utils/model'
 import type { SummaryConfig } from '../types/summary'
 
 const STORAGE_KEY = 'summary-processor-state'
@@ -25,17 +27,18 @@ export default function SummaryProcessor() {
   const [input, setInput] = useState(saved.input ?? '')
   const [output, setOutput] = useState(saved.output ?? '')
   const [targetLang, setTargetLang] = useState(saved.targetLang ?? 'Original')
-  const [modelId, setModelId] = useState(saved.modelId ?? '')
+  // Model preference persists across tabs/reopens (localStorage).
+  const [modelId, setModelId] = useStoredState<string>('summary-model', '')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    saveState({ input, output, targetLang, modelId })
-  }, [input, output, targetLang, modelId])
+    saveState({ input, output, targetLang })
+  }, [input, output, targetLang])
 
   useEffect(() => {
     getSummaryConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(cfg.models[0].model_id)
+      if (!modelId && cfg.models.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
     })
   }, [])
 

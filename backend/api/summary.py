@@ -41,6 +41,7 @@ class SummaryRequest(BaseModel):
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available models and languages."""
+    from backend.core.module_config import module_config
     models = model_manager.get_models(filter={'tool_use': True})
     return {
         "models": [
@@ -48,6 +49,7 @@ async def get_config(username: str = Depends(get_auth_user)):
             for m in (models or [])
         ],
         "languages": LANGS,
+        "default_model": module_config.get_default_model('summary'),
     }
 
 

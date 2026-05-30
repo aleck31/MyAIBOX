@@ -8,6 +8,8 @@ import ModelSelector from './ModelSelector'
 import { IconTrash, IconMic, IconPaperclip, IconClose, IconToggleOn, IconToggleOff, IconBrain, IconPanelRight } from './icons'
 import { useTranscribe } from '../hooks/useTranscribe'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useStoredState } from '../hooks/useStoredState'
+import { resolveDefaultModel } from '../utils/model'
 import type { AskingConfig } from '../types/asking'
 
 const STORAGE_KEY = 'asking-processor-state'
@@ -47,15 +49,18 @@ export default function AskingProcessor() {
   const [config, setConfig] = useState<AskingConfig | null>(null)
   const [input, setInput] = useState<string>(saved.input ?? '')
   const [blocks, setBlocks] = useState<QABlock[]>(saved.blocks ?? [])
-  const [modelId, setModelId] = useState<string>(saved.modelId ?? '')
+  // Model is a cross-session preference → localStorage (persists across tabs reopens)
+  const [modelId, setModelId] = useStoredState<string>('asking-model', '')
   const [customPrompt, setCustomPrompt] = useState<string>(saved.customPrompt ?? '')
   const [files, setFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
-  const [autoSend, setAutoSend] = useState<boolean>(saved.autoSend ?? false)
   const [partialTranscript, setPartialTranscript] = useState('')
   const [pendingAutoSend, setPendingAutoSend] = useState(false)
-  const [railWidth, setRailWidth] = useState<number>(saved.railWidth ?? 280)
-  const [railOpen, setRailOpen] = useState<boolean>(saved.railOpen ?? true)
+  // UI preferences persist across tabs/reopens (localStorage); the session
+  // draft (input/blocks/customPrompt) stays per-tab in sessionStorage below.
+  const [autoSend, setAutoSend] = useStoredState<boolean>('asking-autosend', false)
+  const [railWidth, setRailWidth] = useStoredState<number>('asking-rail-width', 280)
+  const [railOpen, setRailOpen] = useStoredState<boolean>('asking-rail-open', true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   const blockRefs = useRef<Array<HTMLElement | null>>([])
@@ -64,13 +69,16 @@ export default function AskingProcessor() {
   const isNarrow = useMediaQuery('(max-width: 900px)')
 
   useEffect(() => {
-    saveState({ input, blocks, modelId, customPrompt, autoSend, railWidth, railOpen })
-  }, [input, blocks, modelId, customPrompt, autoSend, railWidth, railOpen])
+    saveState({ input, blocks, customPrompt })
+  }, [input, blocks, customPrompt])
 
   useEffect(() => {
     getAskingConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(cfg.models[0].model_id)
+      // First visit (no stored choice) → module default, not models[0].
+      if (!modelId && cfg.models.length) {
+        setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
+      }
     })
   }, [])
 

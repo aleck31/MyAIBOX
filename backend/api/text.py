@@ -52,6 +52,7 @@ class TextRequest(BaseModel):
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available operations, languages, styles, and models."""
     from backend.genai.models.model_manager import model_manager
+    from backend.core.module_config import module_config
     models = model_manager.get_models(filter={'output_modality': ['text']})
     return {
         "operations": [
@@ -63,6 +64,7 @@ async def get_config(username: str = Depends(get_auth_user)):
             {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
             for m in (models or [])
         ],
+        "default_model": module_config.get_default_model('text'),
     }
 
 

@@ -5,6 +5,8 @@ import ModelSelector from './ModelSelector'
 import ResizablePreview from './ResizablePreview'
 import FilePreviewPanel from './FilePreviewPanel'
 import { IconTrash, IconWand, IconEdit } from './icons'
+import { useStoredState } from '../hooks/useStoredState'
+import { resolveDefaultModel } from '../utils/model'
 import type { DrawConfig } from '../types/draw'
 
 const STORAGE_KEY = 'draw-processor-state'
@@ -34,7 +36,8 @@ export default function DrawProcessor() {
   const [ratio, setRatio] = useState(saved.ratio ?? '1:1')
   const [seed, setSeed] = useState<number>(saved.seed ?? 0)
   const [randomSeed, setRandomSeed] = useState(saved.randomSeed ?? true)
-  const [modelId, setModelId] = useState(saved.modelId ?? '')
+  // Model preference persists across tabs/reopens (localStorage).
+  const [modelId, setModelId] = useStoredState<string>('draw-model', '')
   const [resolution, setResolution] = useState(saved.resolution ?? '1K')
   const [temperature, setTemperature] = useState(saved.temperature ?? 0.6)
   const [imageUrl, setImageUrl] = useState<string | null>(saved.imageUrl ?? null)
@@ -45,13 +48,13 @@ export default function DrawProcessor() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    saveState({ prompt, originalPrompt, editPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode, temperature })
-  }, [prompt, originalPrompt, negative, style, ratio, seed, randomSeed, modelId, resolution, imageUrl, editImageUrl, mode])
+    saveState({ prompt, originalPrompt, editPrompt, negative, style, ratio, seed, randomSeed, resolution, imageUrl, editImageUrl, mode, temperature })
+  }, [prompt, originalPrompt, negative, style, ratio, seed, randomSeed, resolution, imageUrl, editImageUrl, mode])
 
   useEffect(() => {
     getDrawConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(cfg.models[0].model_id)
+      if (!modelId && cfg.models.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
     })
   }, [])
 

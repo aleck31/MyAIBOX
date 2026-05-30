@@ -62,13 +62,14 @@ async def _save_file(f: UploadFile) -> str:
 
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
-    """Return available models (reasoning-capable)."""
+    """Return available models (reasoning-capable) + the module default."""
     models = model_manager.get_models(filter={'reasoning': True})
     return {
         "models": [
             {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
             for m in (models or [])
         ],
+        "default_model": module_config.get_default_model('asking'),
     }
 
 

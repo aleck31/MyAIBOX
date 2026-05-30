@@ -5,6 +5,8 @@ import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import FilePreviewPanel from './FilePreviewPanel'
 import { IconTrash } from './icons'
+import { useStoredState } from '../hooks/useStoredState'
+import { resolveDefaultModel } from '../utils/model'
 import type { VisionConfig } from '../types/vision'
 
 const STORAGE_KEY = 'vision-processor-state'
@@ -25,19 +27,20 @@ export default function VisionProcessor() {
   const [config, setConfig] = useState<VisionConfig | null>(null)
   const [text, setText] = useState(saved.text ?? '')
   const [output, setOutput] = useState(saved.output ?? '')
-  const [modelId, setModelId] = useState(saved.modelId ?? '')
+  // Model preference persists across tabs/reopens (localStorage).
+  const [modelId, setModelId] = useStoredState<string>('vision-model', '')
   const [files, setFiles] = useState<File[]>([])
   const [previewUrl, setPreviewUrl] = useState<string | null>(saved.previewUrl ?? null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    saveState({ text, output, modelId, previewUrl })
-  }, [text, output, modelId, previewUrl])
+    saveState({ text, output, previewUrl })
+  }, [text, output, previewUrl])
 
   useEffect(() => {
     getVisionConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(cfg.models[0].model_id)
+      if (!modelId && cfg.models.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
     })
   }, [])
 

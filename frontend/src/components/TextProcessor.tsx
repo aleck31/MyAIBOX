@@ -19,6 +19,8 @@ const OPERATION_ICONS: Record<string, React.ComponentType<LucideProps>> = {
   expand: IconExpand,
 }
 import ModelSelector from './ModelSelector'
+import { useStoredState } from '../hooks/useStoredState'
+import { resolveDefaultModel } from '../utils/model'
 import type { TextConfig } from '../types/text'
 
 const STORAGE_KEY = 'text-processor-state'
@@ -42,18 +44,19 @@ export default function TextProcessor() {
   const [operation, setOperation] = useState(saved.operation ?? 'proofread')
   const [targetLang, setTargetLang] = useState(saved.targetLang ?? 'en_US')
   const [style, setStyle] = useState(saved.style ?? '正常')
-  const [modelId, setModelId] = useState(saved.modelId ?? '')
+  // Model preference persists across tabs/reopens (localStorage).
+  const [modelId, setModelId] = useStoredState<string>('text-model', '')
   const [loading, setLoading] = useState(false)
 
   // Persist state on change
   useEffect(() => {
-    saveState({ input, output, operation, targetLang, style, modelId })
+    saveState({ input, output, operation, targetLang, style })
   }, [input, output, operation, targetLang, style])
 
   useEffect(() => {
     getTextConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models?.length) setModelId(cfg.models[0].model_id)
+      if (!modelId && cfg.models?.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
     })
   }, [])
 

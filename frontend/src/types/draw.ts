@@ -4,4 +4,5 @@ export interface DrawConfig {
   styles: string[]
   ratios: string[]
   resolutions: string[]
+  default_model?: string
 }
