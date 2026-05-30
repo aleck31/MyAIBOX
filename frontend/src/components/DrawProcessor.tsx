@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { authFetch, getDrawConfig } from '../api/client'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
+import { ParamSlider } from './settings/FormControls'
 import ResizablePreview from './ResizablePreview'
 import FilePreviewPanel from './FilePreviewPanel'
 import { IconTrash, IconWand, IconEdit } from './icons'
@@ -277,10 +278,11 @@ export default function DrawProcessor() {
               <select className="select" value={resolution} onChange={(e) => setResolution(e.target.value)}>
                 {config.resolutions?.map((r: string) => <option key={r} value={r}>{r}</option>)}
               </select>
-              <label className="draw-temp-label">
-                🌡️ {temperature.toFixed(1)}
-                <input type="range" min="0" max="1" step="0.1" value={temperature} onChange={(e) => setTemperature(Number(e.target.value))} />
-              </label>
+              <ParamSlider
+                label="🌡️" accent="warm" compact digits={1}
+                min={0} max={1} step={0.1}
+                value={temperature} onChange={setTemperature}
+              />
             </div>
             {!isEdit && (
               <div className="draw-option-row">

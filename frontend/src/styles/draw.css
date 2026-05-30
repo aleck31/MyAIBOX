@@ -13,6 +13,8 @@
   gap: 8px;
   align-items: center;
 }
+/* Ratio / resolution selects — keep them compact */
+.draw-option-row > .select { flex: 0 0 auto; width: auto; min-width: 88px; }
 
 .draw-checkbox-label {
   display: flex;
@@ -91,15 +93,3 @@
 }
 
 
-.draw-temp-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-}
-.draw-temp-label input[type="range"] {
-  width: 90px;
-  accent-color: hsl(35 95% 55%);
-}

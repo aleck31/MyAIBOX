@@ -3,8 +3,10 @@ import { getSettingsSessions, deleteSession, clearSessionHistory } from '../api/
 import { Button } from './Button'
 import { IconRefresh, IconTrash, IconEraser } from './icons'
 import type { SessionInfo } from '../types/settings'
+import { useConfirm } from './ConfirmDialog'
 
 export default function SettingsPanel({ username }: { username: string }) {
+  const confirm = useConfirm()
   const [sessions, setSessions] = useState<SessionInfo[]>([])
 
   const loadSessions = useCallback(async () => {
@@ -14,16 +16,16 @@ export default function SettingsPanel({ username }: { username: string }) {
   useEffect(() => { loadSessions() }, [loadSessions])
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm('Delete this session?')) return
+    if (!(await confirm({ title: 'Delete session', message: 'Delete this session?', confirmLabel: 'Delete', danger: true }))) return
     await deleteSession(id)
     loadSessions()
-  }, [loadSessions])
+  }, [loadSessions, confirm])
 
   const handleClearHistory = useCallback(async (id: string) => {
-    if (!confirm('Clear history for this session?')) return
+    if (!(await confirm({ title: 'Clear history', message: 'Clear history for this session?', confirmLabel: 'Clear', danger: true }))) return
     await clearSessionHistory(id)
     loadSessions()
-  }, [loadSessions])
+  }, [loadSessions, confirm])
 
   return (
     <div className="settings-panel">

@@ -5,7 +5,7 @@ import { authFetch, getAskingConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
-import { IconTrash, IconMic, IconPaperclip, IconClose, IconToggleOn, IconToggleOff, IconBrain, IconPanelRight } from './icons'
+import { IconTrash, IconEraser, IconClipboard, IconMic, IconPaperclip, IconClose, IconToggleOn, IconToggleOff, IconBrain, IconPanelRight } from './icons'
 import { useTranscribe } from '../hooks/useTranscribe'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
@@ -31,17 +31,6 @@ function loadState() {
 
 function saveState(state: Record<string, unknown>) {
   sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-}
-
-function CopyButton({ text }: { text: string }) {
-  return (
-    <button className="aui-action-bar-button" onClick={() => navigator.clipboard.writeText(text)} title="Copy">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="5" y="5" width="9" height="9" rx="1.5" />
-        <path d="M10 5V3.5A1.5 1.5 0 008.5 2h-5A1.5 1.5 0 002 3.5v5A1.5 1.5 0 003.5 10H5" />
-      </svg>
-    </button>
-  )
 }
 
 export default function AskingProcessor() {
@@ -219,6 +208,14 @@ export default function AskingProcessor() {
     sessionStorage.removeItem(STORAGE_KEY)
   }, [])
 
+  // Retract round i and everything after it (follow-ups depend on prior context),
+  // dropping its question back into the composer to edit and re-ask.
+  const handleRetract = useCallback((i: number) => {
+    if (loading) return
+    setInput(blocks[i]?.question ?? '')
+    setBlocks(prev => prev.slice(0, i))
+  }, [loading, blocks])
+
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFiles((prev) => [...prev, ...Array.from(e.target.files!)])
@@ -296,7 +293,26 @@ export default function AskingProcessor() {
                 <article key={i} className="asking-qa" ref={(el) => { blockRefs.current[i] = el }}>
                   <div className="asking-qa-question">
                     <span className="asking-qa-num">{String(i + 1).padStart(2, '0')}</span>
-                    {b.question}
+                    <span className="asking-qa-question-text">{b.question}</span>
+                    <div className="asking-qa-tools">
+                      {b.answer && !b.streaming && (
+                        <button className="aui-action-bar-button" title="Copy answer"
+                          onClick={() => navigator.clipboard.writeText(b.answer)}>
+                          <IconClipboard size={14} />
+                        </button>
+                      )}
+                      {/* Hide only on the round currently being generated; a stale `streaming`
+                          flag on an earlier round must not permanently remove this button. */}
+                      {!(loading && i === blocks.length - 1) && (
+                        <button
+                          className="aui-action-bar-button asking-qa-erase"
+                          onClick={() => handleRetract(i)}
+                          title="Remove this round (and later ones) and re-ask"
+                        >
+                          <IconEraser size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {b.thinking && (
@@ -313,9 +329,6 @@ export default function AskingProcessor() {
                     {b.answer
                       ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{b.answer}</ReactMarkdown>
                       : <span className="asking-qa-pending">{b.streaming && !b.thinking ? 'Thinking…' : ''}</span>}
-                    {b.answer && !b.streaming && (
-                      <div className="asking-qa-actions"><CopyButton text={b.answer} /></div>
-                    )}
                   </div>
                 </article>
               ))

@@ -147,7 +147,7 @@ export default function ModuleCard({ name, config, defaultOpen = false, models, 
             <label className="panel-label">Parameters</label>
             <div className="agent-params-grid">
               <ParamSlider
-                label="Temperature" min={0} max={1} step={0.05}
+                label="Temperature" min={0} max={1} step={0.05} accent="warm"
                 value={(state.params.temperature as number | undefined) ?? 0.7}
                 onChange={(v) => setState(s => ({ ...s, params: { ...s.params, temperature: v } }))}
               />

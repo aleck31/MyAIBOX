@@ -168,7 +168,7 @@
 
 .agent-params-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 10px 16px;
   padding: 8px 10px;
   border: 1px solid hsl(var(--border));
@@ -192,6 +192,14 @@
   flex: 1;
   min-width: 0;
 }
+/* Temperature gets the same warm orange as Draw's temperature slider. */
+.agent-param--warm input[type="range"] { accent-color: hsl(35 95% 55%); }
+
+/* Compact/inline variant for tight rows (e.g. Draw's options). Label auto-width,
+   slider sized to ~160px instead of stretching, value shrinks to content. */
+.agent-param--compact .agent-param-label { min-width: 0; }
+.agent-param--compact input[type="range"] { flex: 0 0 auto; width: 160px; }
+.agent-param--compact .agent-param-value { width: auto; }
 
 .agent-param-value {
   width: 36px;

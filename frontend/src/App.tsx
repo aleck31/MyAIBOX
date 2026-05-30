@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import AppLayout from './components/AppLayout'
+import { ConfirmProvider } from './components/ConfirmDialog'
 import { SSO_ENABLED, redirectToLogin } from './auth'
 
 function lazyLoad(loader: () => Promise<{ default: React.ComponentType }>) {
@@ -55,6 +56,7 @@ function AuthGuard({ children }: { children: (username: string) => React.ReactNo
 export default function App() {
   return (
     <BrowserRouter>
+      <ConfirmProvider>
       <Routes>
         {/* Public */}
         <Route path="/login" element={<LoginPage />} />
@@ -91,6 +93,7 @@ export default function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ConfirmProvider>
     </BrowserRouter>
   )
 }

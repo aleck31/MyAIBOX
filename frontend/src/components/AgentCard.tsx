@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ChatAgent, ChatToolInfo } from '../api/client'
 import { ParamSlider, ParamNumber, StopSequences, ToggleGroup, arrayEqual } from './settings/FormControls'
+import { useConfirm } from './ConfirmDialog'
 
 interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
 interface NameDesc { name: string; description: string }
@@ -61,6 +62,7 @@ export default function AgentCard({
   agent, defaultOpen = false, models, legacyTools, builtinTools, mcpServers, skills,
   onSave, onReset,
 }: Props) {
+  const confirm = useConfirm()
   const [open, setOpen] = useState(defaultOpen)
   const initial = useMemo(() => snapshot(agent), [agent])
   const [state, setState] = useState(initial)
@@ -115,7 +117,7 @@ export default function AgentCard({
   }
 
   const handleReset = async () => {
-    if (!confirm(`Reset "${agent.name}" to built-in defaults? This clears your overrides.`)) return
+    if (!(await confirm({ title: 'Reset agent', message: `Reset "${agent.name}" to built-in defaults? This clears your overrides.`, confirmLabel: 'Reset', danger: true }))) return
     setResetting(true)
     setError(null)
     try {
@@ -171,7 +173,7 @@ export default function AgentCard({
             <label className="panel-label">Parameters</label>
             <div className="agent-params-grid">
               <ParamSlider
-                label="Temperature" min={0} max={1} step={0.05}
+                label="Temperature" min={0} max={1} step={0.05} accent="warm"
                 value={state.params.temperature ?? 0.7}
                 onChange={(v) => setState(s => ({ ...s, params: { ...s.params, temperature: v } }))}
               />

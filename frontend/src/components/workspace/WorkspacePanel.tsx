@@ -6,6 +6,7 @@ import {
 } from '../../api/client'
 import WorkspaceFileList from './WorkspaceFileList'
 import WorkspaceFileViewer from './WorkspaceFileViewer'
+import { useConfirm } from '../ConfirmDialog'
 import { IconRefresh, IconClose } from '../icons'
 
 export interface WorkspacePanelHandle {
@@ -18,6 +19,7 @@ interface Props {
 }
 
 function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePanelHandle>) {
+  const confirm = useConfirm()
   const [files, setFiles] = useState<WorkspaceFile[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -47,14 +49,14 @@ function WorkspacePanel({ agentId, onClose }: Props, ref: React.Ref<WorkspacePan
   useEffect(() => { refresh() }, [refresh])
 
   const handleDelete = useCallback(async (name: string) => {
-    if (!confirm(`Delete "${name}"?`)) return
+    if (!(await confirm({ title: 'Delete file', message: `Delete "${name}"?`, confirmLabel: 'Delete', danger: true }))) return
     try {
       await deleteChatWorkspaceFile(agentId, name)
       await refresh()
     } catch (err) {
       console.error('Delete failed:', err)
     }
-  }, [agentId, refresh])
+  }, [agentId, refresh, confirm])
 
   return (
     <div className="workspace-panel">

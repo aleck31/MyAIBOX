@@ -1,16 +1,22 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 /** A labelled range slider with a numeric readout. */
-export function ParamSlider({ label, min, max, step, value, onChange }: {
-  label: string
+
+export function ParamSlider({ label, min, max, step, value, onChange, accent, compact, digits = 2 }: {
+  label: ReactNode
   min: number
   max: number
   step: number
   value: number
   onChange: (v: number) => void
+  accent?: 'warm'   // warm = the orange used by Draw's temperature slider
+  compact?: boolean // inline variant (auto-width label) for tight rows like Draw's options
+  digits?: number   // value decimals (Draw uses 1, settings uses 2)
 }) {
+  const cls = ['agent-param', accent && `agent-param--${accent}`, compact && 'agent-param--compact']
+    .filter(Boolean).join(' ')
   return (
-    <label className="agent-param">
+    <label className={cls}>
       <span className="agent-param-label">{label}</span>
       <input
         type="range"
@@ -20,7 +26,7 @@ export function ParamSlider({ label, min, max, step, value, onChange }: {
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
       />
-      <span className="agent-param-value">{value.toFixed(2)}</span>
+      <span className="agent-param-value">{value.toFixed(digits)}</span>
     </label>
   )
 }

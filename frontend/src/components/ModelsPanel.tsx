@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getModels, addModel, updateModel, deleteModel, toggleModel } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
+import { useConfirm } from './ConfirmDialog'
 import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
@@ -22,6 +23,7 @@ const emptyForm = (): ModelInfo => ({
 })
 
 export default function ModelsPanel() {
+  const confirm = useConfirm()
   const [models, setModels] = useState<ModelInfo[]>([])
   const [editing, setEditing] = useState<ModelInfo | null>(null)
   const [isNew, setIsNew] = useState(true)
@@ -59,7 +61,7 @@ export default function ModelsPanel() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this model?')) return
+    if (!(await confirm({ title: 'Delete model', message: 'Delete this model?', confirmLabel: 'Delete', danger: true }))) return
     await deleteModel(id); load()
   }
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { getMcpServers, addMcpServer, deleteMcpServer, toggleMcpServer } from '../api/client'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
+import { useConfirm } from './ConfirmDialog'
 import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff, IconPlus } from './icons'
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
@@ -9,6 +10,7 @@ const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 interface McpServer { name: string; type: string; status: string; url: string; tools_count: number }
 
 export default function McpPanel() {
+  const confirm = useConfirm()
   const [servers, setServers] = useState<McpServer[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ name: '', type: 'http', url: '', args: '' })
@@ -28,7 +30,7 @@ export default function McpPanel() {
   }
 
   const handleDelete = async (name: string) => {
-    if (!confirm(`Delete MCP server "${name}"?`)) return
+    if (!(await confirm({ title: 'Delete MCP server', message: `Delete MCP server "${name}"?`, confirmLabel: 'Delete', danger: true }))) return
     await deleteMcpServer(name); load()
   }
 

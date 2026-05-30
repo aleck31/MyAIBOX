@@ -12,6 +12,7 @@ import { clearRuntimeCache } from '../hooks/useAGUIRuntime'
 import { useAuth } from '../hooks/useAuth'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
+import { useConfirm } from './ConfirmDialog'
 import {
   IconTrash,
   IconUpload,
@@ -32,6 +33,7 @@ interface Props {
 
 export default function ChatContainer({ agent, session, models }: Props) {
   const { username } = useAuth()
+  const confirm = useConfirm()
   const [modelId, setModelId] = useState(session.model_id || agent.default_model || '')
   const [cloudSync, setCloudSync] = useState(session.cloud_sync ?? false)
   const [syncing, setSyncing] = useState(false)
@@ -77,12 +79,16 @@ export default function ChatContainer({ agent, session, models }: Props) {
   }, [agent.id])
 
   const handleClear = useCallback(async () => {
-    if (!confirm(`Clear this conversation with ${agent.name}? This can't be undone.`)) return
+    if (!(await confirm({
+      title: 'Clear conversation',
+      message: `Clear this conversation with ${agent.name}? This can't be undone.`,
+      confirmLabel: 'Clear', danger: true,
+    }))) return
     clearRuntimeCache(session.session_id)
     setChatHistory([])
     setChatKey(k => k + 1)
     try { await clearChatHistory(agent.id) } catch (err) { console.error('Clear failed:', err) }
-  }, [agent.id, agent.name, session.session_id])
+  }, [agent.id, agent.name, session.session_id, confirm])
 
   const toggleWorkspace = useCallback(() => {
     setWorkspaceOpen(o => {

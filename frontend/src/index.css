@@ -617,10 +617,15 @@ body {
   justify-content: flex-end;
   margin-top: 16px;
 }
+/* Confirm dialog: narrower than a full modal; title + message + actions. */
+.modal--confirm { max-width: 420px; }
+.modal-title { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: hsl(var(--foreground)); }
+.modal-message { font-size: 14px; line-height: 1.6; color: hsl(var(--muted-foreground)); }
 /* Mobile: use the full viewport */
 @media (max-width: 768px) {
   .overlay { padding: 0; align-items: stretch; }
   .modal { max-width: 100%; max-height: 100vh; border-radius: 0; border: none; }
+  .modal--confirm { max-width: 100%; }
 }
 
 /* ─── Shared: module layout ──────────────────────────────────────────────── */
