@@ -3,6 +3,10 @@
 Client sends binary PCM 16 kHz mono frames; server sends back JSON text frames:
 {"type": "partial"|"final", "text": ..., "lang": ...} or {"type": "error", ...}.
 Client sends "__end__" to stop; server flushes the final, then closes.
+
+Uses the official aws-sdk-transcribe-streaming (smithy) SDK; the old awslabs
+amazon-transcribe package is deprecated and pinned awscrt to a version that
+conflicts with Nova Sonic's bidi SDK.
 """
 from __future__ import annotations
 
@@ -13,9 +17,15 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from amazon_transcribe.client import TranscribeStreamingClient
-from amazon_transcribe.handlers import TranscriptResultStreamHandler
-from amazon_transcribe.model import TranscriptEvent
+from aws_sdk_transcribe_streaming.client import TranscribeStreamingClient
+from aws_sdk_transcribe_streaming.config import Config
+from aws_sdk_transcribe_streaming.models import (
+    StartStreamTranscriptionInput,
+    AudioEvent,
+    AudioStreamAudioEvent,
+)
+from smithy_aws_core.identity.chain import create_default_chain
+from smithy_http.aio.crt import AWSCRTHTTPClient
 
 from backend.common.logger import setup_logger
 from backend.core.config import env_config
@@ -30,6 +40,17 @@ _SAMPLE_RATE = 16000  # AWS Transcribe requires PCM 16 kHz mono
 _LANGUAGE_OPTIONS = ["zh-CN", "en-US"]  # auto-detected via identify_multiple_languages
 # Pin near the server, not AWS_REGION (= us-west-2 for Bedrock), to cut latency.
 _REGION = os.getenv('TRANSCRIBE_REGION', 'ap-southeast-1')
+
+
+def _new_client() -> TranscribeStreamingClient:
+    """Build a Transcribe streaming client using the default AWS credential chain."""
+    transport = AWSCRTHTTPClient()
+    config = Config(
+        region=_REGION,
+        aws_credentials_identity_resolver=create_default_chain(transport),
+        transport=transport,
+    )
+    return TranscribeStreamingClient(config=config)
 
 
 async def _authenticate_ws(ws: WebSocket) -> Optional[str]:
@@ -59,15 +80,16 @@ async def _authenticate_ws(ws: WebSocket) -> Optional[str]:
     return user.sub
 
 
-class _Handler(TranscriptResultStreamHandler):
-    """Push Transcribe events back over the WebSocket as JSON frames."""
-
-    def __init__(self, output_stream, ws: WebSocket):
-        super().__init__(output_stream)
-        self._ws = ws
-
-    async def handle_transcript_event(self, transcript_event: TranscriptEvent):
-        for result in transcript_event.transcript.results:
+async def _pump_results(output_stream, ws: WebSocket) -> None:
+    """Read transcript events from Transcribe and push them as JSON frames."""
+    async for event in output_stream:
+        # output_stream yields the TranscriptResultStream union; the transcript
+        # variant carries .value: TranscriptEvent.
+        transcript_event = getattr(event, "value", None)
+        transcript = getattr(transcript_event, "transcript", None)
+        if transcript is None:
+            continue
+        for result in (transcript.results or []):
             if not result.alternatives:
                 continue
             text = result.alternatives[0].transcript
@@ -79,10 +101,9 @@ class _Handler(TranscriptResultStreamHandler):
                 "lang": getattr(result, "language_code", None) or "",
             }
             try:
-                await self._ws.send_text(json.dumps(payload, ensure_ascii=False))
+                await ws.send_text(json.dumps(payload, ensure_ascii=False))
             except Exception:
-                # Client gone — let the surrounding task observe the disconnect.
-                return
+                return  # client gone
 
 
 @router.websocket("/transcribe")
@@ -92,15 +113,17 @@ async def transcribe_ws(ws: WebSocket):
     if not sub:
         return
 
-    client = TranscribeStreamingClient(region=_REGION)
+    client = _new_client()
     try:
         stream = await client.start_stream_transcription(
-            language_code=None,
-            media_sample_rate_hz=_SAMPLE_RATE,
-            media_encoding="pcm",
-            identify_multiple_languages=True,
-            language_options=_LANGUAGE_OPTIONS,
+            input=StartStreamTranscriptionInput(
+                media_sample_rate_hertz=_SAMPLE_RATE,
+                media_encoding="pcm",
+                identify_multiple_languages=True,
+                language_options=_LANGUAGE_OPTIONS,
+            )
         )
+        _, output_stream = await stream.await_output()
     except Exception as e:
         logger.error(f"[transcribe] failed to open Transcribe stream: {e}", exc_info=True)
         try:
@@ -109,13 +132,11 @@ async def transcribe_ws(ws: WebSocket):
             await ws.close(code=1011)
         return
 
-    handler = _Handler(stream.output_stream, ws)
-    handler_task = asyncio.create_task(handler.handle_events())
+    pump_task = asyncio.create_task(_pump_results(output_stream, ws))
 
     # "__end__" = graceful stop (flush + wait for final); disconnect = client
     # gone (nothing to flush to).
     client_gone = False
-
     try:
         while True:
             msg = await ws.receive()
@@ -124,7 +145,7 @@ async def transcribe_ws(ws: WebSocket):
                 break
             audio = msg.get("bytes")
             if audio:
-                await stream.input_stream.send_audio_event(audio_chunk=audio)
+                await stream.input_stream.send(AudioStreamAudioEvent(value=AudioEvent(audio_chunk=audio)))
                 continue
             if msg.get("text") == "__end__":
                 break
@@ -134,30 +155,26 @@ async def transcribe_ws(ws: WebSocket):
         logger.error(f"[transcribe] WS loop error for {sub}: {e}", exc_info=True)
         client_gone = True
 
-    # No more audio → AWS flushes one last `final`, then handle_events() returns.
+    # No more audio → AWS flushes one last `final`, then the result pump ends.
     try:
-        await stream.input_stream.end_stream()
+        await stream.input_stream.close()
     except Exception as e:
-        logger.warning(f"[transcribe] end_stream() raised: {e}")
+        logger.warning(f"[transcribe] input close raised: {e}")
 
     if client_gone:
-        handler_task.cancel()
+        pump_task.cancel()
     else:
         # Drain the trailing final BEFORE closing — closing early cancels AWS's
-        # in-flight response. AWS returns it in ~100 ms; the client waits 10 s
-        # so it never closes first.
+        # in-flight response. AWS returns it in ~100 ms; the client waits 10 s.
         try:
-            await asyncio.wait_for(handler_task, timeout=3.0)
+            await asyncio.wait_for(pump_task, timeout=3.0)
         except asyncio.TimeoutError:
             logger.warning(f"[transcribe] final flush timed out for {sub}")
-            handler_task.cancel()
+            pump_task.cancel()
         except Exception:
-            handler_task.cancel()
+            pump_task.cancel()
 
-    try:
-        await asyncio.gather(handler_task, return_exceptions=True)
-    except Exception:
-        pass
+    await asyncio.gather(pump_task, return_exceptions=True)
     try:
         await ws.close()
     except Exception:
