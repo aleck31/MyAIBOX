@@ -8,7 +8,8 @@ logger = setup_logger('models')
 
 
 # Model category and capabilities
-VAILD_CATEGORY = ['text', 'vision', 'image', 'video', 'reasoning', 'embedding']
+# category = what the model is FOR; reasoning/tool_use/etc. are capabilities, not categories.
+VAILD_CATEGORY = ['text', 'vision', 'image', 'video', 'embedding', 'realtime']
 VALID_MODALITY = ['text', 'document', 'image', 'video', 'audio']
 
 

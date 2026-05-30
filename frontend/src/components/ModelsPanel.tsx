@@ -7,8 +7,8 @@ import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
-const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'Gemini', 'OpenAI']
-const CATEGORIES = ['text', 'vision', 'image', 'video', 'reasoning', 'embedding']
+const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'BedrockSonic', 'Gemini', 'OpenAI']
+const CATEGORIES = ['text', 'vision', 'image', 'video', 'embedding', 'realtime']
 const MODALITIES = ['text', 'document', 'image', 'video', 'audio']
 
 interface ModelInfo {

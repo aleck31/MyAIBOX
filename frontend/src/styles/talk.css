@@ -1,0 +1,111 @@
+/* ── Talk with Agent — realtime voice call ──────────────────────────────────── */
+
+.talk-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.talk-agent-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.talk-agent-avatar { font-size: 18px; }
+
+/* Conversation transcript — chat-like bubbles, voice turns. */
+.talk-thread {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.talk-thread-empty {
+  margin: auto;
+  max-width: 420px;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.talk-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.talk-bubble--assistant {
+  align-self: flex-start;
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground));
+  border-bottom-left-radius: 4px;
+}
+.talk-bubble--user {
+  align-self: flex-end;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground, 0 0% 100%));
+  border-bottom-right-radius: 4px;
+}
+.talk-bubble--partial { opacity: 0.6; }
+
+.talk-error {
+  align-self: center;
+  color: hsl(var(--destructive, 0 70% 55%));
+  font-size: 13px;
+}
+
+/* Bottom call control bar. */
+.talk-controls {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background));
+}
+
+.talk-call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.15s, transform 0.05s;
+}
+.talk-call-btn:active { transform: scale(0.97); }
+.talk-call-btn--start { background: hsl(145 60% 42%); }
+.talk-call-btn--start:hover { background: hsl(145 60% 37%); }
+.talk-call-btn--end { background: hsl(0 70% 55%); }
+.talk-call-btn--end:hover { background: hsl(0 70% 48%); }
+
+/* Mic activity dot: pulses while listening (not while the model speaks). */
+.talk-mic-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground));
+}
+.talk-mic-indicator--live {
+  background: hsl(145 60% 45%);
+  animation: talk-pulse 1.2s ease-in-out infinite;
+}
+@keyframes talk-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(1.4); }
+}

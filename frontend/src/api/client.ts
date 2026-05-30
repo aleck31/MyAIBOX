@@ -93,6 +93,30 @@ export async function listChatAgentModels(): Promise<{ models: Array<{ model_id:
   return res.json()
 }
 
+// ── Talk with Agent (realtime voice) ─────────────────────────────────────────
+export interface TalkAgent { id: string; name: string; description: string; avatar: string; voice_id: string }
+
+export async function listTalkAgents(): Promise<{ agents: TalkAgent[] }> {
+  const res = await apiFetch('/api/talk/agents')
+  return res.json()
+}
+
+export async function getTalkAgent(agentId: string): Promise<TalkAgent> {
+  const res = await apiFetch(`/api/talk/agents/${encodeURIComponent(agentId)}`)
+  if (!res.ok) throw new Error(`Talk agent ${agentId} not found`)
+  return res.json()
+}
+
+export interface TalkConfig {
+  models: Array<{ model_id: string; name: string }>
+  default_model: string
+  voices: Array<{ id: string; name: string }>
+}
+export async function getTalkConfig(): Promise<TalkConfig> {
+  const res = await apiFetch('/api/talk/config')
+  return res.json()
+}
+
 export async function getChatAgent(agentId: string): Promise<ChatAgent> {
   const res = await apiFetch(`${CHAT}/agents/${encodeURIComponent(agentId)}`)
   if (!res.ok) throw new Error(`Agent ${agentId} not found`)

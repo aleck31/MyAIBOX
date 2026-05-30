@@ -316,23 +316,28 @@ class ModelManager:
         return True
 
     def init_default_models(self) -> Optional[List[LLMModel]]:
-        """Initialize default LLM models if none exist"""
+        """Seed default models ONLY when the registry item truly doesn't exist.
+
+        Critical: check the DDB item directly, not get_models() — a transient DDB
+        read error makes get_models() return [], which previously tripped this into
+        OVERWRITING the live registry with the stale DEFAULT_MODELS seed (data loss).
+        """
         try:
-            models = self.get_models(include_disabled=True)
-            if not models:
-                models_data = [self._float_to_decimal(model.to_dict()) for model in DEFAULT_MODELS]
-                self.table.put_item(
-                    Item={
-                        'setting_name': 'model_manager',
-                        'type': 'global',
-                        'models': models_data
-                    }
-                )
-                logger.info("Initialized default LLM models")
-                return DEFAULT_MODELS
-            return models
+            resp = self.table.get_item(Key={'setting_name': 'model_manager', 'type': 'global'})
+            if 'Item' in resp and resp['Item'].get('models'):
+                # Registry already populated — never overwrite.
+                return self.get_models(include_disabled=True)
+            # Item genuinely absent → seed it.
+            models_data = [self._float_to_decimal(model.to_dict()) for model in DEFAULT_MODELS]
+            self.table.put_item(Item={
+                'setting_name': 'model_manager', 'type': 'global', 'models': models_data,
+            })
+            logger.info("Seeded default LLM models (registry was empty)")
+            return DEFAULT_MODELS
         except Exception as e:
-            logger.error(f"Error initializing default LLM models: {str(e)}")
+            # On ANY error, do NOT seed/overwrite — better to start with no models
+            # than to clobber the live registry.
+            logger.error(f"init_default_models skipped (read error, registry left intact): {e}")
             return None
 
 

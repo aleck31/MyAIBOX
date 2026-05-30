@@ -14,6 +14,7 @@ function lazyLoad(loader: () => Promise<{ default: React.ComponentType }>) {
 }
 
 const ChatPage = lazyLoad(() => import('./pages/ChatPage'))
+const TalkPage = lazyLoad(() => import('./pages/TalkPage'))
 const TextPage = lazyLoad(() => import('./pages/TextPage'))
 const SummaryPage = lazyLoad(() => import('./pages/SummaryPage'))
 const AskingPage = lazyLoad(() => import('./pages/AskingPage'))
@@ -75,6 +76,9 @@ export default function App() {
           {/* Chat with agent — unified endpoint for all built-in agents */}
           <Route path="chat" element={<Navigate to="/chat/assistant" replace />} />
           <Route path="chat/:agentId" element={<Suspense><ChatPage /></Suspense>} />
+          {/* Talk with Agent — realtime voice */}
+          <Route path="talk" element={<Navigate to="/talk/english-coach" replace />} />
+          <Route path="talk/:agentId" element={<Suspense><TalkPage /></Suspense>} />
           {/* Legacy aliases — redirect to the new /chat path */}
           <Route path="assistant" element={<Navigate to="/chat/assistant" replace />} />
           <Route path="persona" element={<Navigate to="/chat/assistant" replace />} />

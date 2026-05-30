@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { logoutApi } from '../api/client'
 import { useChatAgents } from '../hooks/useChatAgents'
-import type { ChatAgent } from '../api/client'
+import { useTalkAgents } from '../hooks/useTalkAgents'
+import type { ChatAgent, TalkAgent } from '../api/client'
 import pkg from '../../package.json'
 
 interface NavModule {
@@ -151,6 +152,7 @@ export default function AppLayout({ username }: AppLayoutProps) {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { agents: chatAgents, loading: chatLoading } = useChatAgents()
+  const { agents: talkAgents } = useTalkAgents()
 
   async function handleLogout() {
     await logoutApi()
@@ -172,6 +174,11 @@ export default function AppLayout({ username }: AppLayoutProps) {
 
   function navigateToAgent(agent: ChatAgent) {
     navigate(`/chat/${agent.id}`)
+    setSidebarOpen(false)
+  }
+
+  function navigateToTalk(agent: TalkAgent) {
+    navigate(`/talk/${agent.id}`)
     setSidebarOpen(false)
   }
 
@@ -218,6 +225,23 @@ export default function AppLayout({ username }: AppLayoutProps) {
               </button>
             ))}
           </div>
+
+          {talkAgents.length > 0 && (
+            <div className="sidebar-nav-section">
+              <div className="sidebar-nav-label">Talk with Agent</div>
+              {talkAgents.map((agent) => (
+                <button
+                  key={agent.id}
+                  className={`nav-item${location.pathname === `/talk/${agent.id}` ? ' active' : ''}`}
+                  onClick={() => navigateToTalk(agent)}
+                  title={agent.description || agent.name}
+                >
+                  <span className="nav-item-icon nav-item-emoji">{agent.avatar}</span>
+                  {agent.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="sidebar-nav-section">
             <div className="sidebar-nav-label">Tools</div>

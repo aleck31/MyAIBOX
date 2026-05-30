@@ -23,18 +23,19 @@ DEFAULT_MODELS = [
         )
     ),
     LLMModel(
-        name='gemini 1.5 pro',
-        model_id='gemini-1.5-pro',
+        name='Gemini 2.5 Pro',
+        model_id='gemini-2.5-pro',
         api_provider='Gemini',
         category='vision',
-        description='Gemini Pro model for text and vision',
+        description="Google's flagship model with 1M context window. Strong at reasoning, coding, and multimodal tasks.",
         vendor='Google',
         capabilities=LLM_CAPABILITIES(
-            input_modality=['text', 'image', 'document'],
+            input_modality=['text', 'image', 'audio', 'video'],
             output_modality=['text'],
             streaming=True,
             tool_use=True,
-            context_window=200*1024
+            reasoning=True,
+            context_window=1048576
         )
     ),
     LLMModel(
@@ -57,10 +58,10 @@ DEFAULT_MODELS = [
         category='vision',
         api_provider= "Bedrock",
         description= "Nova Pro is a vision understanding foundation model. It is multilingual and can reason over text, images and videos.",
-        model_id= "amazon.nova-pro-v1:0",
+        model_id= "us.amazon.nova-pro-v1:0",
         vendor= "Amazon",
         capabilities=LLM_CAPABILITIES(
-            input_modality=['text', 'image', 'document', 'video'],
+            input_modality=['text', 'image', 'video'],
             output_modality=['text'],
             streaming=True,
             tool_use=True
@@ -79,14 +80,15 @@ DEFAULT_MODELS = [
         )
     ),
     LLMModel(
-        name='stable-diffusion',
-        model_id='stability.stable-image-ultra-v1:0',
+        name='Stable Image Ultra',
+        model_id='stability.stable-image-ultra-v1:1',
         api_provider='BedrockInvoke',
         category='image',
-        description='Stable Diffusion Ultra for image generation',
+        description="Stability AI's highest quality text-to-image model.",
         vendor='Stability AI',
+        region='us-west-2',
         capabilities=LLM_CAPABILITIES(
-            input_modality=['text', 'image'],
+            input_modality=['text'],
             output_modality=['image']
         )
     ),
@@ -103,18 +105,34 @@ DEFAULT_MODELS = [
         )
     ),
     LLMModel(
-        name='DeepSeek-R1',
-        model_id='us.deepseek.r1-v1:0',
+        name='DeepSeek V3.2',
+        model_id='deepseek.v3.2',
         api_provider='Bedrock',
         category='text',
-        description='DeepSeek R1 model for text generation',
+        description="DeepSeek's flagship MoE model. Strong at reasoning, coding, math, multilingual.",
         vendor='DeepSeek',
         capabilities=LLM_CAPABILITIES(
             input_modality=['text'],
             output_modality=['text'],
             streaming=True,
-            tool_use=False,
+            tool_use=True,
             reasoning=True,
+            context_window=128000
+        )
+    ),
+    LLMModel(
+        name='Nova Sonic',
+        model_id='amazon.nova-2-sonic-v1:0',
+        api_provider='BedrockSonic',
+        category='realtime',
+        description='Amazon Nova Sonic speech-to-speech model for real-time voice conversation.',
+        vendor='Amazon',
+        region='us-east-1',  # Nova Sonic is only available in us-east-1
+        capabilities=LLM_CAPABILITIES(
+            input_modality=['audio', 'text'],
+            output_modality=['audio'],
+            streaming=True,
+            tool_use=True,
             context_window=32*1024
         )
     )

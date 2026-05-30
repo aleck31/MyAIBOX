@@ -153,6 +153,8 @@ class ModuleConfig:
         'draw': {'category': 'image'},
         # Chat agents: tool-using conversational models (excludes image/video generators).
         'chat': {'tool_use': True},
+        # Talk with Agent: realtime speech-to-speech models only.
+        'talk': {'category': 'realtime'},
     }
 
     def get_model_filter(self, module_name: str) -> Optional[Dict]:
@@ -312,6 +314,16 @@ class ModuleConfig:
                     'width': 896,
                     'aspect_ratio': '9:16'
                 }
+            },
+            'talk': {
+                'setting_name': 'talk',
+                'type': 'module',
+                'description': 'Talk with Agent (realtime voice)',
+                'default_model': 'amazon.nova-2-sonic-v1:0',
+                'parameters': {
+                    'voice_id': 'matthew'
+                },
+                'enabled_tools': []  # MVP: pure conversation, no tools
             },
             'creative': {
                 'setting_name': 'creative',
