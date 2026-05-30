@@ -4,7 +4,7 @@ import {
   listChatTools,
   listChatSkills,
   getMcpServers,
-  getModels,
+  listChatAgentModels,
   patchChatAgent,
   resetChatAgent,
   type ChatAgent,
@@ -12,7 +12,7 @@ import {
 } from '../api/client'
 import AgentCard from '../components/AgentCard'
 
-interface ModelOpt { model_id: string; name: string }
+interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
 interface NameDesc { name: string; description: string }
 
 export default function AgentsPage() {
@@ -30,18 +30,13 @@ export default function AgentsPage() {
     try {
       const [a, m, t, s, servers] = await Promise.all([
         listChatAgents(),
-        getModels(),
+        listChatAgentModels(),
         listChatTools(),
         listChatSkills(),
         getMcpServers(),
       ])
       setAgents(a.agents)
-      setModels(
-        (m || []).map((x: any) => ({
-          model_id: x.model_id,
-          name: x.api_provider ? `${x.name}, ${x.api_provider}` : x.name,
-        })),
-      )
+      setModels(m.models || [])
       setTools(t)
       setSkills(s.skills || [])
       setMcp(

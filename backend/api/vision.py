@@ -58,7 +58,7 @@ async def _save_file(f: UploadFile) -> tuple[str, str]:
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available vision models."""
-    models = model_manager.get_models(filter={'category': 'vision'})
+    models = model_manager.get_models(filter=module_config.get_model_filter('vision'))
     return {
         "models": [
             {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
 import { useChatSession } from '../hooks/useChatSession'
-import { getModels } from '../api/client'
+import { listChatAgentModels } from '../api/client'
 import ChatContainer from '../components/ChatContainer'
 import type { ModelOption } from '../components/ModelSelector'
 
@@ -17,10 +17,8 @@ function ChatPageInner({ agentId }: { agentId: string }) {
   const [models, setModels] = useState<ModelOption[]>([])
 
   useEffect(() => {
-    getModels()
-      .then((list: Array<{ model_id: string; name: string; api_provider?: string }>) => {
-        setModels(list.map(m => ({ model_id: m.model_id, name: m.api_provider ? `${m.name}, ${m.api_provider}` : m.name })))
-      })
+    listChatAgentModels()
+      .then(({ models }) => setModels(models.map(m => ({ model_id: m.model_id, name: m.name }))))
       .catch(() => { /* models list is best-effort */ })
   }, [])
 

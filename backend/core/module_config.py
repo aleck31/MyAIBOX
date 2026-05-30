@@ -62,6 +62,10 @@ class ModuleConfig:
             return {key: self._numeric_to_decimal(value) for key, value in obj.items()}
         elif isinstance(obj, list):
             return [self._numeric_to_decimal(item) for item in obj]
+        # bool is a subclass of int — keep it native (DynamoDB stores bools directly);
+        # Decimal(str(True)) would raise ConversionSyntax. e.g. thinking.enabled.
+        elif isinstance(obj, bool):
+            return obj
         elif isinstance(obj, (float, int)):
             return Decimal(str(obj))
         return obj
@@ -138,27 +142,39 @@ class ModuleConfig:
             logger.error(f"Error updating module config: {str(e)}")
             raise
 
+    # Each module's model-eligibility filter — the single source of truth shared by the
+    # module's config endpoint (dropdown choices) and get_default_model's fallback
+    # None = no filter (all models).
+    MODULE_MODEL_FILTER = {
+        'text': {'output_modality': ['text']},
+        'asking': {'reasoning': True},
+        'vision': {'category': 'vision'},
+        'summary': {'tool_use': True},
+        'draw': {'category': 'image'},
+        # Chat agents: tool-using conversational models (excludes image/video generators).
+        'chat': {'tool_use': True},
+    }
+
+    def get_model_filter(self, module_name: str) -> Optional[Dict]:
+        """The model-eligibility filter for a module (None = all models)."""
+        return self.MODULE_MODEL_FILTER.get(module_name)
+
     def get_default_model(self, module_name: str) -> str:
-        """
-        Get the default model ID for a specific module
-        
-        Args:
-            module_name: Name of the module
-            
-        Returns:
-            str: Default model ID or fallback model ID
-        """
+        """A module's configured default model, else the first eligible enabled model
+        (same filter the dropdown uses), so selectable and fallback can't diverge."""
         try:
             config = self.get_module_config(module_name)
-            if config and 'default_model' in config:
+            if config and config.get('default_model'):
                 return config['default_model']
-            else:
-                # Fallback to Claude 3.5 Sonnet as the default model
-                logger.warning(f"No default model found for module {module_name}, using fallback model")
-                return 'global.anthropic.claude-sonnet-4-6'
+            from backend.genai.models.model_manager import model_manager
+            models = model_manager.get_models(filter=self.get_model_filter(module_name)) or []
+            if not models:
+                raise ValueError(f"No eligible model for module {module_name}")
+            logger.warning(f"No default model for module {module_name}; using first eligible: {models[0].model_id}")
+            return models[0].model_id
         except Exception as e:
             logger.error(f"Error getting default model for module {module_name}: {str(e)}")
-            return 'global.anthropic.claude-sonnet-4-6'
+            raise
 
     def get_inference_params(self, module_name: str) -> Optional[Dict]:
         """Get inference parameters from module configuration"""
@@ -279,9 +295,10 @@ class ModuleConfig:
                 'enabled_tools': [
                     'get_text_from_url'     # Get text content from webpage URL
                 ],
+                # effort='high': 'medium' lets adaptive models skip thinking on simple queries.
                 'thinking': {
-                    'type': 'enabled',
-                    'budget_tokens': 4096
+                    'enabled': True,
+                    'effort': 'high'
                 }
             },
             'draw': {

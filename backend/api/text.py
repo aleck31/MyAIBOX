@@ -53,7 +53,7 @@ async def get_config(username: str = Depends(get_auth_user)):
     """Return available operations, languages, styles, and models."""
     from backend.genai.models.model_manager import model_manager
     from backend.core.module_config import module_config
-    models = model_manager.get_models(filter={'output_modality': ['text']})
+    models = model_manager.get_models(filter=module_config.get_model_filter('text'))
     return {
         "operations": [
             {"key": k, "label": v} for k, v in TEXT_OPERATIONS.items()

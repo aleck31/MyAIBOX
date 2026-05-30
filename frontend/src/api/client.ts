@@ -87,6 +87,12 @@ export async function listChatAgents(): Promise<{ agents: ChatAgent[] }> {
   return res.json()
 }
 
+// Models eligible for chat agents (tool-using, enabled) — same filter as the backend fallback.
+export async function listChatAgentModels(): Promise<{ models: Array<{ model_id: string; name: string; reasoning?: boolean }> }> {
+  const res = await apiFetch(`${CHAT}/agents/models`)
+  return res.json()
+}
+
 export async function getChatAgent(agentId: string): Promise<ChatAgent> {
   const res = await apiFetch(`${CHAT}/agents/${encodeURIComponent(agentId)}`)
   if (!res.ok) throw new Error(`Agent ${agentId} not found`)

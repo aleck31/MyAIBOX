@@ -178,6 +178,19 @@ async def list_agents(sub: str = Depends(get_auth_user)):
     return {"agents": [_agent_dto(a) for a in chat_agent_registry.list_agents(sub)]}
 
 
+@router.get("/agents/models")
+async def list_agent_models(sub: str = Depends(get_auth_user)):
+    """Models eligible for chat agents (tool-using, enabled). Same filter as fallback."""
+    from backend.genai.models.model_manager import model_manager
+    from backend.core.module_config import module_config
+    models = model_manager.get_models(filter=module_config.get_model_filter('chat')) or []
+    return {"models": [
+        {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}",
+         "reasoning": bool(m.capabilities.reasoning)}
+        for m in models
+    ]}
+
+
 @router.get("/agents/{agent_id}")
 async def get_agent(agent_id: str, sub: str = Depends(get_auth_user)):
     return _agent_dto(_resolve_agent(sub, agent_id))

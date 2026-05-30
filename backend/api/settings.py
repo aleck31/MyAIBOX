@@ -1,7 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 import json
-from typing import List
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from backend.core.session.store import SessionStore
@@ -71,11 +71,12 @@ async def clear_session_history(body: ClearHistoryRequest, username: str = Depen
 @router.get("/modules")
 async def get_modules(username: str = Depends(get_auth_user)):
     """Return all module configs + available models and tools."""
-    all_models = model_manager.get_models()
-    model_choices = [
-        {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
-        for m in (all_models or [])
-    ]
+    def _choice(m):
+        # `reasoning` lets the UI show the Thinking controls only for capable models.
+        return {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}",
+                "reasoning": bool(m.capabilities.reasoning)}
+
+    model_choices = [_choice(m) for m in (model_manager.get_models() or [])]
     available_tools = list(legacy_tool_registry.tools.keys())
 
     modules = {}
@@ -84,10 +85,17 @@ async def get_modules(username: str = Depends(get_auth_user)):
         params = cfg.get('parameters', {})
         # Convert Decimal to numeric
         params = module_config._decimal_to_numeric(params) if params else {}
+        thinking = cfg.get('thinking', {})
+        thinking = module_config._decimal_to_numeric(thinking) if thinking else {}
+        # Each module's own eligible models (same filter its page uses), so the
+        # ModuleCard dropdown can't offer models the module can't run.
+        eligible = model_manager.get_models(filter=module_config.get_model_filter(name)) or []
         modules[name] = {
             "default_model": cfg.get('default_model', ''),
             "parameters": json.dumps(params, indent=2),
             "enabled_tools": cfg.get('enabled_tools', []),
+            "thinking": thinking,
+            "models": [_choice(m) for m in eligible],
         }
 
     return {
@@ -102,6 +110,8 @@ class ModuleUpdateRequest(BaseModel):
     default_model: str
     parameters: str  # JSON string
     enabled_tools: List[str]
+    # Model-agnostic thinking intent {enabled, effort}; absent for non-reasoning modules.
+    thinking: Optional[Dict[str, Any]] = None
 
 
 @router.post("/modules/update")
@@ -117,6 +127,8 @@ async def update_module(body: ModuleUpdateRequest, username: str = Depends(get_a
         'parameters': params,
         'enabled_tools': body.enabled_tools,
     })
+    if body.thinking is not None:
+        cfg['thinking'] = body.thinking
     module_config.update_module_config(body.module_name, cfg)
     return {"ok": True}
 

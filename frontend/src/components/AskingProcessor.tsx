@@ -312,7 +312,7 @@ export default function AskingProcessor() {
                   <div className="asking-qa-answer aui-md">
                     {b.answer
                       ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{b.answer}</ReactMarkdown>
-                      : <span className="asking-qa-pending">{b.streaming ? 'Thinking…' : ''}</span>}
+                      : <span className="asking-qa-pending">{b.streaming && !b.thinking ? 'Thinking…' : ''}</span>}
                     {b.answer && !b.streaming && (
                       <div className="asking-qa-actions"><CopyButton text={b.answer} /></div>
                     )}

@@ -9,6 +9,7 @@ from backend.utils.file import FileProcessor
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from backend.genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
+from backend.genai.models.thinking import build_thinking_fields, normalize_intent
 from . import LLMAPIProvider, LLMProviderError
 from .. import logger
 
@@ -174,19 +175,21 @@ class BedrockConverse(LLMAPIProvider):
 
         # Handle thinking parameters for Claude reasoning models
         if is_claude_thinking:
-            # Apply all Claude thinking parameters at once
-            additional_fields['thinking'] = thinking_config
-            logger.debug("[BRConverseProvider] Applied Claude thinking parameters")
+            max_tokens = inference_config.get('maxTokens')
+            thinking_fields = build_thinking_fields(self.model_id, thinking_config, max_tokens)
+            if thinking_fields:
+                additional_fields.update(thinking_fields)
+                logger.debug(f"[BRConverseProvider] Applied thinking params for {self.model_id}: {thinking_fields}")
 
-            # Override inference parameters for thinking
-            inference_config['temperature'] = 1.0
-            if 'topP' in inference_config:
-                del inference_config['topP']
+                # Extended thinking forces temperature=1 and no top_p.
+                inference_config['temperature'] = 1.0
+                if 'topP' in inference_config:
+                    del inference_config['topP']
 
-            # Ensure maxTokens is sufficient for thinking
-            budget_tokens = thinking_config.get('budget_tokens', 2048)
-            if inference_config.get('maxTokens', 0) <= budget_tokens:
-                inference_config['maxTokens'] = budget_tokens * 2
+                # Ensure maxTokens leaves room beyond the reasoning budget.
+                budget_tokens = thinking_fields.get('thinking', {}).get('budget_tokens', 4096)
+                if inference_config.get('maxTokens', 0) <= budget_tokens:
+                    inference_config['maxTokens'] = budget_tokens * 2
 
         # Handle top_k parameter - only if thinking is not enabled for Claude
         else:
@@ -714,11 +717,10 @@ class BedrockConverse(LLMAPIProvider):
             llm_messages = self._convert_messages(messages)
             # logger.debug(f"[BRConverseProvider] Initial messages for Bedrock: {llm_messages}")  #Todo: Remove 'content' field from request_params to prevent excessively long log
 
-            # Check if thinking is enabled
-            thinking_enabled = False
-            if thinking_config := kwargs.get('thinking', self.llm_params.thinking):
-                if thinking_config.get('type', '') == 'enabled':
-                    thinking_enabled = True
+            # Check if thinking is enabled (covers new {enabled,effort} and legacy {type,budget}
+            # forms). When on, the accumulated reasoning block must be replayed with its signature
+            # on the next turn (after a tool use), or Bedrock rejects/loses the thinking context.
+            thinking_enabled = bool(normalize_intent(kwargs.get('thinking', self.llm_params.thinking)))
 
             # Use StringIO for efficient string accumulation
             from io import StringIO

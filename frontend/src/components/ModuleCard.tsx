@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ModuleConfig } from '../types/settings'
+import type { ModuleConfig, ThinkingConfig } from '../types/settings'
 import { ParamSlider, ParamNumber, StopSequences, ToggleGroup, arrayEqual } from './settings/FormControls'
 
-interface ModelOpt { model_id: string; name: string }
+interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
+
+const EFFORT_OPTIONS = ['low', 'medium', 'high', 'xhigh', 'max']
 
 interface Props {
   name: string
@@ -40,6 +42,11 @@ function snapshot(cfg: ModuleConfig) {
     default_model: cfg.default_model,
     enabled_tools: [...cfg.enabled_tools],
     params: parseParams(cfg.parameters) as Params,
+    // Missing == default enabled@high (mirrors backend DEFAULT_INTENT).
+    thinking: {
+      enabled: cfg.thinking?.enabled ?? true,
+      effort: cfg.thinking?.effort ?? 'high',
+    } as Required<ThinkingConfig>,
   }
 }
 
@@ -68,7 +75,15 @@ export default function ModuleCard({ name, config, defaultOpen = false, models, 
     state.default_model !== initial.default_model
     || !arrayEqual(state.enabled_tools, initial.enabled_tools)
     || !paramsEqual(state.params, initial.params)
+    || state.thinking.enabled !== initial.thinking.enabled
+    || state.thinking.effort !== initial.thinking.effort
   ), [state, initial])
+
+  // Thinking controls only make sense on reasoning-capable models.
+  const selectedReasoning = useMemo(
+    () => models.find(m => m.model_id === state.default_model)?.reasoning ?? false,
+    [models, state.default_model],
+  )
 
   const toggle = (list: string[], name: string) => (
     list.includes(name) ? list.filter(x => x !== name) : [...list, name]
@@ -82,6 +97,7 @@ export default function ModuleCard({ name, config, defaultOpen = false, models, 
         default_model: state.default_model,
         enabled_tools: state.enabled_tools,
         parameters: JSON.stringify(state.params, null, 2),
+        thinking: state.thinking,
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
@@ -118,7 +134,8 @@ export default function ModuleCard({ name, config, defaultOpen = false, models, 
               value={state.default_model}
               onChange={(e) => setState(s => ({ ...s, default_model: e.target.value }))}
             >
-              <option value="">— None —</option>
+              {/* A module must have a model; placeholder only shows for legacy empty config. */}
+              {!state.default_model && <option value="" disabled>Select a model…</option>}
               {models.map(m => (
                 <option key={m.model_id} value={m.model_id}>{m.name}</option>
               ))}
@@ -157,6 +174,35 @@ export default function ModuleCard({ name, config, defaultOpen = false, models, 
               />
             </div>
           </div>
+
+          {/* Thinking — reasoning models only. */}
+          {selectedReasoning && (
+            <div className="agent-field">
+              <label className="panel-label">Thinking</label>
+              <div className="agent-params-grid">
+                <label className="agent-toggle" title="Enable extended thinking / reasoning">
+                  <input
+                    type="checkbox"
+                    checked={state.thinking.enabled}
+                    onChange={(e) => setState(s => ({ ...s, thinking: { ...s.thinking, enabled: e.target.checked } }))}
+                  />
+                  <span>Enabled</span>
+                </label>
+                <label className="agent-param">
+                  <span className="agent-param-label">Effort</span>
+                  <select
+                    className="select"
+                    style={{ width: 120 }}
+                    value={state.thinking.effort}
+                    disabled={!state.thinking.enabled}
+                    onChange={(e) => setState(s => ({ ...s, thinking: { ...s.thinking, effort: e.target.value } }))}
+                  >
+                    {EFFORT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Enabled tools (legacy — tool modules only ship legacy tools) */}
           <ToggleGroup

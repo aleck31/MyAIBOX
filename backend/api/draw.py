@@ -75,7 +75,7 @@ class OptimizeRequest(BaseModel):
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available image models, styles, and ratios."""
     from backend.core.module_config import module_config
-    models = model_manager.get_models(filter={'category': 'image'}) or []
+    models = model_manager.get_models(filter=module_config.get_model_filter('draw')) or []
     return {
         "models": [
             {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}

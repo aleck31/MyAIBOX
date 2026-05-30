@@ -70,7 +70,7 @@ export default function ModulesPage() {
               name={name}
               config={cfg}
               defaultOpen={idx === 0}
-              models={data.model_choices}
+              models={cfg.models ?? data.model_choices}
               availableTools={data.available_tools}
               onSave={(patch) => handleSave(name, patch)}
             />

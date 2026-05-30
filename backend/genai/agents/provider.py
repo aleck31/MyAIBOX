@@ -10,6 +10,7 @@ from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.utils.aws import get_aws_session, get_secret
 from backend.genai.models.model_manager import model_manager
+from backend.genai.models.thinking import build_thinking_fields, DEFAULT_INTENT
 from backend.genai.tools.provider import tool_provider
 from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
 
@@ -62,19 +63,24 @@ class AgentProvider:
         if api_provider == 'BEDROCK':
             session = get_aws_session(region_name=env_config.bedrock_config['region_name'])
             kwargs = {"model_id": mid, "boto_session": session}
-            # Extended thinking forces temperature=1, no top_p/top_k.
-            thinking = model.capabilities.reasoning
-            allowed = ("max_tokens", "stop_sequences") if thinking else (
-                "max_tokens", "temperature", "top_p", "stop_sequences"
-            )
+            additional_fields: Dict = {}
+            # Default on@high for reasoning models; disable via Agents page.
+            thinking_fields = {}
+            if model.capabilities.reasoning:
+                intent = self.parameters.get("thinking") or DEFAULT_INTENT
+                thinking_fields = build_thinking_fields(mid, intent, self.parameters.get("max_tokens"))
+
+            # Thinking forces temperature=1, no top_p/top_k — only when actually enabled.
+            if thinking_fields:
+                additional_fields.update(thinking_fields)
+                allowed = ("max_tokens", "stop_sequences")
+            else:
+                allowed = ("max_tokens", "temperature", "top_p", "stop_sequences")
+                if self.parameters.get("top_k") is not None:
+                    additional_fields["top_k"] = self.parameters["top_k"]
             for k in allowed:
                 if self.parameters.get(k) is not None:
                     kwargs[k] = self.parameters[k]
-            additional_fields: Dict = {}
-            if thinking:
-                additional_fields["thinking"] = {"type": "enabled", "budget_tokens": 4096}
-            elif self.parameters.get("top_k") is not None:
-                additional_fields["top_k"] = self.parameters["top_k"]
             if additional_fields:
                 kwargs["additional_request_fields"] = additional_fields
             return BedrockModel(**kwargs)
@@ -259,7 +265,8 @@ class AgentProvider:
         if 'data' in event:
             return create_text_chunk(event['data'])
 
-        # Reasoning/thinking events
+        # Streaming reasoning delta. Adaptive thinking (Opus 4.7+) bursts all reasoning
+        # chunks within ~0.1s right before the answer, not token-by-token.
         if event.get('reasoning') and 'reasoningText' in event:
             return create_thinking_chunk(event['reasoningText'])
 

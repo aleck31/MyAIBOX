@@ -178,7 +178,14 @@ class BaseService:
                     params['top_p'] = float(params['top_p'])
                 if 'top_k' in params:
                     params['top_k'] = int(params['top_k'])
-                
+
+                # Thinking intent lives at the config top level, not under `parameters`.
+                # Default on@high for reasoning models (matches Chat); user can disable it.
+                if model.capabilities.reasoning:
+                    from backend.genai.models.thinking import DEFAULT_INTENT
+                    cfg = module_config.get_module_config(self.module_name) or {}
+                    params['thinking'] = cfg.get('thinking') or DEFAULT_INTENT
+
                 llm_params = LLMParameters(**params)
 
             # Get enabled tools

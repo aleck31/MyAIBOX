@@ -55,6 +55,12 @@ class GeminiProvider(LLMAPIProvider):
             candidate_count=1
         )
 
+        # Map the cross-provider thinking intent to Gemini. budget=-1 (automatic) since effort
+        # has no Gemini analogue; include_thoughts=True is required to stream thoughts back.
+        from backend.genai.models.thinking import normalize_intent
+        if normalize_intent(getattr(self.llm_params, 'thinking', None)):
+            config.thinking_config = types.ThinkingConfig(include_thoughts=True, thinking_budget=-1)
+
         # Add system instruction if provided
         if system_prompt:
             config.system_instruction = system_prompt
@@ -177,17 +183,33 @@ class GeminiProvider(LLMAPIProvider):
         return types.Content(role=role, parts=content_parts)
 
     def _process_resp_chunk(self, chunk) -> Optional[Dict]:
-        """Process a response chunk and return content dict
-        
-        Args:
-            chunk: Response chunk from Gemini
-            
-        Returns:
-            Dict containing response content or None if chunk cannot be processed
+        """Process a response chunk into a {thinking|content} dict.
+
+        Walks ALL parts (not just parts[0]) and splits Gemini's `thought` parts (reasoning) from regular answer text 
+        so the UI streams reasoning and answer separately. 
+        Returns None if the chunk carries no usable text.
         """
         try:
-            if hasattr(chunk, 'candidates') and chunk.candidates:
-                return {'content': {'text': chunk.candidates[0].content.parts[0].text}}
+            cand = chunk.candidates[0] if getattr(chunk, 'candidates', None) else None
+            parts = getattr(cand.content, 'parts', None) if cand and cand.content else None
+            if not parts:
+                return None
+
+            thinking_text = ''
+            answer_text = ''
+            for part in parts:
+                text = getattr(part, 'text', None)
+                if not text:
+                    continue
+                if getattr(part, 'thought', False):
+                    thinking_text += text
+                else:
+                    answer_text += text
+
+            if thinking_text and not answer_text:
+                return {'thinking': thinking_text}
+            if answer_text:
+                return {'content': {'text': answer_text}, **({'thinking': thinking_text} if thinking_text else {})}
             return None
         except (AttributeError, IndexError):
             return None

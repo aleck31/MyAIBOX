@@ -2,8 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ChatAgent, ChatToolInfo } from '../api/client'
 import { ParamSlider, ParamNumber, StopSequences, ToggleGroup, arrayEqual } from './settings/FormControls'
 
-interface ModelOpt { model_id: string; name: string }
+interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
 interface NameDesc { name: string; description: string }
+
+const EFFORT_OPTIONS = ['low', 'medium', 'high', 'xhigh', 'max']
+
+interface ThinkingParam { enabled?: boolean; effort?: string }
 
 interface Props {
   agent: ChatAgent
@@ -23,6 +27,8 @@ type Params = {
   top_k?: number
   max_tokens?: number
   stop_sequences?: string[]
+  // Model-agnostic thinking intent; backend (build_thinking_fields) maps it per model.
+  thinking?: ThinkingParam
 }
 
 function snapshot(agent: ChatAgent) {
@@ -43,6 +49,9 @@ function paramsEqual(a: Params, b: Params): boolean {
     const bv = (b as any)[k]
     if (Array.isArray(av) && Array.isArray(bv)) {
       if (!arrayEqual(av, bv)) return false
+    } else if (k === 'thinking') {
+      // Missing == default enabled@high.
+      if ((av?.enabled ?? true) !== (bv?.enabled ?? true) || (av?.effort ?? 'high') !== (bv?.effort ?? 'high')) return false
     } else if (av !== bv) return false
   }
   return true
@@ -70,6 +79,15 @@ export default function AgentCard({
     || !arrayEqual(state.skills, initial.skills)
     || !paramsEqual(state.params, initial.params)
   ), [state, initial])
+
+  // Thinking controls only make sense once a reasoning-capable model is picked.
+  const selectedReasoning = useMemo(
+    () => !!state.default_model && (models.find(m => m.model_id === state.default_model)?.reasoning ?? false),
+    [models, state.default_model],
+  )
+  // Default enabled@high to mirror the backend (DEFAULT_INTENT) for reasoning models.
+  const thinkingEnabled = state.params.thinking?.enabled ?? true
+  const thinkingEffort = state.params.thinking?.effort ?? 'high'
 
   const toggle = (list: string[], name: string) => (
     list.includes(name) ? list.filter(x => x !== name) : [...list, name]
@@ -140,7 +158,8 @@ export default function AgentCard({
               value={state.default_model}
               onChange={(e) => setState(s => ({ ...s, default_model: e.target.value }))}
             >
-              <option value="">(module default)</option>
+              {/* Must resolve to a model; placeholder only for not-yet-set agents. */}
+              {!state.default_model && <option value="" disabled>Select a model…</option>}
               {models.map(m => (
                 <option key={m.model_id} value={m.model_id}>{m.name}</option>
               ))}
@@ -179,6 +198,35 @@ export default function AgentCard({
               />
             </div>
           </div>
+
+          {/* Thinking — reasoning models only; stored under parameters.thinking. */}
+          {selectedReasoning && (
+            <div className="agent-field">
+              <label className="panel-label">Thinking</label>
+              <div className="agent-params-grid">
+                <label className="agent-toggle" title="Enable extended thinking / reasoning">
+                  <input
+                    type="checkbox"
+                    checked={thinkingEnabled}
+                    onChange={(e) => setState(s => ({ ...s, params: { ...s.params, thinking: { enabled: e.target.checked, effort: thinkingEffort } } }))}
+                  />
+                  <span>Enabled</span>
+                </label>
+                <label className="agent-param">
+                  <span className="agent-param-label">Effort</span>
+                  <select
+                    className="select"
+                    style={{ width: 120 }}
+                    value={thinkingEffort}
+                    disabled={!thinkingEnabled}
+                    onChange={(e) => setState(s => ({ ...s, params: { ...s.params, thinking: { enabled: thinkingEnabled, effort: e.target.value } } }))}
+                  >
+                    {EFFORT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* Legacy tools */}
           <ToggleGroup

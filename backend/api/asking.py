@@ -14,6 +14,7 @@ from ag_ui.encoder import EventEncoder
 from backend.core.module_config import module_config
 from backend.genai.models.model_manager import model_manager
 from backend.genai.models.providers import LLMMessage, LLMParameters, create_model_provider
+from backend.genai.models.thinking import DEFAULT_INTENT
 from backend.api.auth import get_auth_user
 from backend.api.prompts.asking import SYSTEM_PROMPT
 from backend.common.provider_cache import ProviderCache
@@ -35,10 +36,14 @@ def _get_provider(model_id: str):
     model = model_manager.get_model_by_id(model_id)
     if not model:
         raise ValueError(f"Model not found: {model_id}")
-    params = module_config.get_inference_params('asking') or {}
+    params = dict(module_config.get_inference_params('asking') or {})
     tools = module_config.get_enabled_tools('asking') or []
-    # Fold the tool list into the cache fingerprint so toggling tools in the
-    # settings page rebuilds the provider instead of reusing a tool-less one.
+    # Thinking intent lives at the config top level, not under `parameters`. Default on@high
+    # for reasoning models (matches Chat); user can disable it in module settings.
+    if model.capabilities.reasoning:
+        cfg = module_config.get_module_config('asking') or {}
+        params['thinking'] = cfg.get('thinking') or DEFAULT_INTENT
+    # Fingerprint includes tools + thinking so settings changes rebuild the provider.
     fingerprint = {**params, '_tools': sorted(tools)}
     return _provider_cache.get_or_create(
         model_id, fingerprint,
@@ -63,7 +68,7 @@ async def _save_file(f: UploadFile) -> str:
 @router.get("/config")
 async def get_config(username: str = Depends(get_auth_user)):
     """Return available models (reasoning-capable) + the module default."""
-    models = model_manager.get_models(filter={'reasoning': True})
+    models = model_manager.get_models(filter=module_config.get_model_filter('asking'))
     return {
         "models": [
             {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
