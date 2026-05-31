@@ -32,6 +32,53 @@ logger = setup_logger('api.talk')
 
 router = APIRouter(prefix="/talk", tags=["talk"])
 
+# Per-(user, talk-agent) provider cache (ARD 002): hang up pauses the BidiAgent
+# but keeps it cached, so reconnecting resumes with the prior transcript as context.
+import time
+_TALK_TTL = 1800           # 30 min idle eviction (voice sessions are short-lived)
+_talk_cache: dict = {}     # key -> (LiveAgentProvider, last_ts)
+
+
+async def _get_or_create_provider(sub: str, agent_id: str, model_id: str, system_prompt: str,
+                                   voice_id: str, tool_config: dict, history: list):
+    """Resolve a voice session (ARD 002 priority): cached BidiAgent → reuse (it
+    already holds the conversation); else build fresh, seeding it with `history`
+    sent by the client (the front-end transcript the user hasn't cleared) so the
+    agent resumes even after the cache TTL evicted the live session."""
+    key = f"{sub}:{agent_id}"
+    now = time.time()
+    for k, (prov, ts) in list(_talk_cache.items()):  # evict idle
+        if now - ts > _TALK_TTL:
+            _talk_cache.pop(k, None)
+            try:
+                await prov.destroy()
+            except Exception:
+                pass
+    entry = _talk_cache.get(key)
+    if entry:
+        provider, _ = entry
+        provider.voice_id = voice_id  # honor a newly-picked voice on reconnect
+        _talk_cache[key] = (provider, now)
+        return provider
+    provider = LiveAgentProvider(model_id=model_id, system_prompt=system_prompt,
+                                 voice_id=voice_id, tool_config=tool_config, history=history)
+    _talk_cache[key] = (provider, now)
+    return provider
+
+
+@router.delete("/session/{agent_id}")
+async def clear_session(agent_id: str, username: str = Depends(get_auth_user)):
+    """Clear the cached voice session so the agent forgets the prior conversation
+    (front-end 'clear transcript' → back-end loses memory too, staying consistent)."""
+    key = f"{username}:{agent_id}"
+    entry = _talk_cache.pop(key, None)
+    if entry:
+        try:
+            await entry[0].destroy()
+        except Exception:
+            pass
+    return {"ok": True}
+
 
 def _agent_dto(a) -> dict:
     return {"id": a.id, "name": a.name, "description": a.description,
@@ -108,12 +155,24 @@ async def talk_ws(ws: WebSocket, agent_id: str):
     model_id = agent.default_model or module_config.get_default_model('talk')
     tool_config = {'enabled': bool(agent.enabled_tools), 'legacy_tools': agent.enabled_tools}
 
-    provider = LiveAgentProvider(
-        model_id=model_id,
-        system_prompt=agent.prompt,
-        voice_id=voice_id,
-        tool_config=tool_config,
-    )
+    # First client frame is a setup frame carrying the front-end transcript the user
+    # hasn't cleared: {type:"start", history:[{role,text}...]}. Used to seed a fresh
+    # session when the cache was evicted (cache hit ignores it — it already has the convo).
+    history = []
+    try:
+        data = json.loads(await ws.receive_text())
+        if data.get("type") == "start":
+            for h in (data.get("history") or [])[-40:]:
+                text = (h.get("text") or "").strip()
+                if text:
+                    history.append({"role": "assistant" if h.get("role") == "assistant" else "user",
+                                    "content": [{"text": text}]})
+    except Exception:
+        pass
+
+    # Per-(user, agent) session cache (ARD 002): reuse cached BidiAgent (resumes the
+    # conversation); else build fresh seeded with the client history.
+    provider = await _get_or_create_provider(sub, agent_id, model_id, agent.prompt, voice_id, tool_config, history)
 
     try:
         await provider.start()
@@ -158,7 +217,9 @@ async def talk_ws(ws: WebSocket, agent_id: str):
 
     pump_task.cancel()
     await asyncio.gather(pump_task, return_exceptions=True)
-    await provider.stop()
+    # Hang up = pause (keep the cached BidiAgent + its messages for resume within TTL);
+    # full teardown happens on idle eviction. cloud_sync OFF: nothing persisted, by design.
+    await provider.pause()
     try:
         await ws.close()
     except Exception:

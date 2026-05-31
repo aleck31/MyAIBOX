@@ -33,11 +33,15 @@ class LiveAgentProvider:
         system_prompt: str = '',
         voice_id: str = 'matthew',
         tool_config: Optional[Dict] = None,
+        history: Optional[list] = None,
     ):
         self.model_id = model_id
         self.system_prompt = system_prompt
         self.voice_id = voice_id
         self.tool_config = tool_config or {}
+        # Prior transcript as strands messages [{role, content:[{text}]}] — seeds a
+        # fresh BidiAgent so a reconnect after cache eviction still has the conversation.
+        self.history = history or []
         self._agent: Optional[BidiAgent] = None
         self._mcp_clients: list = []
         self._started = False
@@ -88,20 +92,26 @@ class LiveAgentProvider:
             model=self._get_live_model(),
             tools=tools or None,
             system_prompt=self.system_prompt or None,
+            messages=self.history or None,
         )
         logger.info(f"[LiveAgentProvider] Created BidiAgent: model={self.model_id}, voice={self.voice_id}, tools={len(tools)}")
         return self._agent
 
     async def start(self) -> None:
+        # Reusing a cached provider: the BidiAgent object (and its messages) is kept
+        # across hang-ups; start() rebuilds the underlying stream so we resume with
+        # the prior conversation as context.
         agent = self._ensure_agent()
         await agent.start()
         self._started = True
 
     async def send_audio(self, pcm_base64: str) -> None:
-        """Send a base64-encoded 16 kHz PCM chunk to the model."""
+        """Send a base64-encoded 16 kHz mono PCM chunk to the model."""
         if not self._started or self._agent is None:
             return
-        await self._agent.send(BidiAudioInputEvent(audio=pcm_base64, sample_rate=INPUT_SAMPLE_RATE))
+        await self._agent.send(BidiAudioInputEvent(
+            audio=pcm_base64, format="pcm", sample_rate=INPUT_SAMPLE_RATE, channels=1,
+        ))
 
     async def events(self) -> AsyncIterator:
         """Yield BidiOutputEvents (transcript / audio / interrupted / tool / error)."""
@@ -110,13 +120,19 @@ class LiveAgentProvider:
         async for event in self._agent.receive():
             yield event
 
-    async def stop(self) -> None:
+    async def pause(self) -> None:
+        """Hang up: stop the live stream but KEEP the BidiAgent (and its messages)
+        so a reconnect resumes the conversation. MCP clients stay up too."""
         if self._agent is not None and self._started:
             try:
                 await self._agent.stop()
             except Exception as e:
-                logger.warning(f"[LiveAgentProvider] stop error: {e}")
+                logger.warning(f"[LiveAgentProvider] pause error: {e}")
         self._started = False
+
+    async def destroy(self) -> None:
+        """Fully tear down (TTL eviction / explicit end): drop the agent + MCP."""
+        await self.pause()
         for client in self._mcp_clients:
             try:
                 client.stop(None, None, None)

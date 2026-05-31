@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTalk } from '../hooks/useTalk'
-import { useConfirm } from './ConfirmDialog'
 import ModelSelector, { type ModelOption } from './ModelSelector'
-import { getTalkConfig } from '../api/client'
+import { getTalkConfig, clearTalkSession } from '../api/client'
 import { IconMic, IconClose, IconTrash } from './icons'
 import type { TalkAgent } from '../api/client'
 
 interface Turn { role: 'user' | 'assistant'; text: string; final: boolean }
 interface Voice { id: string; name: string }
 
+// Transcript persists per-tab until the user clears it (the universal "no clear =
+// it stays" rule) — survives route switches, matching the back-end session cache.
+const turnsKey = (agentId: string) => `talk-turns:${agentId}`
+function loadTurns(agentId: string): Turn[] {
+  try { return JSON.parse(sessionStorage.getItem(turnsKey(agentId)) || '[]') } catch { return [] }
+}
+
 /** Realtime voice call with one agent. Follows the chat layout convention
  *  (assistant-layout + section-bar with module-level options + conversation
  *  column), but the body is voice-transcript bubbles and the bottom is call
  *  control. Section bar holds: model selector, voice picker, clear. */
 export default function TalkContainer({ agent }: { agent: TalkAgent }) {
-  const confirm = useConfirm()
-  const [turns, setTurns] = useState<Turn[]>([])
+  const [turns, setTurns] = useState<Turn[]>(() => loadTurns(agent.id))
   const [error, setError] = useState<string | null>(null)
   const [models, setModels] = useState<ModelOption[]>([])
   const [modelId, setModelId] = useState('')
@@ -31,6 +36,11 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
     }).catch(() => { /* best-effort */ })
   }, [])
 
+  // Persist transcript per-tab so a route switch (then back) keeps it.
+  useEffect(() => {
+    sessionStorage.setItem(turnsKey(agent.id), JSON.stringify(turns))
+  }, [turns, agent.id])
+
   const onTranscript = useCallback((text: string, role: 'user' | 'assistant', final: boolean) => {
     setTurns(prev => {
       const next = [...prev]
@@ -44,12 +54,12 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
 
   const talk = useTalk(agent.id, { onTranscript, onError: setError, onClose: () => setError(null) })
 
-  const handleHangup = useCallback(async () => {
-    if (!(await confirm({ title: 'End call', message: `End the voice session with ${agent.name}?`, confirmLabel: 'Hang up', danger: true }))) return
-    talk.hangup()
-  }, [confirm, agent.name, talk])
-
-  const handleClear = useCallback(() => setTurns([]), [])
+  // Clear = front-end wipes transcript AND back-end forgets, so the two stay
+  // consistent (user clears → agent loses memory; otherwise history persists).
+  const handleClear = useCallback(() => {
+    setTurns([])
+    clearTalkSession(agent.id).catch(() => { /* best-effort */ })
+  }, [agent.id])
 
   return (
     <div className="assistant-layout">
@@ -84,12 +94,12 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
         <div className="talk-controls">
           {!talk.connected ? (
             <button className="talk-call-btn talk-call-btn--start" disabled={talk.connecting}
-              onClick={() => { setTurns([]); talk.connect(voice) }}>
+              onClick={() => talk.connect(voice, turns.map(t => ({ role: t.role, text: t.text })))}>
               <IconMic size={20} /> {talk.connecting ? 'Connecting…' : 'Start call'}
             </button>
           ) : (
             <>
-              <button className="talk-call-btn talk-call-btn--end" onClick={handleHangup}>
+              <button className="talk-call-btn talk-call-btn--end" onClick={talk.hangup}>
                 <IconClose size={20} /> Hang up
               </button>
               <span className={`talk-mic-indicator${talk.speaking ? '' : ' talk-mic-indicator--live'}`} aria-hidden />

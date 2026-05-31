@@ -35,7 +35,7 @@ export interface TalkHandle {
   connected: boolean
   /** True while the model is speaking (audio is queued/playing). */
   speaking: boolean
-  connect: (voiceId?: string) => Promise<void>
+  connect: (voiceId?: string, history?: Array<{ role: string; text: string }>) => Promise<void>
   hangup: () => void
 }
 
@@ -105,7 +105,7 @@ export function useTalk(agentId: string, options: UseTalkOptions = {}): TalkHand
     setSpeaking(false)
   }, [flushPlayback])
 
-  const connect = useCallback(async (voiceId?: string) => {
+  const connect = useCallback(async (voiceId?: string, history?: Array<{ role: string; text: string }>) => {
     if (wsRef.current) return
     setConnecting(true)
     let stream: MediaStream
@@ -139,8 +139,11 @@ export function useTalk(agentId: string, options: UseTalkOptions = {}): TalkHand
 
     const source = inCtx.createMediaStreamSource(stream)
     const node = new AudioWorkletNode(inCtx, 'pcm-worklet')
+    // Gate audio until the `start` frame is sent — the backend reads the first
+    // frame as setup (prior transcript), so audio must not race ahead of it.
+    let started = false
     node.port.onmessage = (ev) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(ev.data as ArrayBuffer)
+      if (started && ws.readyState === WebSocket.OPEN) ws.send(ev.data as ArrayBuffer)
     }
     source.connect(node)
     const muted = inCtx.createGain()
@@ -148,7 +151,13 @@ export function useTalk(agentId: string, options: UseTalkOptions = {}): TalkHand
     node.connect(muted)
     muted.connect(inCtx.destination)
 
-    ws.onopen = () => { setConnecting(false); setConnected(true); cbRef.current.onOpen?.() }
+    ws.onopen = () => {
+      // First frame = setup: the front-end transcript the user hasn't cleared,
+      // so a session evicted by TTL still resumes (cache hit ignores it).
+      ws.send(JSON.stringify({ type: 'start', history: history || [] }))
+      started = true
+      setConnecting(false); setConnected(true); cbRef.current.onOpen?.()
+    }
     ws.onmessage = (ev) => {
       let frame: TalkFrame
       try { frame = JSON.parse(ev.data as string) } catch { return }

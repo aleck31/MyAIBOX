@@ -117,6 +117,12 @@ export async function getTalkConfig(): Promise<TalkConfig> {
   return res.json()
 }
 
+// Clear the cached voice session so the agent forgets the prior conversation
+// (front-end "clear transcript" → back-end loses memory too, staying consistent).
+export async function clearTalkSession(agentId: string): Promise<void> {
+  await apiFetch(`/api/talk/session/${encodeURIComponent(agentId)}`, { method: 'DELETE' })
+}
+
 export async function getChatAgent(agentId: string): Promise<ChatAgent> {
   const res = await apiFetch(`${CHAT}/agents/${encodeURIComponent(agentId)}`)
   if (!res.ok) throw new Error(`Agent ${agentId} not found`)
