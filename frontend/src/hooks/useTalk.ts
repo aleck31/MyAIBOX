@@ -35,7 +35,7 @@ export interface TalkHandle {
   connected: boolean
   /** True while the model is speaking (audio is queued/playing). */
   speaking: boolean
-  connect: (voiceId?: string, history?: Array<{ role: string; text: string }>) => Promise<void>
+  connect: (opts?: { voiceId?: string; modelId?: string; history?: Array<{ role: string; text: string }> }) => Promise<void>
   hangup: () => void
 }
 
@@ -105,7 +105,8 @@ export function useTalk(agentId: string, options: UseTalkOptions = {}): TalkHand
     setSpeaking(false)
   }, [flushPlayback])
 
-  const connect = useCallback(async (voiceId?: string, history?: Array<{ role: string; text: string }>) => {
+  const connect = useCallback(async (opts?: { voiceId?: string; modelId?: string; history?: Array<{ role: string; text: string }> }) => {
+    const { voiceId, modelId, history } = opts || {}
     if (wsRef.current) return
     setConnecting(true)
     let stream: MediaStream
@@ -131,7 +132,10 @@ export function useTalk(agentId: string, options: UseTalkOptions = {}): TalkHand
       return
     }
 
-    const q = voiceId ? `?voice_id=${encodeURIComponent(voiceId)}` : ''
+    const params = new URLSearchParams()
+    if (voiceId) params.set('voice_id', voiceId)
+    if (modelId) params.set('model_id', modelId)
+    const q = params.toString() ? `?${params}` : ''
     const wsUrl = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/talk/stream/${encodeURIComponent(agentId)}${q}`
     const ws = new WebSocket(wsUrl)
     ws.binaryType = 'arraybuffer'

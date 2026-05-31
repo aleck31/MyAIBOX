@@ -94,7 +94,15 @@ export async function listChatAgentModels(): Promise<{ models: Array<{ model_id:
 }
 
 // ── Talk with Agent (realtime voice) ─────────────────────────────────────────
-export interface TalkAgent { id: string; name: string; description: string; avatar: string; voice_id: string }
+export interface TalkAgent {
+  id: string
+  name: string
+  description: string
+  avatar: string
+  voice_id: string
+  default_model: string | null
+  enabled_tools: string[]
+}
 
 export async function listTalkAgents(): Promise<{ agents: TalkAgent[] }> {
   const res = await apiFetch('/api/talk/agents')
@@ -104,6 +112,25 @@ export async function listTalkAgents(): Promise<{ agents: TalkAgent[] }> {
 export async function getTalkAgent(agentId: string): Promise<TalkAgent> {
   const res = await apiFetch(`/api/talk/agents/${encodeURIComponent(agentId)}`)
   if (!res.ok) throw new Error(`Talk agent ${agentId} not found`)
+  return res.json()
+}
+
+// Realtime models eligible for talk agents (for the settings card's model dropdown).
+export async function listTalkAgentModels(): Promise<{ models: Array<{ model_id: string; name: string }> }> {
+  const res = await apiFetch('/api/talk/agents/models')
+  return res.json()
+}
+
+export async function patchTalkAgent(agentId: string, patch: Partial<TalkAgent>): Promise<TalkAgent> {
+  const res = await apiFetch(`/api/talk/agents/${encodeURIComponent(agentId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  })
+  return res.json()
+}
+
+export async function resetTalkAgent(agentId: string): Promise<TalkAgent> {
+  const res = await apiFetch(`/api/talk/agents/${encodeURIComponent(agentId)}/reset`, { method: 'POST' })
   return res.json()
 }
 

@@ -56,7 +56,10 @@ class LiveAgentProvider:
             region = model.region or 'us-east-1'  # Nova Sonic: us-east-1 only
             return BidiNovaSonicModel(
                 model_id=self.model_id,
-                provider_config={'audio': {'output': {'voiceId': self.voice_id}}},
+                # BidiNovaSonicModel reads the voice at provider_config['audio']['voice']
+                # (it maps to audioOutputConfiguration.voiceId); any other key silently
+                # falls back to the 'matthew' default.
+                provider_config={'audio': {'voice': self.voice_id}},
                 client_config={'region': region},
             )
         raise ValueError(f"Unsupported realtime provider: {model.api_provider}")
@@ -119,6 +122,28 @@ class LiveAgentProvider:
             return
         async for event in self._agent.receive():
             yield event
+
+    async def _rebuild_on_next_start(self) -> None:
+        """Drop the live BidiAgent (keeping self.history) so the next start()
+        rebuilds it — used when voice/model change, which Nova Sonic bakes into
+        the model at build time and can't be swapped on a live agent."""
+        if self._agent is not None:
+            await self.pause()
+            self._agent = None
+
+    async def set_voice(self, voice_id: str) -> None:
+        """Switch the output voice; rebuilds the agent (resumes from history)."""
+        if voice_id == self.voice_id:
+            return
+        self.voice_id = voice_id
+        await self._rebuild_on_next_start()
+
+    async def set_model(self, model_id: str) -> None:
+        """Switch the realtime model; rebuilds the agent (resumes from history)."""
+        if model_id == self.model_id:
+            return
+        self.model_id = model_id
+        await self._rebuild_on_next_start()
 
     async def pause(self) -> None:
         """Hang up: stop the live stream but KEEP the BidiAgent (and its messages)

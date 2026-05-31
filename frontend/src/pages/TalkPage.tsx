@@ -39,7 +39,8 @@ function TalkPageInner({ agentId }: { agentId: string }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <TalkContainer agent={agent} />
+      {/* key by id so per-agent state (transcript, voice pref) initializes cleanly per agent */}
+      <TalkContainer key={agent.id} agent={agent} />
     </div>
   )
 }

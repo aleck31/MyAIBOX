@@ -7,13 +7,21 @@ import {
   listChatAgentModels,
   patchChatAgent,
   resetChatAgent,
+  listTalkAgents,
+  listTalkAgentModels,
+  getTalkConfig,
+  patchTalkAgent,
+  resetTalkAgent,
   type ChatAgent,
   type ChatToolInfo,
+  type TalkAgent,
 } from '../api/client'
 import AgentCard from '../components/AgentCard'
+import LiveAgentCard from '../components/LiveAgentCard'
 
 interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
 interface NameDesc { name: string; description: string }
+interface Voice { id: string; name: string }
 
 export default function AgentsPage() {
   const [agents, setAgents] = useState<ChatAgent[]>([])
@@ -21,6 +29,10 @@ export default function AgentsPage() {
   const [tools, setTools] = useState<{ legacy: ChatToolInfo[]; builtin: ChatToolInfo[] }>({ legacy: [], builtin: [] })
   const [skills, setSkills] = useState<NameDesc[]>([])
   const [mcp, setMcp] = useState<Array<{ name: string; disabled: boolean }>>([])
+  // Voice (Talk-with-Agent) agents share this page but have their own config surface.
+  const [talkAgents, setTalkAgents] = useState<TalkAgent[]>([])
+  const [talkModels, setTalkModels] = useState<ModelOpt[]>([])
+  const [voices, setVoices] = useState<Voice[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -28,12 +40,15 @@ export default function AgentsPage() {
     setLoading(true)
     setError(null)
     try {
-      const [a, m, t, s, servers] = await Promise.all([
+      const [a, m, t, s, servers, ta, tm, tcfg] = await Promise.all([
         listChatAgents(),
         listChatAgentModels(),
         listChatTools(),
         listChatSkills(),
         getMcpServers(),
+        listTalkAgents(),
+        listTalkAgentModels(),
+        getTalkConfig(),
       ])
       setAgents(a.agents)
       setModels(m.models || [])
@@ -44,6 +59,9 @@ export default function AgentsPage() {
           ? servers.map((x: any) => ({ name: x.name, disabled: !!x.disabled }))
           : [],
       )
+      setTalkAgents(ta.agents)
+      setTalkModels(tm.models || [])
+      setVoices(tcfg.voices || [])
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load agents settings')
     } finally {
@@ -61,6 +79,16 @@ export default function AgentsPage() {
   const handleReset = useCallback(async (agentId: string) => {
     const updated = await resetChatAgent(agentId)
     setAgents(prev => prev.map(a => (a.id === agentId ? updated : a)))
+  }, [])
+
+  const handleTalkSave = useCallback(async (agentId: string, patch: Partial<TalkAgent>) => {
+    const updated = await patchTalkAgent(agentId, patch)
+    setTalkAgents(prev => prev.map(a => (a.id === agentId ? updated : a)))
+  }, [])
+
+  const handleTalkReset = useCallback(async (agentId: string) => {
+    const updated = await resetTalkAgent(agentId)
+    setTalkAgents(prev => prev.map(a => (a.id === agentId ? updated : a)))
   }, [])
 
   const mcpServers = useMemo(() => mcp.map(m => m.name), [mcp])
@@ -93,12 +121,13 @@ export default function AgentsPage() {
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Agent settings</span>
         <div className="section-actions">
           <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
-            {agents.length} agents
+            {agents.length + talkAgents.length} agents
           </span>
         </div>
       </div>
       <div className="settings-content">
         <div className="settings-section" style={{ gap: 10 }}>
+          <div className="settings-group-label">Chat agents</div>
           {agents.map((agent, idx) => (
             <AgentCard
               key={agent.id}
@@ -113,6 +142,23 @@ export default function AgentsPage() {
               onReset={() => handleReset(agent.id)}
             />
           ))}
+
+          {talkAgents.length > 0 && (
+            <>
+              <div className="settings-group-label" style={{ marginTop: 8 }}>Voice agents</div>
+              {talkAgents.map((agent) => (
+                <LiveAgentCard
+                  key={agent.id}
+                  agent={agent}
+                  models={talkModels}
+                  voices={voices}
+                  legacyTools={tools.legacy}
+                  onSave={(patch) => handleTalkSave(agent.id, patch)}
+                  onReset={() => handleTalkReset(agent.id)}
+                />
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>

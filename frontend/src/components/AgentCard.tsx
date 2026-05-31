@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ChatAgent, ChatToolInfo } from '../api/client'
 import { ParamSlider, ParamNumber, StopSequences, ToggleGroup, arrayEqual } from './settings/FormControls'
 import { useConfirm } from './ConfirmDialog'
+import { resolveDefaultModel } from '../utils/model'
 
 interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
 interface NameDesc { name: string; description: string }
@@ -82,10 +83,17 @@ export default function AgentCard({
     || !paramsEqual(state.params, initial.params)
   ), [state, initial])
 
+  // Resolve the model the same way every module does (resolveDefaultModel): the
+  // agent's own default, else the first eligible model — never an empty/hardcoded pick.
+  const resolvedModel = useMemo(
+    () => resolveDefaultModel(models, state.default_model || undefined),
+    [models, state.default_model],
+  )
+
   // Thinking controls only make sense once a reasoning-capable model is picked.
   const selectedReasoning = useMemo(
-    () => !!state.default_model && (models.find(m => m.model_id === state.default_model)?.reasoning ?? false),
-    [models, state.default_model],
+    () => models.find(m => m.model_id === resolvedModel)?.reasoning ?? false,
+    [models, resolvedModel],
   )
   // Default enabled@high to mirror the backend (DEFAULT_INTENT) for reasoning models.
   const thinkingEnabled = state.params.thinking?.enabled ?? true
@@ -142,7 +150,7 @@ export default function AgentCard({
           <span className="settings-module-name">{agent.name}</span>
         </span>
         <span className="agent-card-summary">
-          {state.default_model || models[0]?.model_id || '—'}
+          {resolvedModel || '—'}
           <span className="agent-card-chevron" aria-hidden>{open ? '▾' : '▸'}</span>
         </span>
       </button>
@@ -157,11 +165,9 @@ export default function AgentCard({
             <select
               className="select"
               style={{ width: '100%', maxWidth: 360 }}
-              value={state.default_model}
+              value={resolvedModel}
               onChange={(e) => setState(s => ({ ...s, default_model: e.target.value }))}
             >
-              {/* Must resolve to a model; placeholder only for not-yet-set agents. */}
-              {!state.default_model && <option value="" disabled>Select a model…</option>}
               {models.map(m => (
                 <option key={m.model_id} value={m.model_id}>{m.name}</option>
               ))}

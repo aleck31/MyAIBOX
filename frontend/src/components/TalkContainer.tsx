@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTalk } from '../hooks/useTalk'
+import { useStoredState } from '../hooks/useStoredState'
+import { resolveDefaultModel } from '../utils/model'
 import ModelSelector, { type ModelOption } from './ModelSelector'
 import { getTalkConfig, clearTalkSession } from '../api/client'
 import { IconMic, IconClose, IconTrash } from './icons'
@@ -23,18 +25,23 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
   const [turns, setTurns] = useState<Turn[]>(() => loadTurns(agent.id))
   const [error, setError] = useState<string | null>(null)
   const [models, setModels] = useState<ModelOption[]>([])
-  const [modelId, setModelId] = useState('')
   const [voices, setVoices] = useState<Voice[]>([])
-  const [voice, setVoice] = useState(agent.voice_id || 'matthew')
+  // Top-bar model + voice are per-agent UI preferences (ARD 001): persist in
+  // localStorage, defaulting to the agent's (override-merged) value. Priority:
+  // user pick → agent override → module default → first eligible (resolveDefaultModel).
+  const [modelId, setModelId] = useStoredState(`talk-model:${agent.id}`, agent.default_model ?? '')
+  const [voice, setVoice] = useStoredState(`talk-voice:${agent.id}`, agent.voice_id)
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getTalkConfig().then(cfg => {
-      setModels(cfg.models.map(m => ({ model_id: m.model_id, name: m.name })))
-      setModelId(cfg.default_model)
+      const opts = cfg.models.map(m => ({ model_id: m.model_id, name: m.name }))
+      setModels(opts)
       setVoices(cfg.voices)
+      // Only fill when the user hasn't picked and the agent had no override default.
+      setModelId(prev => prev || resolveDefaultModel(opts, agent.default_model ?? cfg.default_model))
     }).catch(() => { /* best-effort */ })
-  }, [])
+  }, [agent.default_model])
 
   // Persist transcript per-tab so a route switch (then back) keeps it.
   useEffect(() => {
@@ -65,7 +72,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
     <div className="assistant-layout">
       <div className="assistant-chat-col">
         <div className="section-bar">
-          <ModelSelector models={models} value={modelId} onChange={setModelId} />
+          <ModelSelector models={models} value={modelId} onChange={setModelId} disabled={talk.connected} />
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select className="select" value={voice} onChange={e => setVoice(e.target.value)}
               disabled={talk.connected} title="Voice">
@@ -94,7 +101,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
         <div className="talk-controls">
           {!talk.connected ? (
             <button className="talk-call-btn talk-call-btn--start" disabled={talk.connecting}
-              onClick={() => talk.connect(voice, turns.map(t => ({ role: t.role, text: t.text })))}>
+              onClick={() => talk.connect({ voiceId: voice, modelId, history: turns.map(t => ({ role: t.role, text: t.text })) })}>
               <IconMic size={20} /> {talk.connecting ? 'Connecting…' : 'Start call'}
             </button>
           ) : (

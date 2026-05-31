@@ -1,6 +1,10 @@
 """
 LLM model management and configuration
 """
+import os
+import socket
+import time
+import traceback
 from typing import Dict, List, Optional
 from decimal import Decimal
 from botocore.exceptions import ClientError
@@ -27,6 +31,21 @@ class ModelManager:
         except Exception as e:
             logger.error(f"Failed to initialize ModelManager: {str(e)}")
             raise
+
+    def _put_models(self, models_data: list, op: str) -> None:
+        """Single write path for the model_manager·global item, stamped with
+        provenance (who/where/when) so any overwrite is traceable. If a later
+        read shows the registry clobbered but these stamps are NOT ours, the
+        writer was an external process — not this app.
+        """
+        self.table.put_item(Item={
+            'setting_name': 'model_manager',
+            'type': 'global',
+            'models': models_data,
+            'modified_at': int(time.time()),
+            'modified_by': f"{socket.gethostname()}:pid{os.getpid()}:{op}",
+            'modified_stack': ''.join(traceback.format_stack(limit=6)),
+        })
 
     def ensure_table_exists(self):
         """Ensure the DynamoDB table exists, create if it doesn't"""
@@ -194,15 +213,9 @@ class ModelManager:
             # Convert models to dict format and ensure all numbers are Decimal
             models_data = [self._float_to_decimal(m.to_dict()) for m in models]
             models_data.append(self._float_to_decimal(model.to_dict()))
-            
+
             # Update table and invalidate cache
-            self.table.put_item(
-                Item={
-                    'setting_name': 'model_manager',
-                    'type': 'global',
-                    'models': models_data
-                }
-            )
+            self._put_models(models_data, 'add_model')
             self.flush_cache()
             logger.info(f"Added new LLM model: {model.name} ({model.model_id})")
             return True
@@ -244,15 +257,9 @@ class ModelManager:
             
             # Convert models to dict format and ensure all numbers are Decimal
             models_data = [self._float_to_decimal(m.to_dict()) for m in updated_models]
-            
+
             # Update table and invalidate cache
-            self.table.put_item(
-                Item={
-                    'setting_name': 'model_manager',
-                    'type': 'global',
-                    'models': models_data
-                }
-            )
+            self._put_models(models_data, 'update_model')
             self.flush_cache()
             logger.info(f"Updated LLM model: {model.name} ({model.model_id})")
             return True
@@ -278,15 +285,9 @@ class ModelManager:
             
             # Convert models to dict format and ensure all numbers are Decimal
             models_data = [self._float_to_decimal(m.to_dict()) for m in filtered_models]
-            
+
             # Update table and invalidate cache
-            self.table.put_item(
-                Item={
-                    'setting_name': 'model_manager',
-                    'type': 'global',
-                    'models': models_data
-                }
-            )
+            self._put_models(models_data, 'delete_model')
             self.flush_cache()
             logger.info(f"Deleted LLM model with ID: {model_id}")
             return True
@@ -308,9 +309,7 @@ class ModelManager:
         if not found:
             raise ValueError(f"Model with ID '{model_id}' not found")
         models_data = [self._float_to_decimal(m.to_dict()) for m in models]
-        self.table.put_item(
-            Item={'setting_name': 'model_manager', 'type': 'global', 'models': models_data}
-        )
+        self._put_models(models_data, 'toggle_model')
         self.flush_cache()
         logger.info(f"{'Enabled' if enabled else 'Disabled'} model: {model_id}")
         return True
@@ -329,9 +328,7 @@ class ModelManager:
                 return self.get_models(include_disabled=True)
             # Item genuinely absent → seed it.
             models_data = [self._float_to_decimal(model.to_dict()) for model in DEFAULT_MODELS]
-            self.table.put_item(Item={
-                'setting_name': 'model_manager', 'type': 'global', 'models': models_data,
-            })
+            self._put_models(models_data, 'init_default_models_seed')
             logger.info("Seeded default LLM models (registry was empty)")
             return DEFAULT_MODELS
         except Exception as e:
