@@ -232,7 +232,7 @@ async def talk_ws(ws: WebSocket, agent_id: str):
     level_id = ws.query_params.get("level_id") or DEFAULT_LEVEL
     if level_id not in {lv["id"] for lv in TALK_LEVELS}:
         level_id = DEFAULT_LEVEL
-    system_prompt = build_prompt(agent.prompt, level_id)
+    system_prompt = build_prompt(agent.prompt, level_id, agent.enabled_tools)
 
     # Per-(user, agent) session cache (ARD 002): reuse cached BidiAgent (resumes the
     # conversation); else build fresh seeded with the client history.

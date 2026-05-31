@@ -167,8 +167,31 @@ def get_location_coords(place: str) -> Dict[str, Any]:
     location_cache[place] = result
     return result
 
+def _normalize_date(target_date: Optional[str]) -> Optional[str]:
+    """Coerce a target_date into Open-Meteo's required YYYY-MM-DD, or None for
+    current weather. Models (especially speech) often pass natural language like
+    'tomorrow'/'today' instead of an ISO date, which Open-Meteo rejects (400)."""
+    if not target_date:
+        return None
+    import re
+    from datetime import date, timedelta
+    s = target_date.strip().lower()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):
+        return s
+    today = date.today()
+    rel = {"today": 0, "tonight": 0, "now": 0, "tomorrow": 1, "yesterday": -1,
+           "day after tomorrow": 2, "the day after tomorrow": 2}
+    if s in rel:
+        return (today + timedelta(days=rel[s])).isoformat()
+    m = re.fullmatch(r"in (\d+) days?", s)
+    if m:
+        return (today + timedelta(days=int(m.group(1)))).isoformat()
+    return None  # unrecognized → fall back to current weather instead of a bad request
+
+
 def get_weather(place: str, target_date: Optional[str] = None) -> Dict[str, Any]:
     """Cached wrapper for get_weather_with_cache"""
+    target_date = _normalize_date(target_date)
     cache_key = f"{place}_{target_date if target_date else 'current'}"
     if cache_key in weather_cache:
         return weather_cache[cache_key]

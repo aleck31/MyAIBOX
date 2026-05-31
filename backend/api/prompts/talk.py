@@ -70,9 +70,19 @@ _LEVEL_PROMPT = {
 }
 
 
-def build_prompt(base_prompt: str, level_id: str) -> str:
-    """Compose the system prompt for a coaching level. The teaching level (vocabulary
-    cap + speaking pace) goes FIRST so it strongly shapes delivery; it is name-free
-    so switching it (or the voice) never conflicts with a name already spoken."""
+def _tools_hint(enabled_tools: list) -> str:
+    """When tools are enabled, keep tool-driven answers terse — Nova Sonic already discovers the tools from its toolConfiguration and calls them on its own; 
+    we only need to curb the verbose spoken reply. Tool-name-agnostic, so it never goes stale."""
+    if not enabled_tools:
+        return ""
+    return ("TOOLS: When a question needs up-to-date or factual info, call the relevant tool instead of guessing,"
+            "then answer in ONE short, direct spoken sentence with just the key facts — no greetings, filler, or extra suggestions.")
+
+
+def build_prompt(base_prompt: str, level_id: str, enabled_tools: list | None = None) -> str:
+    """Compose the system prompt for a coaching level. The teaching level (vocabulary cap + speaking pace) goes FIRST so it strongly shapes delivery;
+    it is name-free so switching it (or the voice) never conflicts with a name already spoken. A tool hint is appended when tools are enabled so Nova Sonic actually invokes them."""
     level = _LEVEL_PROMPT.get(level_id) or _LEVEL_PROMPT[DEFAULT_LEVEL]
-    return f"{level}\n\n{base_prompt}"
+    hint = _tools_hint(enabled_tools or [])
+    parts = [level, base_prompt] + ([hint] if hint else [])
+    return "\n\n".join(parts)
