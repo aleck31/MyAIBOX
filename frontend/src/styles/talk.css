@@ -182,3 +182,29 @@
   color: hsl(var(--muted-foreground));
   font-style: italic;
 }
+
+
+/* Compact level dropdown next to the Start call button. */
+.talk-level-select {
+  width: auto;
+  min-width: 0;
+}
+
+/* ── Mobile (≤768px) ────────────────────────────────────────────────────────
+ * Project responsive baseline. The app shell (sidebar/hamburger) and .section-bar
+ * are handled globally; these rules fix the talk-specific call page on narrow
+ * screens: bubbles wider, controls allowed to wrap, tighter padding. */
+@media (max-width: 768px) {
+  .talk-thread { padding: 14px 12px; }
+  .talk-bubble { max-width: 88%; font-size: 14px; }
+
+  .talk-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+  .talk-call-btn { padding: 11px 22px; font-size: 14px; }
+
+  /* Settings page: voice agent card body fields stack comfortably. */
+  .live-agent-card-body { padding: 10px 12px; }
+}

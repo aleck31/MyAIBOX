@@ -132,7 +132,9 @@ class LiveAgentProvider:
             self._agent = None
 
     async def set_voice(self, voice_id: str) -> None:
-        """Switch the output voice; rebuilds the agent (resumes from history)."""
+        """Switch the output voice (timbre only); rebuilds the agent so the new
+        voice takes effect, resuming from history. Persona/prompt is independent
+        and only changes on a fresh call, so it isn't touched here."""
         if voice_id == self.voice_id:
             return
         self.voice_id = voice_id

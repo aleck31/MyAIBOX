@@ -8,6 +8,10 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+# Fields a user may override per-agent; name/prompt/avatar stay code-owned.
+OVERRIDABLE_FIELDS = frozenset({"default_model", "voice_id", "enabled_tools"})
+
+
 @dataclass
 class TalkAgent:
     """A realtime voice persona (mirrors the chat Agent, voice-specific fields)."""
@@ -22,16 +26,13 @@ class TalkAgent:
     order: int = 100            # lower = earlier in sidebar
 
 
-_ENGLISH_COACH = """You are a warm, patient English-speaking coach helping a Chinese native speaker practice spoken English in a real-time voice conversation.
+_ENGLISH_COACH = """You are a warm, patient English-speaking conversation coach helping a Chinese native speaker practice spoken English in a real-time voice conversation. When asked who you are, say you are their English coach — briefly — then steer back to conversation. Do not claim a personal name.
 
 Speak naturally and conversationally, as if on a phone call. Keep your turns short — one or two sentences — so the conversation flows back and forth. Never deliver long monologues.
 
 Gently correct mistakes: if the learner makes a clear grammar or word-choice error, briefly restate the correct version in a natural way ("Ah, you mean...?") and move on — don't lecture or interrupt the flow. Praise effort.
 
-Adapt to the learner's level. Start simple; gradually use richer vocabulary and longer structures as they keep up. If they switch to Chinese or get stuck, encourage them back to English with an easy prompt.
-
-Ask open follow-up questions to keep them talking. Your goal is to maximize their speaking time, not yours.
-"""
+Ask open follow-up questions to keep them talking. Your goal is to maximize their speaking time, not yours."""
 
 
 BUILTIN_TALK_AGENTS = {
@@ -45,3 +46,33 @@ BUILTIN_TALK_AGENTS = {
         order=10,
     ),
 }
+
+
+# Coaching personas — which learner group the coach tailors to. Decoupled from
+# voice (voice = timbre only) and name-free (so a level/voice switch never
+# conflicts with a name already spoken in the conversation history). Chosen only
+# at the start of a fresh call (locked once the conversation begins).
+# Names carry an ascending difficulty star rating so the level reads at a glance
+# in the (text-only) <option> list: child ⭐ < teen ⭐⭐ < adult ⭐⭐⭐.
+TALK_LEVELS = [
+    {"id": "child", "name": "⭐ 小学生"},
+    {"id": "teen", "name": "⭐⭐ 中学生"},
+    {"id": "adult", "name": "⭐⭐⭐ 成人"},
+]
+DEFAULT_LEVEL = "adult"
+
+# Each level caps vocabulary and sets speaking pace — both critical for a voice
+# coach matched to the learner's ability.
+_LEVEL_PROMPT = {
+    "child": "TEACHING LEVEL: Your learner is a primary-school child (beginner). Use only the most common ~500-1000 English words and very short sentences (3-6 words). Speak slowly and clearly, pausing between phrases. Playful, warm, lots of praise. Concrete everyday topics: animals, food, colors, family, games. Avoid idioms, slang, and complex grammar.",
+    "teen": "TEACHING LEVEL: Your learner is a middle-school teenager (intermediate). Use common everyday vocabulary (~2000-3000 words) and clear, medium-length sentences. Speak at a relaxed, moderate pace. Friendly peer-like tone. Topics they relate to: school, hobbies, music, sports, friends. Introduce occasional common idioms and explain them lightly.",
+    "adult": "TEACHING LEVEL: Your learner is an adult (advanced). Use rich, natural vocabulary and idioms freely. Speak at a normal native conversational pace with natural linking and contractions. Respectful, engaging tone. Real-life topics: work, travel, current events, opinions, culture.",
+}
+
+
+def build_prompt(base_prompt: str, level_id: str) -> str:
+    """Compose the system prompt for a coaching level. The teaching level (vocabulary
+    cap + speaking pace) goes FIRST so it strongly shapes delivery; it is name-free
+    so switching it (or the voice) never conflicts with a name already spoken."""
+    level = _LEVEL_PROMPT.get(level_id) or _LEVEL_PROMPT[DEFAULT_LEVEL]
+    return f"{level}\n\n{base_prompt}"

@@ -16,13 +16,15 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.common.logger import setup_logger
 from backend.core.module_config import module_config
 from backend.core.talk_agents import talk_agent_registry
+from backend.api.prompts.talk import OVERRIDABLE_FIELDS, build_prompt, TALK_LEVELS, DEFAULT_LEVEL
 from backend.genai.models.model_manager import model_manager
 from backend.genai.agents.live_provider import LiveAgentProvider
 from backend.api.auth import get_auth_user
@@ -57,7 +59,13 @@ async def _get_or_create_provider(sub: str, agent_id: str, model_id: str, system
     entry = _talk_cache.get(key)
     if entry:
         provider, _ = entry
-        provider.voice_id = voice_id  # honor a newly-picked voice on reconnect
+        # Switching voice/model can't be done on a live BidiAgent (Nova Sonic bakes
+        # them into the model) — set_voice/set_model rebuild it, so refresh history
+        # first so the rebuilt agent resumes from the current transcript.
+        if (voice_id != provider.voice_id or model_id != provider.model_id) and history:
+            provider.history = history
+        await provider.set_voice(voice_id)  # timbre only; persona is fixed for the session
+        await provider.set_model(model_id)
         _talk_cache[key] = (provider, now)
         return provider
     provider = LiveAgentProvider(model_id=model_id, system_prompt=system_prompt,
@@ -66,23 +74,34 @@ async def _get_or_create_provider(sub: str, agent_id: str, model_id: str, system
     return provider
 
 
-@router.delete("/session/{agent_id}")
-async def clear_session(agent_id: str, username: str = Depends(get_auth_user)):
-    """Clear the cached voice session so the agent forgets the prior conversation
-    (front-end 'clear transcript' → back-end loses memory too, staying consistent)."""
-    key = f"{username}:{agent_id}"
-    entry = _talk_cache.pop(key, None)
+async def _evict_session(sub: str, agent_id: str) -> None:
+    """Drop and tear down any cached BidiAgent for this user+agent."""
+    entry = _talk_cache.pop(f"{sub}:{agent_id}", None)
     if entry:
         try:
             await entry[0].destroy()
         except Exception:
             pass
+
+
+@router.delete("/session/{agent_id}")
+async def clear_session(agent_id: str, sub: str = Depends(get_auth_user)):
+    """Clear the cached voice session so the agent forgets the prior conversation
+    (front-end 'clear transcript' → back-end loses memory too, staying consistent)."""
+    await _evict_session(sub, agent_id)
     return {"ok": True}
 
 
 def _agent_dto(a) -> dict:
     return {"id": a.id, "name": a.name, "description": a.description,
-            "avatar": a.avatar, "voice_id": a.voice_id}
+            "avatar": a.avatar, "voice_id": a.voice_id,
+            "default_model": a.default_model, "enabled_tools": list(a.enabled_tools)}
+
+
+class TalkAgentPatchBody(BaseModel):
+    default_model: Optional[str] = None
+    voice_id: Optional[str] = None
+    enabled_tools: Optional[List[str]] = None
 
 
 @router.get("/config")
@@ -97,21 +116,54 @@ async def get_config(username: str = Depends(get_auth_user)):
             {"id": "tiffany", "name": "Tiffany (US, female)"},
             {"id": "amy", "name": "Amy (UK, female)"},
         ],
+        "levels": TALK_LEVELS,
+        "default_level": DEFAULT_LEVEL,
     }
 
 
 @router.get("/agents")
-async def list_agents(username: str = Depends(get_auth_user)):
-    """List the available voice agents (sidebar)."""
-    return {"agents": [_agent_dto(a) for a in talk_agent_registry.list_agents()]}
+async def list_agents(sub: str = Depends(get_auth_user)):
+    """List the available voice agents with this user's overrides applied."""
+    return {"agents": [_agent_dto(a) for a in talk_agent_registry.list_agents(sub)]}
+
+
+@router.get("/agents/models")
+async def list_agent_models(sub: str = Depends(get_auth_user)):
+    """Realtime models eligible for talk agents (same filter as the config endpoint)."""
+    models = model_manager.get_models(filter=module_config.get_model_filter('talk')) or []
+    return {"models": [{"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"} for m in models]}
 
 
 @router.get("/agents/{agent_id}")
-async def get_agent(agent_id: str, username: str = Depends(get_auth_user)):
+async def get_agent(agent_id: str, sub: str = Depends(get_auth_user)):
     try:
-        return _agent_dto(talk_agent_registry.get_agent(agent_id))
+        return _agent_dto(talk_agent_registry.get_agent(sub, agent_id))
     except KeyError:
-        return {"error": f"Unknown voice agent: {agent_id}"}
+        raise HTTPException(status_code=404, detail=f"Unknown voice agent: {agent_id}")
+
+
+@router.patch("/agents/{agent_id}")
+async def patch_agent(agent_id: str, body: TalkAgentPatchBody, sub: str = Depends(get_auth_user)):
+    patch = {k: v for k, v in body.model_dump().items() if v is not None}
+    for k in patch:
+        if k not in OVERRIDABLE_FIELDS:
+            raise HTTPException(status_code=400, detail=f"field not overridable: {k}")
+    try:
+        agent = talk_agent_registry.set_override(sub, agent_id, patch)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown voice agent: {agent_id}")
+    await _evict_session(sub, agent_id)  # next call rebuilds with new voice/model/tools
+    return _agent_dto(agent)
+
+
+@router.post("/agents/{agent_id}/reset")
+async def reset_agent(agent_id: str, sub: str = Depends(get_auth_user)):
+    try:
+        agent = talk_agent_registry.reset(sub, agent_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Unknown voice agent: {agent_id}")
+    await _evict_session(sub, agent_id)
+    return _agent_dto(agent)
 
 
 def _to_frame(event) -> Optional[dict]:
@@ -141,7 +193,7 @@ async def talk_ws(ws: WebSocket, agent_id: str):
         return
 
     try:
-        agent = talk_agent_registry.get_agent(agent_id)
+        agent = talk_agent_registry.get_agent(sub, agent_id)
     except KeyError:
         await ws.send_text(json.dumps({"type": "error", "message": f"unknown agent: {agent_id}"}))
         await ws.close(code=1008)
@@ -152,7 +204,12 @@ async def talk_ws(ws: WebSocket, agent_id: str):
     if voice_id not in _VOICES:
         voice_id = agent.voice_id
 
-    model_id = agent.default_model or module_config.get_default_model('talk')
+    # Model priority (ARD 001): ?model_id= top-bar pick → agent override → module default.
+    # Validate the requested id against the realtime-eligible set before trusting it.
+    requested_model = ws.query_params.get("model_id")
+    eligible = {m.model_id for m in (model_manager.get_models(filter=module_config.get_model_filter('talk')) or [])}
+    model_id = (requested_model if requested_model in eligible
+                else agent.default_model or module_config.get_default_model('talk'))
     tool_config = {'enabled': bool(agent.enabled_tools), 'legacy_tools': agent.enabled_tools}
 
     # First client frame is a setup frame carrying the front-end transcript the user
@@ -170,9 +227,16 @@ async def talk_ws(ws: WebSocket, agent_id: str):
     except Exception:
         pass
 
+    # Level (learner ability: vocabulary cap + pace) shapes the teaching prompt;
+    # chosen per fresh call, validated against the known set. Decoupled from voice.
+    level_id = ws.query_params.get("level_id") or DEFAULT_LEVEL
+    if level_id not in {lv["id"] for lv in TALK_LEVELS}:
+        level_id = DEFAULT_LEVEL
+    system_prompt = build_prompt(agent.prompt, level_id)
+
     # Per-(user, agent) session cache (ARD 002): reuse cached BidiAgent (resumes the
     # conversation); else build fresh seeded with the client history.
-    provider = await _get_or_create_provider(sub, agent_id, model_id, agent.prompt, voice_id, tool_config, history)
+    provider = await _get_or_create_provider(sub, agent_id, model_id, system_prompt, voice_id, tool_config, history)
 
     try:
         await provider.start()

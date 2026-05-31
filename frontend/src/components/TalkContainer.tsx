@@ -9,6 +9,7 @@ import type { TalkAgent } from '../api/client'
 
 interface Turn { role: 'user' | 'assistant'; text: string; final: boolean }
 interface Voice { id: string; name: string }
+interface Level { id: string; name: string }
 
 // Transcript persists per-tab until the user clears it (the universal "no clear =
 // it stays" rule) — survives route switches, matching the back-end session cache.
@@ -26,11 +27,14 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
   const [error, setError] = useState<string | null>(null)
   const [models, setModels] = useState<ModelOption[]>([])
   const [voices, setVoices] = useState<Voice[]>([])
+  const [levels, setLevels] = useState<Level[]>([])
   // Top-bar model + voice are per-agent UI preferences (ARD 001): persist in
   // localStorage, defaulting to the agent's (override-merged) value. Priority:
   // user pick → agent override → module default → first eligible (resolveDefaultModel).
   const [modelId, setModelId] = useStoredState(`talk-model:${agent.id}`, agent.default_model ?? '')
   const [voice, setVoice] = useStoredState(`talk-voice:${agent.id}`, agent.voice_id)
+  // Level (learner group) — per-agent preference; only selectable on a fresh call.
+  const [level, setLevel] = useStoredState(`talk-level:${agent.id}`, 'adult')
   const threadRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -38,6 +42,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
       const opts = cfg.models.map(m => ({ model_id: m.model_id, name: m.name }))
       setModels(opts)
       setVoices(cfg.voices)
+      setLevels(cfg.levels || [])
       // Only fill when the user hasn't picked and the agent had no override default.
       setModelId(prev => prev || resolveDefaultModel(opts, agent.default_model ?? cfg.default_model))
     }).catch(() => { /* best-effort */ })
@@ -100,10 +105,19 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
 
         <div className="talk-controls">
           {!talk.connected ? (
-            <button className="talk-call-btn talk-call-btn--start" disabled={talk.connecting}
-              onClick={() => talk.connect({ voiceId: voice, modelId, history: turns.map(t => ({ role: t.role, text: t.text })) })}>
-              <IconMic size={20} /> {talk.connecting ? 'Connecting…' : 'Start call'}
-            </button>
+            <>
+              {/* Level = learner ability (vocabulary + pace); only selectable on a fresh
+                  call. The signal-bar prefix in each option name conveys difficulty. */}
+              <select className="select talk-level-select" value={level} onChange={e => setLevel(e.target.value)}
+                disabled={talk.connecting || turns.length > 0} aria-label="Learner level"
+                title={turns.length > 0 ? 'Clear the transcript to change the level' : 'Learner level'}>
+                {levels.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <button className="talk-call-btn talk-call-btn--start" disabled={talk.connecting}
+                onClick={() => talk.connect({ voiceId: voice, modelId, levelId: level, history: turns.map(t => ({ role: t.role, text: t.text })) })}>
+                <IconMic size={20} /> {talk.connecting ? 'Connecting…' : 'Start call'}
+              </button>
+            </>
           ) : (
             <>
               <button className="talk-call-btn talk-call-btn--end" onClick={talk.hangup}>

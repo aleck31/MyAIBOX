@@ -138,6 +138,8 @@ export interface TalkConfig {
   models: Array<{ model_id: string; name: string }>
   default_model: string
   voices: Array<{ id: string; name: string }>
+  levels: Array<{ id: string; name: string }>
+  default_level: string
 }
 export async function getTalkConfig(): Promise<TalkConfig> {
   const res = await apiFetch('/api/talk/config')
