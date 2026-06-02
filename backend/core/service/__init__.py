@@ -105,35 +105,21 @@ class BaseService:
             - Updates session if default model found
         """
         try:
-            # Return existing model_id if set
-            if self.model_id:
-                logger.debug(f"[BaseService] Get cached model id: {self.model_id}")
-                return self.model_id
-            elif model_id := session.metadata.model_id:
-                logger.debug(f"[BaseService] Get session model id: {model_id}")
-                self.model_id = model_id
-                return self.model_id
-            # Falls back to module config default model
-            else:
-                model_id = module_config.get_default_model(session.metadata.module_name)
-                self.model_id = model_id
-                logger.debug(f"[BaseService] Falls back to default model: {model_id}")
-                return self.model_id
+            # Return existing model_id (per-agent session) if set
+            if model_id := session.metadata.model_id:
+                return model_id
+            model_id = module_config.get_default_model(session.metadata.module_name)
+            logger.debug(f"[BaseService] Falls back to default model: {model_id}")
+            return model_id
 
         except Exception as e:
             logger.error(f"[BaseService] Failed to get model for session {session.session_id}: {str(e)}")
             raise ValueError(f"Unable to get any model ID for session: {str(e)}")
 
     async def update_session_model(self, session: Session, model_id: str) -> None:
-        """Update model ID in session metadata
-        
-        Args:
-            session: Session to update
-            model_id: New model ID to set
-        """
+        """Update model ID in the per-agent session metadata."""
         try:
-            if self.model_id != model_id:
-                self.model_id = model_id
+            if session.metadata.model_id != model_id:
                 session.metadata.model_id = model_id
                 await self.session_store.save_session(session)
                 logger.debug(f"[BaseService] Updated model to {model_id} in session {session.session_id}")

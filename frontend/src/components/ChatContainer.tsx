@@ -188,7 +188,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
           url={chatStreamUrl}
           onCustomEvent={handleCustomEvent}
           forwardedProps={{ agent_id: agent.id }}
-          onMessagesEdited={(msgs) => { syncChatHistory(agent.id, msgs).catch(() => {}) }}
+          onMessagesEdited={(msgs) => { if (cloudSync) syncChatHistory(agent.id, msgs).catch(() => {}) }}
           agent={agent}
           username={username ?? undefined}
         />
