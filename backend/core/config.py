@@ -2,7 +2,7 @@
 Configuration management using python-dotenv for environment variables
 """
 import os
-from typing import Any, Dict, Union, List
+from typing import Any, Dict, Union, List, Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -40,11 +40,13 @@ class ENVConfig:
         }
 
     @property
-    def bedrock_config(self) -> Dict[str, str]:
+    def bedrock_config(self) -> Dict[str, Optional[str]]:
         """Get AWS Bedrock configuration"""
         return {
             'region_name': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to aws_region
-            'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', '')
+            'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', ''),
+            # Bedrock API key for the Mantle OpenAI-compatible endpoint (OpenAIResponses provider).
+            'secret_id': os.getenv('BEDROCK_SECRET_ID'),
         }
 
     @property
@@ -65,19 +67,19 @@ class ENVConfig:
         }
 
     @property
-    def gemini_config(self) -> Dict[str, str]:
+    def gemini_config(self) -> Dict[str, Optional[str]]:
         """Get Gemini API configuration"""
         return {
             # Stored in AWS Secrets Manager
-            'secret_id': os.getenv('GEMINI_SECRET_ID', 'dev_gemini_api')
+            'secret_id': os.getenv('GEMINI_SECRET_ID')
         }
 
     @property
-    def openai_config(self) -> Dict[str, str]:
+    def openai_config(self) -> Dict[str, Optional[str]]:
         """Get OpenAI API configuration"""
         return {
             # Stored in AWS Secrets Manager
-            'secret_id': os.getenv('OPENAI_SECRET_ID', 'dev_openai_api'),
+            'secret_id': os.getenv('OPENAI_SECRET_ID'),
         }
 
     @property

@@ -54,8 +54,12 @@ function convertLocalMessage(msg: LocalMessage): ThreadMessageLike {
   if (msg.reasoning) {
     parts.push({ type: 'reasoning' as const, text: msg.reasoning })
   }
-  // Emit tool-call parts so assistant-ui renders registered ToolUIs
+  // Emit tool-call parts so assistant-ui renders registered ToolUIs.
+  // Dedupe by id — duplicate toolCallId crashes assistant-ui (Duplicate key).
+  const seenToolIds = new Set<string>()
   for (const tc of msg.toolCalls ?? []) {
+    if (seenToolIds.has(tc.id)) continue
+    seenToolIds.add(tc.id)
     let args: Record<string, unknown> = {}
     try { args = JSON.parse(tc.args) } catch { /* ignore */ }
     let result: unknown = undefined
@@ -242,11 +246,12 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           },
           onToolCallStartEvent({ event }: { event: ToolCallStartEvent }) {
             setLocalMessages(prev =>
-              prev.map(m =>
-                m.id === assistantId
-                  ? { ...m, toolCalls: [...(m.toolCalls ?? []), { id: event.toolCallId, name: event.toolCallName, args: '' }] }
-                  : m
-              )
+              prev.map(m => {
+                if (m.id !== assistantId) return m
+                // GPT-5 Responses API re-emits start for the same toolCallId; dedupe.
+                if ((m.toolCalls ?? []).some(tc => tc.id === event.toolCallId)) return m
+                return { ...m, toolCalls: [...(m.toolCalls ?? []), { id: event.toolCallId, name: event.toolCallName, args: '' }] }
+              })
             )
           },
           onToolCallArgsEvent({ event }: { event: ToolCallArgsEvent }) {

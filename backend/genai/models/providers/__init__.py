@@ -128,14 +128,16 @@ def create_model_provider(provider_name: str, model_id: str, llm_params: LLMPara
     from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
     from backend.genai.models.providers.google_gemini import GeminiProvider
     from backend.genai.models.providers.openai import OpenAIProvider
+    from backend.genai.models.providers.openai_responses import OpenAIResponsesProvider
 
     # Map provider types to their implementations
     providers = {
         'BEDROCK': BedrockConverse,
         'BEDROCKINVOKE': BedrockInvoke,
         # 'ANTHROPIC': AnthropicProvider,
-        'GEMINI': GeminiProvider, 
-        'OPENAI': OpenAIProvider
+        'GEMINI': GeminiProvider,
+        'OPENAI': OpenAIProvider,
+        'OPENAIRESPONSES': OpenAIResponsesProvider,
     }
 
     # Get provider class

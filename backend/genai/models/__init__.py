@@ -34,6 +34,7 @@ class LLMModel:
     vendor: str = ""      # Optional
     description: str = "" # Optional
     region: str = ""      # Optional: override default region for this model
+    base_url: str = ""    # Optional: custom API endpoint (e.g. Bedrock Mantle OpenAI-compatible URL)
     enabled: bool = True  # Disabled models are hidden from dropdowns but kept in storage
     capabilities: LLM_CAPABILITIES = field(default_factory=LLM_CAPABILITIES)
 
@@ -100,6 +101,7 @@ class LLMModel:
             vendor=data.get('vendor', ''),
             description=data.get('description', ''),
             region=data.get('region', ''),
+            base_url=data.get('base_url', ''),
             enabled=data.get('enabled', True),
             capabilities=capabilities
         )

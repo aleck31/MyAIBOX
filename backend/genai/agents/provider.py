@@ -6,6 +6,7 @@ from backend.core.config import env_config
 from strands import Agent
 from strands.models import BedrockModel
 from strands.models.openai import OpenAIModel
+from strands.models.openai_responses import OpenAIResponsesModel
 from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.utils.aws import get_aws_session, get_secret
@@ -95,6 +96,35 @@ class AgentProvider:
                 client=self._openai_client,
                 model_id=mid,
                 params={"max_tokens": 1000, "temperature": 0.7},
+            )
+
+        elif api_provider == 'OPENAIRESPONSES':
+            # GPT-5 etc. via Bedrock Mantle — Responses API only; key from Secrets Manager.
+            if not model.base_url:
+                raise ValueError(f"Model {mid} (OpenAIResponses) requires a base_url")
+            bedrock_secret_id = env_config.bedrock_config.get('secret_id')
+            api_key = get_secret(bedrock_secret_id).get('api_key') if bedrock_secret_id else None
+            if not api_key:
+                raise ValueError("Bedrock API key not configured (Secrets Manager)")
+            params: Dict = {}
+            reasoning_on = False
+            if model.capabilities.reasoning:
+                intent = self.parameters.get("thinking") or DEFAULT_INTENT
+                if intent.get("enabled", True):
+                    reasoning_on = True
+                    # Responses effort: low/medium/high/xhigh (no minimal/max) — clamp ours.
+                    effort = intent.get("effort") or "high"
+                    params["reasoning"] = {"effort": "xhigh" if effort == "max" else effort}
+            # max_output_tokens counts reasoning tokens too; a small cap truncates the
+            # answer/tool-args mid-stream. Floor it higher when reasoning is on.
+            mt = self.parameters.get("max_tokens")
+            params["max_output_tokens"] = max(mt or 0, 16000) if reasoning_on else mt
+            if not reasoning_on and self.parameters.get("temperature") is not None:
+                params["temperature"] = self.parameters["temperature"]
+            return OpenAIResponsesModel(
+                client_args={"base_url": model.base_url, "api_key": api_key},
+                model_id=mid,
+                params={k: v for k, v in params.items() if v is not None} or None,
             )
 
         elif api_provider == 'GEMINI':

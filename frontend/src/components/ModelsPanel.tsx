@@ -7,18 +7,18 @@ import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff
 
 const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
-const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'BedrockSonic', 'Gemini', 'OpenAI']
+const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'BedrockSonic', 'Gemini', 'OpenAI', 'OpenAIResponses']
 const CATEGORIES = ['text', 'vision', 'image', 'video', 'embedding', 'realtime']
 const MODALITIES = ['text', 'document', 'image', 'video', 'audio']
 
 interface ModelInfo {
   name: string; model_id: string; api_provider: string; vendor: string
-  category: string; description: string; region: string; enabled: boolean
+  category: string; description: string; region: string; base_url: string; enabled: boolean
   capabilities: { input_modality: string[]; output_modality: string[]; streaming: boolean; tool_use: boolean; reasoning: boolean; context_window: number }
 }
 
 const emptyForm = (): ModelInfo => ({
-  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '', region: '', enabled: true,
+  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '', region: '', base_url: '', enabled: true,
   capabilities: { input_modality: ['text'], output_modality: ['text'], streaming: true, tool_use: false, reasoning: false, context_window: 131072 },
 })
 
@@ -46,7 +46,7 @@ export default function ModelsPanel() {
   useEffect(() => { load() }, [load])
 
   const openAdd = () => { setEditing(emptyForm()); setIsNew(true) }
-  const openEdit = (m: ModelInfo) => { setEditing({ ...m, capabilities: { ...m.capabilities } }); setIsNew(false) }
+  const openEdit = (m: ModelInfo) => { setEditing({ ...m, base_url: m.base_url ?? '', capabilities: { ...m.capabilities } }); setIsNew(false) }
 
   const handleSave = async () => {
     if (!editing) return
@@ -54,7 +54,7 @@ export default function ModelsPanel() {
     const payload = {
       name: editing.name, model_id: editing.model_id, api_provider: editing.api_provider,
       vendor: editing.vendor, category: editing.category, description: editing.description,
-      region: editing.region, ...editing.capabilities,
+      region: editing.region, base_url: editing.base_url, ...editing.capabilities,
     }
     if (isNew) await addModel(payload); else await updateModel(payload)
     setSaving(false); setEditing(null); load()
@@ -140,7 +140,7 @@ export default function ModelsPanel() {
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">API Provider</label>
                   <select className="select" style={{ width: '100%' }} value={editing.api_provider}
-                    onChange={e => setEditing({ ...editing, api_provider: e.target.value })}>
+                    onChange={e => setEditing({ ...editing, api_provider: e.target.value, base_url: e.target.value === 'OpenAIResponses' ? editing.base_url : '' })}>
                     {API_PROVIDERS.map(p => <option key={p}>{p}</option>)}
                   </select>
                 </div>
@@ -157,6 +157,15 @@ export default function ModelsPanel() {
                     onChange={e => setEditing({ ...editing, region: e.target.value })} placeholder="Override default" />
                 </div>
               </div>
+
+              {editing.api_provider === 'OpenAIResponses' && (
+                <>
+                  <label className="panel-label" style={{ marginTop: 8 }}>Base URL</label>
+                  <input className="input" style={{ width: '100%' }} value={editing.base_url ?? ''}
+                    onChange={e => setEditing({ ...editing, base_url: e.target.value })}
+                    placeholder="https://bedrock-mantle.us-east-2.api.aws/openai/v1" />
+                </>
+              )}
 
               <label className="panel-label" style={{ marginTop: 8 }}>Context Window (K tokens)</label>
               <input className="input" type="number" style={{ width: 160 }}
