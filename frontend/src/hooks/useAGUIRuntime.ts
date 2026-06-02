@@ -88,10 +88,25 @@ interface UseAGUIRuntimeOptions {
 const _msgCache = new Map<string, LocalMessage[]>()
 const _agentCache = new Map<string, HttpAgent>()
 
+// Per-thread sessionStorage mirror so conversation survives a refresh (ARD 001/002:
+// "no clear = it stays"). _msgCache is the fast route-switch cache; sessionStorage
+// is the refresh-proof backstop. cloud_sync (DDB) is independent and only adds cross-device sync.
+const _msgsKey = (threadId: string) => `chat-msgs:${threadId}`
+function loadStoredMsgs(threadId: string): LocalMessage[] | null {
+  try {
+    const raw = sessionStorage.getItem(_msgsKey(threadId))
+    return raw ? (JSON.parse(raw) as LocalMessage[]) : null
+  } catch { return null }
+}
+function saveStoredMsgs(threadId: string, msgs: LocalMessage[]) {
+  try { sessionStorage.setItem(_msgsKey(threadId), JSON.stringify(msgs)) } catch { /* quota */ }
+}
+
 /** Clear cached state for a thread (e.g. on conversation clear) */
 export function clearRuntimeCache(threadId: string) {
   _msgCache.delete(threadId)
   _agentCache.delete(threadId)
+  try { sessionStorage.removeItem(_msgsKey(threadId)) } catch { /* ignore */ }
 }
 
 /** Extract text only from content (for HttpAgent which only needs text) */
@@ -155,9 +170,12 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   const onMessagesEditedRef = useRef(onMessagesEdited)
   onMessagesEditedRef.current = onMessagesEdited
   const [localMessages, setLocalMessagesRaw] = useState<LocalMessage[]>(() => {
-    // Restore from cache if available (route switch)
+    // Restore priority (ARD 002): _msgCache (route switch) → sessionStorage (refresh)
+    // → initialMessages (from backend DDB, e.g. fresh open / cross-device).
     const cached = _msgCache.get(threadId)
     if (cached) return cached
+    const stored = loadStoredMsgs(threadId)
+    if (stored) { _msgCache.set(threadId, stored); return stored }
 
     return initialMessages.map((m, i) => {
       const { text, attachments } = parseHistoryContent(m.content)
@@ -170,11 +188,12 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
     })
   })
 
-  // Wrap setLocalMessages to sync cache
+  // Wrap setLocalMessages to mirror into _msgCache (route switch) + sessionStorage (refresh).
   const setLocalMessages: typeof setLocalMessagesRaw = useCallback((update) => {
     setLocalMessagesRaw(prev => {
       const next = typeof update === 'function' ? update(prev) : update
       _msgCache.set(threadId, next)
+      saveStoredMsgs(threadId, next)
       return next
     })
   }, [threadId])
