@@ -115,10 +115,11 @@ class AgentProvider:
                     # Responses effort: low/medium/high/xhigh (no minimal/max) — clamp ours.
                     effort = intent.get("effort") or "high"
                     params["reasoning"] = {"effort": "xhigh" if effort == "max" else effort}
-            # max_output_tokens counts reasoning tokens too; a small cap truncates the
-            # answer/tool-args mid-stream. Floor it higher when reasoning is on.
+            # max_output_tokens counts reasoning tokens too; with reasoning + a tool loop a
+            # small cap gets eaten before the final answer, truncating output. 16k still ran
+            # dry across tool rounds in testing; 32k matches the self-built provider's floor.
             mt = self.parameters.get("max_tokens")
-            params["max_output_tokens"] = max(mt or 0, 16000) if reasoning_on else mt
+            params["max_output_tokens"] = max(mt or 0, 32000) if reasoning_on else mt
             if not reasoning_on and self.parameters.get("temperature") is not None:
                 params["temperature"] = self.parameters["temperature"]
             return OpenAIResponsesModel(

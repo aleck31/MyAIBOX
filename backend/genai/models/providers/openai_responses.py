@@ -1,18 +1,25 @@
+import asyncio
+import json
+from threading import Thread
 from typing import Dict, List, Optional, Iterator
 import openai
 from openai import OpenAI
 from backend.core.config import env_config
 from backend.utils.aws import get_secret
 from backend.genai.models.model_manager import model_manager
+from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from . import LLMAPIProvider, LLMParameters, LLMMessage, LLMResponse, LLMProviderError
 from .. import logger
+
+_MAX_TOOL_ROUNDS = 8  # safety cap on the tool-use loop
 
 
 class OpenAIResponsesProvider(LLMAPIProvider):
     """OpenAI-compatible models on the Responses API (e.g. GPT-5 via Bedrock Mantle).
 
     Same wire protocol as OpenAIProvider but uses the Responses API and a per-model
-    base_url + Bedrock API key, since GPT-5 rejects /chat/completions.
+    base_url + Bedrock API key, since GPT-5 rejects /chat/completions. Supports a
+    tool-use loop (legacy tools) for modules like Asking.
     """
 
     def __init__(self, model_id: str, llm_params: LLMParameters, tools=None):
@@ -33,8 +40,35 @@ class OpenAIResponsesProvider(LLMAPIProvider):
             if not api_key:
                 raise ValueError("Bedrock API key not configured (Secrets Manager)")
             self.client = OpenAI(base_url=model.base_url, api_key=api_key)
+            self._tool_defs = self._build_tool_defs()
         except Exception as e:
             raise ValueError(f"Failed to initialize OpenAIResponses client: {str(e)}")
+
+    def _build_tool_defs(self) -> List[Dict]:
+        """Convert enabled tools' Bedrock toolSpec into Responses function defs."""
+        defs: List[Dict] = []
+        for name in (self.tools or []):
+            spec = legacy_tool_registry.get_tool_spec(name)
+            ts = spec.get('toolSpec') if spec else None
+            if not ts:
+                continue
+            defs.append({
+                "type": "function",
+                "name": ts["name"],
+                "description": ts.get("description", ""),
+                "parameters": ts.get("inputSchema", {}).get("json", {"type": "object", "properties": {}}),
+            })
+        if defs:
+            logger.debug(f"[OpenAIResponsesProvider] Initialized {len(defs)} tools")
+        return defs
+
+    def _exec_tool(self, name: str, args: Dict):
+        """Run an async legacy tool from this sync generator via a background loop."""
+        if not hasattr(self, '_bg_loop'):
+            self._bg_loop = asyncio.new_event_loop()
+            Thread(target=lambda: (asyncio.set_event_loop(self._bg_loop), self._bg_loop.run_forever()), daemon=True).start()
+        fut = asyncio.run_coroutine_threadsafe(legacy_tool_registry.execute_tool(name, **args), self._bg_loop)
+        return fut.result()
 
     def _handle_openai_error(self, error: Exception):
         error_code = type(error).__name__
@@ -72,34 +106,66 @@ class OpenAIResponsesProvider(LLMAPIProvider):
         return out
 
     def generate_content(self, messages: List[LLMMessage], system_prompt: Optional[str] = None, **kwargs) -> LLMResponse:
-        try:
-            response = self.client.responses.create(
-                model=self.model_id,
-                input=self._convert_messages(messages, system_prompt),  # type: ignore[arg-type]
-                max_output_tokens=kwargs.get('max_tokens', self.llm_params.max_tokens),
-            )
-            usage = getattr(response, 'usage', None)
-            metadata = {'model': self.model_id, 'usage': {
-                'prompt_tokens': getattr(usage, 'input_tokens', None),
-                'completion_tokens': getattr(usage, 'output_tokens', None),
-                'total_tokens': getattr(usage, 'total_tokens', None),
-            } if usage else None}
-            return LLMResponse(content={"text": response.output_text or ""}, metadata=metadata)
-        except Exception as e:
-            self._handle_openai_error(e)
+        text_parts: List[str] = []
+        for chunk in self.generate_stream(messages, system_prompt, **kwargs):
+            if t := chunk.get('content', {}).get('text'):
+                text_parts.append(t)
+        return LLMResponse(content={"text": "".join(text_parts)}, metadata={'model': self.model_id})
 
     def generate_stream(self, messages: List[LLMMessage], system_prompt: Optional[str] = None, **kwargs) -> Iterator[Dict]:
         try:
-            for ev in self.client.responses.create(
-                model=self.model_id,
-                input=self._convert_messages(messages, system_prompt),  # type: ignore[arg-type]
-                max_output_tokens=kwargs.get('max_tokens', self.llm_params.max_tokens),
-                stream=True,
-            ):
-                if ev.type == 'response.output_text.delta' and ev.delta:
-                    yield {'content': {'text': ev.delta}}
-                elif ev.type == 'response.completed':
+            mt = kwargs.get('max_tokens', self.llm_params.max_tokens)
+            # Reasoning effort (Responses: low/medium/high/xhigh; clamp our 'max').
+            intent = self.llm_params.thinking or {}
+            reasoning_on = bool(intent.get("enabled", True)) if intent else False
+            # max_output_tokens counts reasoning tokens too; with reasoning + a multi-round
+            # tool loop a small cap gets eaten before the final answer, yielding empty output.
+            # 16k (the Strands chain's floor) still ran dry across tool rounds in testing; 32k
+            # was the smallest floor that reliably left budget for the final answer.
+            req: Dict = {
+                "model": self.model_id,
+                "input": self._convert_messages(messages, system_prompt),
+                "max_output_tokens": max(mt or 0, 32000) if reasoning_on else mt,
+                "stream": True,
+            }
+            if reasoning_on:
+                effort = intent.get("effort") or "high"
+                req["reasoning"] = {"effort": "xhigh" if effort == "max" else effort}
+            if self._tool_defs:
+                req["tools"] = self._tool_defs
+
+            for _ in range(_MAX_TOOL_ROUNDS):
+                calls: List[Dict] = []  # {name, call_id, arguments}
+                output_items = []       # full output of this round (incl. reasoning items)
+                for ev in self.client.responses.create(**req):  # type: ignore[arg-type]
+                    t = ev.type
+                    if t == 'response.output_text.delta' and ev.delta:
+                        yield {'content': {'text': ev.delta}}
+                    elif t in ('response.reasoning_text.delta', 'response.reasoning_summary_text.delta') and getattr(ev, 'delta', None):
+                        yield {'thinking': {'text': ev.delta}}
+                    elif t == 'response.output_item.added' and getattr(ev.item, 'type', None) == 'function_call':
+                        yield {'tool_use': {'toolUseId': ev.item.call_id, 'name': ev.item.name}}
+                    elif t == 'response.completed':
+                        output_items = [o.model_dump() for o in ev.response.output]
+                        calls = [o for o in output_items if o.get('type') == 'function_call']
+
+                if not calls:  # no tool use → done
                     yield {'metadata': {'stop_reason': 'stop'}}
+                    return
+
+                # Reasoning models need the prior output items (reasoning + function_call)
+                # passed back alongside the tool outputs — append the whole round, then results.
+                req["input"].extend(output_items)
+                for c in calls:
+                    args = json.loads(c['arguments']) if c['arguments'] else {}
+                    try:
+                        result = self._exec_tool(c['name'], args)
+                        output = json.dumps(result) if not isinstance(result, str) else result
+                    except Exception as e:
+                        output = json.dumps({"error": str(e)})
+                    req["input"].append({"type": "function_call_output", "call_id": c['call_id'], "output": output})
+
+            yield {'metadata': {'stop_reason': 'max_tool_rounds'}}
         except Exception as e:
             self._handle_openai_error(e)
 

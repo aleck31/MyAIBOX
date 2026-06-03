@@ -150,7 +150,7 @@ async def process_asking(
                     if not delta_text:
                         continue
                     if not thinking_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="assistant"))
+                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="reasoning"))
                         thinking_started = True
                     yield _enc.encode(ReasoningMessageContentEvent(message_id=thinking_id, delta=delta_text))
 
@@ -162,7 +162,7 @@ async def process_asking(
                     if tc_id and name and tc_id not in tool_seen:
                         tool_seen.add(tc_id)
                         if not thinking_started:
-                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="assistant"))
+                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="reasoning"))
                             thinking_started = True
                         yield _enc.encode(ReasoningMessageContentEvent(
                             message_id=thinking_id, delta=f"\n🔧 {name} …\n",
