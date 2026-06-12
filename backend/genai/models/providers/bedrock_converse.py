@@ -167,8 +167,8 @@ class BedrockConverse(LLMAPIProvider):
 
         # Check for thinking config early to avoid redundant operations
         thinking_config = kwargs.get('thinking', self.llm_params.thinking)
-        # Claude 3.7, 4, and 4.5 models support thinking
-        is_claude_thinking = thinking_config and any(x in self.model_id for x in ['claude-3-7', 'claude-4', 'claude-sonnet-4', 'claude-haiku-4', 'claude-opus-4'])
+        # Claude 3.7, 4, 4.5, and Fable reasoning models support thinking
+        is_claude_thinking = thinking_config and any(x in self.model_id for x in ['claude-3-7', 'claude-4', 'claude-sonnet-4', 'claude-haiku-4', 'claude-opus-4', 'claude-fable'])
         
         # Prepare additional model request fields if needed
         additional_fields = {}
@@ -186,10 +186,13 @@ class BedrockConverse(LLMAPIProvider):
                 if 'topP' in inference_config:
                     del inference_config['topP']
 
-                # Ensure maxTokens leaves room beyond the reasoning budget.
-                budget_tokens = thinking_fields.get('thinking', {}).get('budget_tokens', 4096)
-                if inference_config.get('maxTokens', 0) <= budget_tokens:
-                    inference_config['maxTokens'] = budget_tokens * 2
+                # Leave room for reasoning. Legacy `enabled` has budget_tokens; adaptive doesn't, so floor.
+                budget_tokens = thinking_fields.get('thinking', {}).get('budget_tokens')
+                if budget_tokens:
+                    if inference_config.get('maxTokens', 0) <= budget_tokens:
+                        inference_config['maxTokens'] = budget_tokens * 2
+                else:
+                    inference_config['maxTokens'] = max(inference_config.get('maxTokens', 0), 32000)
 
         # Handle top_k parameter - only if thinking is not enabled for Claude
         else:

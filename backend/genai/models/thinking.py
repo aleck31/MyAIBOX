@@ -21,7 +21,7 @@ from typing import Dict, Optional
 
 # Models where `adaptive` is the ONLY supported thinking mode — `enabled` 400s here.
 # Substring match, so minor suffixes (e.g. claude-opus-4-7-1) still hit.
-ADAPTIVE_ONLY = ('claude-opus-4-7', 'claude-opus-4-8')
+ADAPTIVE_ONLY = ('claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5')
 
 EFFORT_LEVELS = ('low', 'medium', 'high', 'xhigh', 'max')
 DEFAULT_EFFORT = 'high'
