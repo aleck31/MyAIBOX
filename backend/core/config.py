@@ -50,6 +50,12 @@ class ENVConfig:
         }
 
     @property
+    def mantle_base_url(self) -> str:
+        """Default Bedrock Mantle (OpenAI-compatible) endpoint, follows BEDROCK_REGION.
+        A model overrides this via its own base_url only when it lives in another region (e.g. GPT-5)."""
+        return f"https://bedrock-mantle.{self.bedrock_config['region_name']}.api.aws/openai/v1"
+
+    @property
     def sandbox_config(self) -> Dict[str, Union[str, int, List[str]]]:
         """Get EC2 Sandbox Env configuration"""
         # Get allowed runtimes as a list from space-separated string

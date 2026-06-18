@@ -33,13 +33,14 @@ class OpenAIResponsesProvider(LLMAPIProvider):
     def _initialize_client(self) -> None:
         try:
             model = model_manager.get_model_by_id(self.model_id)
-            if not model or not getattr(model, 'base_url', ''):
-                raise ValueError(f"Model {self.model_id} requires a base_url")
+            if not model:
+                raise ValueError(f"Model {self.model_id} not found")
+            base_url = getattr(model, 'base_url', '') or env_config.mantle_base_url
             secret_id = env_config.bedrock_config.get('secret_id')
             api_key = get_secret(secret_id).get('api_key') if secret_id else None
             if not api_key:
                 raise ValueError("Bedrock API key not configured (Secrets Manager)")
-            self.client = OpenAI(base_url=model.base_url, api_key=api_key)
+            self.client = OpenAI(base_url=base_url, api_key=api_key)
             self._tool_defs = self._build_tool_defs()
         except Exception as e:
             raise ValueError(f"Failed to initialize OpenAIResponses client: {str(e)}")
@@ -137,19 +138,31 @@ class OpenAIResponsesProvider(LLMAPIProvider):
             for _ in range(_MAX_TOOL_ROUNDS):
                 calls: List[Dict] = []  # {name, call_id, arguments}
                 output_items = []       # full output of this round (incl. reasoning items)
+                # A round that calls a tool may ALSO emit assistant text (a pre-answer before the tool result); streaming it then looping would duplicate the reply. 
+                # The function_call item.added precedes the text deltas, so once we've seen one we suppress this round's text — the real answer comes after tool results.
+                saw_tool = False
+                thinking_shown = False
                 for ev in self.client.responses.create(**req):  # type: ignore[arg-type]
                     t = ev.type
-                    if t == 'response.output_text.delta' and ev.delta:
+                    item_type = getattr(getattr(ev, 'item', None), 'type', None)
+                    if t == 'response.output_item.added' and item_type == 'function_call':
+                        saw_tool = True
+                        yield {'tool_use': {'toolUseId': ev.item.call_id, 'name': ev.item.name}}
+                    elif t == 'response.output_item.added' and item_type == 'reasoning' and not thinking_shown:
+                        # Grok/GPT-5 on Mantle don't stream readable reasoning text, only a
+                        # reasoning item marker. Surface a placeholder so the UI shows the model
+                        # is thinking, consistent with Claude's streamed reasoning.
+                        thinking_shown = True
+                        yield {'thinking': {'text': 'Thinking…'}}
+                    elif t == 'response.output_text.delta' and ev.delta and not saw_tool:
                         yield {'content': {'text': ev.delta}}
                     elif t in ('response.reasoning_text.delta', 'response.reasoning_summary_text.delta') and getattr(ev, 'delta', None):
                         yield {'thinking': {'text': ev.delta}}
-                    elif t == 'response.output_item.added' and getattr(ev.item, 'type', None) == 'function_call':
-                        yield {'tool_use': {'toolUseId': ev.item.call_id, 'name': ev.item.name}}
                     elif t == 'response.completed':
                         output_items = [o.model_dump() for o in ev.response.output]
                         calls = [o for o in output_items if o.get('type') == 'function_call']
 
-                if not calls:  # no tool use → done
+                if not calls:  # no tool use → final answer already streamed
                     yield {'metadata': {'stop_reason': 'stop'}}
                     return
 

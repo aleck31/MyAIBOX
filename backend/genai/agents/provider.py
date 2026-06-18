@@ -99,9 +99,10 @@ class AgentProvider:
             )
 
         elif api_provider == 'OPENAIRESPONSES':
-            # GPT-5 etc. via Bedrock Mantle — Responses API only; key from Secrets Manager.
-            if not model.base_url:
-                raise ValueError(f"Model {mid} (OpenAIResponses) requires a base_url")
+            # GPT-5/Grok etc. via Bedrock Mantle — Responses API only; key from Secrets Manager.
+            # base_url defaults to the BEDROCK_REGION Mantle endpoint; a model sets its own only
+            # when it lives elsewhere (e.g. GPT-5 in us-east-2).
+            base_url = model.base_url or env_config.mantle_base_url
             bedrock_secret_id = env_config.bedrock_config.get('secret_id')
             api_key = get_secret(bedrock_secret_id).get('api_key') if bedrock_secret_id else None
             if not api_key:
@@ -123,7 +124,7 @@ class AgentProvider:
             if not reasoning_on and self.parameters.get("temperature") is not None:
                 params["temperature"] = self.parameters["temperature"]
             return OpenAIResponsesModel(
-                client_args={"base_url": model.base_url, "api_key": api_key},
+                client_args={"base_url": base_url, "api_key": api_key},
                 model_id=mid,
                 params={k: v for k, v in params.items() if v is not None} or None,
             )
