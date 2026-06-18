@@ -208,47 +208,6 @@ class ModuleConfig:
     def init_module_config(self, module_name: str) -> Optional[Dict]:
         """Initialize default configuration for a module"""
         default_configs = {
-            'assistant': {
-                'setting_name': 'assistant',
-                'type': 'module',
-                'description': 'Assistant Module',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
-                'parameters': {
-                    'max_tokens': 4096,
-                    'temperature': Decimal('0.7'),
-                    'top_p': Decimal('0.9'),
-                    'top_k': 100
-                },
-                'enabled_tools': [
-                    'get_weather',         # Weather information
-                    'get_text_from_url',   # Get text content from webpage URL
-                    'generate_image',      # AI image generation
-                    'search_wikipedia',
-                    'search_internet'
-                ]
-            },
-            'persona': {
-                'setting_name': 'persona',
-                'type': 'module',
-                'description': 'Persona Module Settings',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
-                'parameters': {
-                    'temperature': Decimal('0.7'),
-                    'max_tokens': 1000,
-                    'top_p': Decimal('0.99'),
-                    'top_k': 128
-                }
-            },
-            'coding': {
-                'setting_name': 'coding',
-                'type': 'module',
-                'description': 'Coding Module',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
-                'parameters': {
-                    'temperature': Decimal('0.2'),
-                    'max_tokens': 2000
-                }
-            },
             'text': {
                 'setting_name': 'text',
                 'type': 'module',

@@ -20,5 +20,5 @@ class ServiceFactory:
         return DrawService(module_name=module_name)
 
     @classmethod
-    def create_agent_service(cls, module_name: str = 'assistant') -> AgentService:
+    def create_agent_service(cls, module_name: str) -> AgentService:
         return AgentService(module_name=module_name)
