@@ -1202,7 +1202,7 @@ wheels = [
 
 [[package]]
 name = "my-aibox"
-version = "3.8.9"
+version = "3.8.10"
 source = { editable = "." }
 dependencies = [
     { name = "ag-ui-protocol" },

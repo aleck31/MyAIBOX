@@ -37,7 +37,8 @@ router = APIRouter(prefix="/asking", tags=["asking"])
 
 
 _SAMPLE_RATE = 16000  # AWS Transcribe requires PCM 16 kHz mono
-_LANGUAGE_OPTIONS = ["zh-CN", "en-US"]  # auto-detected via identify_multiple_languages
+# Comma-separated, NOT a list — aws-sdk-signers 0.3 can't sign a list-valued header
+_LANGUAGE_OPTIONS = "zh-CN,en-US"  # auto-detected via identify_multiple_languages
 # Pin near the server, not AWS_REGION (= us-west-2 for Bedrock), to cut latency.
 _REGION = os.getenv('TRANSCRIBE_REGION', 'ap-southeast-1')
 

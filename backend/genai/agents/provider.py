@@ -283,10 +283,30 @@ class AgentProvider:
 
             agent = self._ensure_agent(history_messages)
 
+            # Grok (OpenAIResponses) can stream a pre-answer in a round that ends in tool_use;
+            # the SDK yields that text unconditionally, so it re-answers after the tool → duplicate. 
+            # Only for that provider, buffer text per round and flush it on a non-tool stop. Other providers stream text directly (preserves token-by-token).
+            model = model_manager.get_model_by_id(self.model_id)
+            buffer_text = bool(model and model.api_provider.upper() == 'OPENAIRESPONSES')
+
             tool_state = {}
+            text_buf: List[str] = []
             async for event in agent.stream_async(prompt):
-                if chunk := self._convert_event(event, tool_state):
+                chunk = self._convert_event(event, tool_state)
+                if buffer_text:
+                    if chunk and set(chunk) <= {'text'}:
+                        text_buf.append(chunk['text'])  # hold until the stop reason is known
+                        continue
+                    stop_reason = event.get('event', {}).get('messageStop', {}).get('stopReason') if isinstance(event, dict) else None
+                    if stop_reason is not None:
+                        if stop_reason != 'tool_use':  # tool_use round's text is a pre-answer → drop
+                            for t in text_buf:
+                                yield {'text': t}
+                        text_buf.clear()
+                if chunk:
                     yield chunk
+            for t in text_buf:  # safety: flush anything left
+                yield {'text': t}
 
         except Exception as e:
             logger.error(f"Generation error: {e}", exc_info=True)
