@@ -697,7 +697,7 @@ async def _stream_agent(
                                 yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
                                 thinking_started = True
                             yield _enc.encode(ReasoningMessageContentEvent(
-                                message_id=thinking_id, delta=f"\n🔧 {tool_name} …\n",
+                                message_id=thinking_id, delta=f"\n🔧 Calling {tool_name}…\n",
                             ))
                         continue
 
@@ -705,7 +705,7 @@ async def _stream_agent(
                         yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
                         thinking_started = True
                     ok = tool_status in ("completed", "success")
-                    mark = "✅" if ok else "⚠️"
+                    mark = "✅ Done" if ok else "⚠️ Failed"
                     yield _enc.encode(ReasoningMessageContentEvent(
                         message_id=thinking_id, delta=f"\n🔧 {tool_name} {mark}\n",
                     ))

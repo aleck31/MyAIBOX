@@ -41,6 +41,7 @@ class BedrockConverse(LLMAPIProvider):
 
         # Check if model supports tool use before initializing tools
         model = model_manager.get_model_by_id(model_id)
+        self._model = model
         supports_tool_use = model and model.capabilities and model.capabilities.tool_use
 
         # Initialize tools if provided and model supports tool use
@@ -167,8 +168,13 @@ class BedrockConverse(LLMAPIProvider):
 
         # Check for thinking config early to avoid redundant operations
         thinking_config = kwargs.get('thinking', self.llm_params.thinking)
-        # Claude 3.7, 4, 4.5, and Fable reasoning models support thinking
-        is_claude_thinking = thinking_config and any(x in self.model_id for x in ['claude-3-7', 'claude-4', 'claude-sonnet-4', 'claude-haiku-4', 'claude-opus-4', 'claude-fable'])
+        # Only Anthropic reasoning models take Bedrock's Claude `thinking` request fields;
+        # other reasoning models (DeepSeek, Qwen, Nova…) reason internally, no extra params.
+        # Reads the registry (vendor + reasoning) so new Claude models need no code change.
+        m = self._model
+        is_claude_thinking = bool(
+            thinking_config and m and m.vendor == 'Anthropic' and m.capabilities and m.capabilities.reasoning
+        )
         
         # Prepare additional model request fields if needed
         additional_fields = {}

@@ -165,7 +165,7 @@ async def process_asking(
                             yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="reasoning"))
                             thinking_started = True
                         yield _enc.encode(ReasoningMessageContentEvent(
-                            message_id=thinking_id, delta=f"\n🔧 {name} …\n",
+                            message_id=thinking_id, delta=f"\n🔧 Calling {name}…\n",
                         ))
 
                 if c := chunk.get('content'):

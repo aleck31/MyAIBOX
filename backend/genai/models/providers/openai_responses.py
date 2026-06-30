@@ -134,27 +134,29 @@ class OpenAIResponsesProvider(LLMAPIProvider):
                 req["reasoning"] = {"effort": "xhigh" if effort == "max" else effort}
             if self._tool_defs:
                 req["tools"] = self._tool_defs
+                # Grok emits a pre-answer message alongside the function_call in a tool round, which streams out then gets re-answered → duplicate. 
+                # parallel_tool_calls=False stops it at the source.
+                if 'grok' in self.model_id.lower():
+                    req["parallel_tool_calls"] = False
 
-            for _ in range(_MAX_TOOL_ROUNDS):
+            for _round in range(_MAX_TOOL_ROUNDS):
                 calls: List[Dict] = []  # {name, call_id, arguments}
                 output_items = []       # full output of this round (incl. reasoning items)
-                # A round that calls a tool may ALSO emit assistant text (a pre-answer before the tool result); streaming it then looping would duplicate the reply. 
-                # The function_call item.added precedes the text deltas, so once we've seen one we suppress this round's text — the real answer comes after tool results.
-                saw_tool = False
                 thinking_shown = False
                 for ev in self.client.responses.create(**req):  # type: ignore[arg-type]
                     t = ev.type
                     item_type = getattr(getattr(ev, 'item', None), 'type', None)
                     if t == 'response.output_item.added' and item_type == 'function_call':
-                        saw_tool = True
-                        yield {'tool_use': {'toolUseId': ev.item.call_id, 'name': ev.item.name}}
+                        # Grok reuses call_id (call_1) every round; prefix with the round so
+                        # the UI-facing id is unique (else the frontend merges all rounds' args).
+                        yield {'tool_use': {'toolUseId': f"r{_round}_{ev.item.call_id}", 'name': ev.item.name}}
                     elif t == 'response.output_item.added' and item_type == 'reasoning' and not thinking_shown:
                         # Grok/GPT-5 on Mantle don't stream readable reasoning text, only a
                         # reasoning item marker. Surface a placeholder so the UI shows the model
                         # is thinking, consistent with Claude's streamed reasoning.
                         thinking_shown = True
                         yield {'thinking': {'text': 'Thinking…'}}
-                    elif t == 'response.output_text.delta' and ev.delta and not saw_tool:
+                    elif t == 'response.output_text.delta' and ev.delta:
                         yield {'content': {'text': ev.delta}}
                     elif t in ('response.reasoning_text.delta', 'response.reasoning_summary_text.delta') and getattr(ev, 'delta', None):
                         yield {'thinking': {'text': ev.delta}}

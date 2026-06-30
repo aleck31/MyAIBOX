@@ -123,6 +123,10 @@ class AgentProvider:
             params["max_output_tokens"] = max(mt or 0, 32000) if reasoning_on else mt
             if not reasoning_on and self.parameters.get("temperature") is not None:
                 params["temperature"] = self.parameters["temperature"]
+            # Grok emits a pre-answer alongside the function_call in a tool round → duplicate reply.
+            # parallel_tool_calls=False stops it at the source. Grok only.
+            if 'grok' in mid.lower():
+                params["parallel_tool_calls"] = False
             return OpenAIResponsesModel(
                 client_args={"base_url": base_url, "api_key": api_key},
                 model_id=mid,
@@ -283,30 +287,12 @@ class AgentProvider:
 
             agent = self._ensure_agent(history_messages)
 
-            # Grok (OpenAIResponses) can stream a pre-answer in a round that ends in tool_use;
-            # the SDK yields that text unconditionally, so it re-answers after the tool → duplicate. 
-            # Only for that provider, buffer text per round and flush it on a non-tool stop. Other providers stream text directly (preserves token-by-token).
-            model = model_manager.get_model_by_id(self.model_id)
-            buffer_text = bool(model and model.api_provider.upper() == 'OPENAIRESPONSES')
-
+            # Grok's pre-answer-in-tool-round duplicate is stopped at the source via
+            # parallel_tool_calls=False (see _get_strands_model), so stream text directly.
             tool_state = {}
-            text_buf: List[str] = []
             async for event in agent.stream_async(prompt):
-                chunk = self._convert_event(event, tool_state)
-                if buffer_text:
-                    if chunk and set(chunk) <= {'text'}:
-                        text_buf.append(chunk['text'])  # hold until the stop reason is known
-                        continue
-                    stop_reason = event.get('event', {}).get('messageStop', {}).get('stopReason') if isinstance(event, dict) else None
-                    if stop_reason is not None:
-                        if stop_reason != 'tool_use':  # tool_use round's text is a pre-answer → drop
-                            for t in text_buf:
-                                yield {'text': t}
-                        text_buf.clear()
-                if chunk:
+                if chunk := self._convert_event(event, tool_state):
                     yield chunk
-            for t in text_buf:  # safety: flush anything left
-                yield {'text': t}
 
         except Exception as e:
             logger.error(f"Generation error: {e}", exc_info=True)
@@ -325,7 +311,7 @@ class AgentProvider:
         if 'current_tool_use' in event:
             tool_use = event['current_tool_use']
             if tool_use.get('name'):
-                tool_use_id = tool_use.get('toolUseId', 'unknown')
+                raw_id = tool_use.get('toolUseId', 'unknown')
                 params = tool_use.get('input', {})
                 if isinstance(params, str):
                     try:
@@ -334,8 +320,17 @@ class AgentProvider:
                     except Exception:
                         params = {'input': params}
 
-                tool_state[tool_use_id] = {'name': tool_use['name'], 'params': params}
-                return create_tool_chunk(tool_use['name'], params, 'running', tool_use_id=tool_use_id)
+                # Grok reuses toolUseId (call_1) across rounds; map each raw id to a unique
+                # UI id, minting a new one only when the previous use of that raw id finished
+                # (its `running` state was popped on toolResult). Same-round arg updates reuse it.
+                alias = tool_state.setdefault('_alias', {})
+                if raw_id not in alias:
+                    seq = tool_state.get('_seq', 0)
+                    tool_state['_seq'] = seq + 1
+                    alias[raw_id] = f"{raw_id}#{seq}" if seq else raw_id
+                uid = alias[raw_id]
+                tool_state[uid] = {'name': tool_use['name'], 'params': params}
+                return create_tool_chunk(tool_use['name'], params, 'running', tool_use_id=uid)
 
         if 'message' in event:
             msg = event['message']
@@ -343,7 +338,9 @@ class AgentProvider:
                 for content in msg['content']:
                     if 'toolResult' in content:
                         result_data = content['toolResult']
-                        tool_use_id = result_data.get('toolUseId', 'unknown')
+                        raw_id = result_data.get('toolUseId', 'unknown')
+                        alias = tool_state.setdefault('_alias', {})
+                        tool_use_id = alias.pop(raw_id, raw_id)  # resolve to the unique UI id; free the raw id for the next round
                         state = tool_state.get(tool_use_id, {})
                         tool_name = state.get('name', 'unknown')
                         tool_params = state.get('params', {})
