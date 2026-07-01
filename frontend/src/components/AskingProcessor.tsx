@@ -9,7 +9,7 @@ import { IconTrash, IconEraser, IconClipboard, IconMic, IconPaperclip, IconClose
 import { useTranscribe } from '../hooks/useTranscribe'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
-import { resolveDefaultModel } from '../utils/model'
+import { ensureValidModel } from '../utils/model'
 import type { AskingConfig } from '../types/asking'
 
 const STORAGE_KEY = 'asking-processor-state'
@@ -64,10 +64,8 @@ export default function AskingProcessor() {
   useEffect(() => {
     getAskingConfig().then((cfg) => {
       setConfig(cfg)
-      // First visit (no stored choice) → module default, not models[0].
-      if (!modelId && cfg.models.length) {
-        setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
-      }
+      // Drop a stale stored model (disabled/removed) so we never submit a dead id.
+      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
     })
   }, [])
 

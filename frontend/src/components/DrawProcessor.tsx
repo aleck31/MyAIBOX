@@ -7,7 +7,7 @@ import ResizablePreview from './ResizablePreview'
 import FilePreviewPanel from './FilePreviewPanel'
 import { IconTrash, IconWand, IconEdit } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
-import { resolveDefaultModel } from '../utils/model'
+import { ensureValidModel } from '../utils/model'
 import type { DrawConfig } from '../types/draw'
 
 const STORAGE_KEY = 'draw-processor-state'
@@ -55,7 +55,7 @@ export default function DrawProcessor() {
   useEffect(() => {
     getDrawConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
+      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
     })
   }, [])
 

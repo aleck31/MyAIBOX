@@ -5,7 +5,7 @@ import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import { IconTrash } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
-import { resolveDefaultModel } from '../utils/model'
+import { ensureValidModel } from '../utils/model'
 import type { SummaryConfig } from '../types/summary'
 
 const STORAGE_KEY = 'summary-processor-state'
@@ -38,7 +38,7 @@ export default function SummaryProcessor() {
   useEffect(() => {
     getSummaryConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
+      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
     })
   }, [])
 

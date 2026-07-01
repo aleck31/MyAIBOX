@@ -6,7 +6,7 @@ import ModelSelector from './ModelSelector'
 import FilePreviewPanel from './FilePreviewPanel'
 import { IconTrash } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
-import { resolveDefaultModel } from '../utils/model'
+import { ensureValidModel } from '../utils/model'
 import type { VisionConfig } from '../types/vision'
 
 const STORAGE_KEY = 'vision-processor-state'
@@ -40,7 +40,7 @@ export default function VisionProcessor() {
   useEffect(() => {
     getVisionConfig().then((cfg) => {
       setConfig(cfg)
-      if (!modelId && cfg.models.length) setModelId(resolveDefaultModel(cfg.models, cfg.default_model))
+      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
     })
   }, [])
 

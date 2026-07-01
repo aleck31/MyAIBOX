@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTalk } from '../hooks/useTalk'
 import { useStoredState } from '../hooks/useStoredState'
-import { resolveDefaultModel } from '../utils/model'
+import { ensureValidModel } from '../utils/model'
 import ModelSelector, { type ModelOption } from './ModelSelector'
 import { getTalkConfig, clearTalkSession } from '../api/client'
 import { IconMic, IconClose, IconTrash } from './icons'
@@ -30,7 +30,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
   const [levels, setLevels] = useState<Level[]>([])
   // Top-bar model + voice are per-agent UI preferences (ARD 001): persist in
   // localStorage, defaulting to the agent's (override-merged) value. Priority:
-  // user pick → agent override → module default → first eligible (resolveDefaultModel).
+  // user pick → agent override → module default → first eligible (ensureValidModel).
   const [modelId, setModelId] = useStoredState(`talk-model:${agent.id}`, agent.default_model ?? '')
   const [voice, setVoice] = useStoredState(`talk-voice:${agent.id}`, agent.voice_id)
   // Level (learner group) — per-agent preference; only selectable on a fresh call.
@@ -43,8 +43,8 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
       setModels(opts)
       setVoices(cfg.voices)
       setLevels(cfg.levels || [])
-      // Only fill when the user hasn't picked and the agent had no override default.
-      setModelId(prev => prev || resolveDefaultModel(opts, agent.default_model ?? cfg.default_model))
+      // Keep the user's pick if still valid; otherwise fall back (agent override → module default).
+      setModelId(prev => ensureValidModel(prev, opts, agent.default_model ?? cfg.default_model))
     }).catch(() => { /* best-effort */ })
   }, [agent.default_model])
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   chatStreamUrl,
   clearChatHistory,
@@ -22,6 +22,7 @@ import {
   IconFolder,
 } from './icons'
 import ModelSelector, { type ModelOption } from './ModelSelector'
+import { ensureValidModel } from '../utils/model'
 import ChatWindow, { type ChatWindowHandle } from './ChatWindow'
 import WorkspacePanel, { type WorkspacePanelHandle } from './workspace/WorkspacePanel'
 
@@ -56,6 +57,18 @@ export default function ChatContainer({ agent, session, models }: Props) {
     setModelId(newModelId)
     try { await updateChatModel(agent.id, newModelId) } catch (err) { console.error(err) }
   }, [agent.id])
+
+  // models arrives async from the parent; once loaded, drop a stale selection
+  // (disabled/removed model) and persist the correction so the backend session
+  // stops pointing at a dead id. Guard on length so an empty list doesn't blank it.
+  useEffect(() => {
+    if (!models.length) return
+    const valid = ensureValidModel(modelId, models, agent.default_model)
+    if (valid !== modelId) {
+      setModelId(valid)
+      updateChatModel(agent.id, valid).catch(err => console.error(err))
+    }
+  }, [models])
 
   const handleCloudSyncToggle = useCallback(async () => {
     const next = !cloudSync

@@ -15,3 +15,19 @@ export function resolveDefaultModel(
   if (defaultModel && models.some(m => m.model_id === defaultModel)) return defaultModel
   return models[0].model_id
 }
+
+/**
+ * Keep `current` if it's still a valid choice, otherwise fall back to the default.
+ *
+ * A stored/session model can go stale when it's disabled or removed from the registry; submitting the dead id then fails with "model not found". 
+ * Call this after loading the model list so a module never holds an invalid selection.
+ * Returns '' only when the list is empty.
+ */
+export function ensureValidModel(
+  current: string | null | undefined,
+  models: ModelOption[],
+  defaultModel?: string | null,
+): string {
+  if (current && models.some(m => m.model_id === current)) return current
+  return resolveDefaultModel(models, defaultModel ?? undefined)
+}
