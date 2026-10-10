@@ -16,7 +16,16 @@ from fastapi.testclient import TestClient  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
 
 from backend.api import auth  # noqa: E402
+from backend.core import config as config_module  # noqa: E402
 from backend.core.config import app_config  # noqa: E402
+
+
+# ── .env location ───────────────────────────────────────────────────────────
+
+def test_dotenv_is_loaded_from_the_project_root():
+    root = config_module.env_path.parent
+    assert (root / "pyproject.toml").is_file(), f"{config_module.env_path} is not at the project root"
+    assert config_module.env_path.name == ".env"
 
 
 # ── CORS ────────────────────────────────────────────────────────────────────

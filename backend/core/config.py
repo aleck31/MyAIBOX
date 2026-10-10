@@ -7,7 +7,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-env_path = Path(__file__).parent.parent / '.env'
+# Project root (backend/core/config.py -> ../..). Systemd also injects this file via EnvironmentFile,
+# which hid the wrong path for `python app.py` / `my-aibox run` / pytest runs outside the service.
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+env_path = PROJECT_ROOT / '.env'
 load_dotenv(dotenv_path=env_path, override=True)
 
 
