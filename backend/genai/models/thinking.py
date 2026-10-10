@@ -62,6 +62,16 @@ def uses_adaptive_thinking(model_id: str) -> bool:
     return any(x in model_id for x in ADAPTIVE_ONLY)
 
 
+# Models that answer HTTP 400 "doesn't support the stopSequences field" on Converse. Found by probing the
+# registry's chat models with a user-style config (stop_sequences=['end_turn']).
+NO_STOP_SEQUENCES = ('deepseek', 'gpt-oss', 'xai.grok-4.7', 'moonshotai.kimi-k3', 'qwen')
+
+
+def rejects_stop_sequences(model_id: str) -> bool:
+    """True if the model 400s on stop sequences, so callers must not send them."""
+    return any(x in model_id for x in NO_STOP_SEQUENCES)
+
+
 def rejects_sampling_params(model_id: str) -> bool:
     """True if the model 400s on temperature/top_p/top_k, so callers must not send them."""
     return any(x in model_id for x in NO_SAMPLING_PARAMS)

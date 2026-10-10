@@ -127,3 +127,28 @@ def test_default_models_are_unique_and_routable():
             assert m.base_url.startswith("https://bedrock-mantle."), m.model_id
         if m.api_provider == "Bedrock" and m.vendor in {"Anthropic", "xAI", "Z.AI", "Moonshot AI"}:
             assert m.model_id.startswith("global."), f"{m.model_id} needs a cross-Region inference profile"
+
+
+# ── Chat: stop sequences and mid-conversation model switches ──────────────────
+
+@pytest.mark.parametrize("model_id,vendor,sent", [
+    ("deepseek.v3.2", "DeepSeek", False), ("qwen.qwen3-vl-235b-a22b", "Qwen", False),
+    ("global.anthropic.claude-sonnet-4-6", "Anthropic", True),
+])
+def test_agent_sends_stop_sequences_only_to_models_that_accept_them(registry, model_id, vendor, sent):
+    cfg = _agent_config(registry(model_id, vendor=vendor), thinking=THINK_OFF, stop_sequences=["end_turn"])
+    assert ("stop_sequences" in cfg) == sent
+
+
+def test_switching_model_drops_reasoning_blocks_from_history(registry):
+    """Claude's signed reasoning in the history made most other models answer HTTP 400 after a switch."""
+    provider = AgentProvider(model_id=registry("global.anthropic.claude-haiku-5-5"))
+    provider._agent = provider._ensure_agent()
+    provider._agent.messages[:] = [
+        {"role": "user", "content": [{"text": "12*13?"}]},
+        {"role": "assistant", "content": [{"reasoningContent": {"reasoningText": {"text": "…", "signature": "sig"}}},
+                                          {"text": "156"}]},
+    ]
+    provider.update_model(registry("qwen.qwen3-vl-235b-a22b", vendor="Qwen"))
+    assert provider.messages[1]["content"] == [{"text": "156"}]
+    assert provider.messages[0]["content"] == [{"text": "12*13?"}]

@@ -13,7 +13,9 @@ from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.utils.aws import get_aws_session, get_secret
 from backend.genai.models.model_manager import model_manager
 from backend.genai.agents.limits import CycleLimit, max_cycles_from_env
-from backend.genai.models.thinking import build_thinking_fields, rejects_sampling_params, top_k_fields, DEFAULT_INTENT
+from backend.genai.models.thinking import (
+    build_thinking_fields, rejects_sampling_params, rejects_stop_sequences, top_k_fields, DEFAULT_INTENT,
+)
 from backend.genai.tools.provider import tool_provider
 from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
 
@@ -86,6 +88,8 @@ class AgentProvider:
             else:
                 allowed = ("max_tokens", "temperature", "top_p", "stop_sequences")
                 additional_fields.update(top_k_fields(mid, self.parameters.get("top_k")))
+            if rejects_stop_sequences(mid):
+                allowed = tuple(k for k in allowed if k != "stop_sequences")
             for k in allowed:
                 if self.parameters.get(k) is not None:
                     kwargs[k] = self.parameters[k]
@@ -235,7 +239,18 @@ class AgentProvider:
             return
         self.model_id = model_id
         self._agent.model = self._get_strands_model(model_id)
+        self._drop_reasoning_from_history()
         logger.info(f"[AgentProvider] Model switched to {model_id}")
+
+    def _drop_reasoning_from_history(self) -> None:
+        """Remove reasoning blocks from the conversation so far.
+
+        They carry a signature that only the model which produced them accepts; most other models answer
+        HTTP 400 ("doesn't support reasoningContent...signature", "Invalid thought signature") when the
+        user switches model mid-conversation. Reasoning is not needed as context for later turns.
+        """
+        for message in self._agent.messages:
+            message["content"] = [b for b in message["content"] if "reasoningContent" not in b]
 
     def reload_tools(self):
         """Reload tools and MCP connections."""

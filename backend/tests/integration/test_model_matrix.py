@@ -105,7 +105,8 @@ async def _agent_chain_async(model: LLMModel, think: bool) -> Result:
     # A random code the model cannot guess proves the tool call happened AND its result reached the answer
     # (asking for something it already knows, like the year, passes without any tool use).
     code = secrets.token_hex(3)
-    params = {"max_tokens": 4096, "temperature": 0.7, "top_p": 0.9, "top_k": 100,
+    # stop_sequences mirrors the stock Assistant agent config; several models reject it
+    params = {"max_tokens": 4096, "temperature": 0.7, "top_p": 0.9, "top_k": 100, "stop_sequences": ["end_turn"],
               "thinking": THINKING_ON if think else {"enabled": False}}
     agent = AgentProvider(model_id=model.model_id, system_prompt="Use the provided tools. Be concise.", parameters=params)
     agent._load_tools = lambda: [_access_code_tool(code)]  # skip registry-based tool loading; this tests the model

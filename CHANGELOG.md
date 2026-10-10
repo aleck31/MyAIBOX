@@ -3,7 +3,7 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
-## [3.9.0] - 2026-10-10 ... [3.9.3] - 2026-10-10
+## [3.9.0] - 2026-10-10 ... [3.9.4] - 2026-10-10
 
 ### Added
 - **Latest-generation models** (3.9.1): Claude Opus/Sonnet/Haiku 5.5 + Fable 5.1, GPT-6 Astra/6.1 Sol/Luna, Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL 235B, Nova 2.5 Sonic, Gemini 3.8 Flash.
@@ -22,6 +22,7 @@ frontend and lockfiles). The README only highlights the latest release.
 - 3.9.2 `current_time` is a local tool; the Strands one is deprecated and logged a warning on every call.
 - 3.9.2 A retired model id (e.g. from a page opened before a model upgrade) now reports which model is unavailable and to refresh, instead of a generic error.
 - 3.9.3 Chat composer: Send and Stop share one icon button and a reply with THINKING/tool bars keeps one width; the UI now meets the lab visual baseline (sidebar, chevron and Talk-button text >= 4.5:1 contrast, every control >= 42px on touch).
+- 3.9.4 Chat: models that reject stop sequences (DeepSeek, GPT-OSS, Grok 4.7, Kimi K3, Qwen3-VL) no longer fail on the stock agent config; switching model mid-conversation no longer fails on Claude's signed reasoning kept in the history (8 of 16 models did).
 
 ### Upgrade notes
 `uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers; apply the model changes in Settings -> Models (the registry is in DynamoDB); on EKS add `transcribe:StartStreamTranscription` and `bedrock:InvokeModelWithBidirectionalStream` to the pod role.

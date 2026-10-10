@@ -9,7 +9,9 @@ from backend.utils.file import FileProcessor
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from backend.genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
-from backend.genai.models.thinking import build_thinking_fields, normalize_intent, rejects_sampling_params
+from backend.genai.models.thinking import (
+    build_thinking_fields, normalize_intent, rejects_sampling_params, rejects_stop_sequences,
+)
 from . import LLMAPIProvider, LLMProviderError
 from .. import logger
 
@@ -166,7 +168,7 @@ class BedrockConverse(LLMAPIProvider):
             if top_p := kwargs.get('top_p', self.llm_params.top_p):
                 inference_config["topP"] = top_p
         
-        if stop_sequences := kwargs.get('stop_sequences', self.llm_params.stop_sequences):
+        if (stop_sequences := kwargs.get('stop_sequences', self.llm_params.stop_sequences)) and not rejects_stop_sequences(self.model_id):
             inference_config["stopSequences"] = stop_sequences
 
         # Check for thinking config early to avoid redundant operations
