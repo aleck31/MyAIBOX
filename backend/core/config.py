@@ -144,6 +144,15 @@ class AppConfig:
         }
 
     @property
+    def admin_subs(self) -> frozenset:
+        """Cognito `sub`s allowed to change server-wide executable settings (e.g. stdio MCP).
+
+        Empty means no admin is configured; callers must then fail closed for
+        dangerous operations.
+        """
+        return frozenset(s.strip() for s in os.getenv('ADMIN_SUBS', '').split(',') if s.strip())
+
+    @property
     def security_config(self) -> Dict[str, Any]:
         """Get security configuration"""
         secret_key = os.getenv('SECRET_KEY')

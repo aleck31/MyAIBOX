@@ -3,13 +3,15 @@
 import json
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from backend.core.session.store import SessionStore
 from backend.core.module_config import module_config
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
-from backend.api.auth import get_auth_user
+from backend.api.auth import get_auth_user, is_admin
 from backend.common.logger import setup_logger
+from backend.core.config import app_config
 
 logger = setup_logger('api.settings')
 
@@ -271,6 +273,27 @@ async def list_mcp_servers(username: str = Depends(get_auth_user)):
     return result
 
 
+def _mcp_write_denied(sub: str, server_type: str = "") -> Optional[JSONResponse]:
+    """Gate MCP config writes; returns a 403 response when denied, else None.
+
+    stdio servers spawn processes on the host, so:
+    - ADMIN_SUBS set   -> every MCP write requires an admin.
+    - ADMIN_SUBS unset -> fail closed for stdio (http/sse stay open to any logged-in user).
+
+    The body keeps the `{ok, error}` shape the frontend already renders.
+    """
+    if app_config.admin_subs:
+        error = None if is_admin(sub) else "Admin only"
+    elif server_type == "stdio":
+        error = "Adding stdio MCP servers requires ADMIN_SUBS to be configured"
+    else:
+        error = None
+    if error:
+        logger.warning(f"[settings] MCP write denied for sub [{sub}]: {error}")
+        return JSONResponse({"ok": False, "error": error}, status_code=403)
+    return None
+
+
 class McpServerRequest(BaseModel):
     name: str
     type: str = "http"
@@ -280,6 +303,8 @@ class McpServerRequest(BaseModel):
 
 @router.post("/mcp-servers/add")
 async def add_mcp_server(body: McpServerRequest, username: str = Depends(get_auth_user)):
+    if denied := _mcp_write_denied(username, body.type):
+        return denied
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
         config: dict = {"type": body.type, "disabled": False}
@@ -296,6 +321,8 @@ async def add_mcp_server(body: McpServerRequest, username: str = Depends(get_aut
 
 @router.delete("/mcp-servers/{server_name}")
 async def delete_mcp_server(server_name: str, username: str = Depends(get_auth_user)):
+    if denied := _mcp_write_denied(username):
+        return denied
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
         mcp_server_manager.delete_mcp_server(server_name)
@@ -311,6 +338,8 @@ class McpToggleRequest(BaseModel):
 
 @router.post("/mcp-servers/toggle")
 async def toggle_mcp_server(body: McpToggleRequest, username: str = Depends(get_auth_user)):
+    if denied := _mcp_write_denied(username):
+        return denied
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
         cfg = mcp_server_manager.get_mcp_server(body.name)

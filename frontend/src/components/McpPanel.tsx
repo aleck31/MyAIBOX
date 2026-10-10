@@ -24,18 +24,22 @@ export default function McpPanel() {
 
   const handleAdd = async () => {
     if (!form.name.trim()) return
-    await addMcpServer(form)
+    const res = await addMcpServer(form)
+    if (res?.ok === false) { window.alert(res.error || 'Failed to add MCP server'); return }
     setForm({ name: '', type: 'http', url: '', args: '' })
     setShowAdd(false); load()
   }
 
   const handleDelete = async (name: string) => {
     if (!(await confirm({ title: 'Delete MCP server', message: `Delete MCP server "${name}"?`, confirmLabel: 'Delete', danger: true }))) return
-    await deleteMcpServer(name); load()
+    const res = await deleteMcpServer(name)
+    if (res?.ok === false) window.alert(res.error || 'Failed to delete MCP server')
+    load()
   }
 
   const handleToggle = async (name: string, currentStatus: string) => {
-    await toggleMcpServer(name, currentStatus === 'Enabled')
+    const res = await toggleMcpServer(name, currentStatus === 'Enabled')
+    if (res?.ok === false) window.alert(res.error || 'Failed to update MCP server')
     load()
   }
 

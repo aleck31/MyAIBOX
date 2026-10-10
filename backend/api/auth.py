@@ -4,7 +4,7 @@ import json
 from fastapi import APIRouter, Request, Depends, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-from backend.core.config import env_config
+from backend.core.config import app_config, env_config
 from backend.common.auth import cognito_auth
 from backend.common.logger import setup_logger
 from backend.common.sso import introspect as sso_introspect, build_logout_url, SSOError
@@ -92,6 +92,11 @@ async def get_auth_user(request: Request) -> str:
         'email': cached.get('attributes', {}).get('email', ''),
     }
     return sub
+
+
+def is_admin(sub: str) -> bool:
+    """True when `sub` is listed in ADMIN_SUBS."""
+    return sub in app_config.admin_subs
 
 
 # --- router ---
