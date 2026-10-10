@@ -11,7 +11,7 @@ from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.utils.aws import get_aws_session, get_secret
 from backend.genai.models.model_manager import model_manager
-from backend.genai.models.thinking import build_thinking_fields, DEFAULT_INTENT
+from backend.genai.models.thinking import build_thinking_fields, rejects_sampling_params, DEFAULT_INTENT
 from backend.genai.tools.provider import tool_provider
 from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
 
@@ -72,8 +72,11 @@ class AgentProvider:
                 thinking_fields = build_thinking_fields(mid, intent, self.parameters.get("max_tokens"))
 
             # Thinking forces temperature=1, no top_p/top_k — only when actually enabled.
+            # Some models take no sampling params at all, thinking on or off.
             if thinking_fields:
                 additional_fields.update(thinking_fields)
+                allowed = ("max_tokens", "stop_sequences")
+            elif rejects_sampling_params(mid):
                 allowed = ("max_tokens", "stop_sequences")
             else:
                 allowed = ("max_tokens", "temperature", "top_p", "stop_sequences")
@@ -121,7 +124,8 @@ class AgentProvider:
             # dry across tool rounds in testing; 32k matches the self-built provider's floor.
             mt = self.parameters.get("max_tokens")
             params["max_output_tokens"] = max(mt or 0, 32000) if reasoning_on else mt
-            if not reasoning_on and self.parameters.get("temperature") is not None:
+            if (not reasoning_on and not rejects_sampling_params(mid)
+                    and self.parameters.get("temperature") is not None):
                 params["temperature"] = self.parameters["temperature"]
             # Grok emits a pre-answer alongside the function_call in a tool round → duplicate reply.
             # parallel_tool_calls=False stops it at the source. Grok only.
@@ -141,11 +145,15 @@ class AgentProvider:
                 if not api_key:
                     raise ValueError("Gemini API key not configured")
                 self._gemini_client = google_genai.Client(api_key=api_key)
-            return GeminiModel(
-                client=self._gemini_client,
-                model_id=mid,
-                params={"max_tokens": 8192, "temperature": 0.7},
-            )
+            # `params` is passed to google-genai's GenerateContentConfig, which rejects unknown
+            # fields: the output cap is `max_output_tokens`, not `max_tokens`.
+            gen_params = {
+                "max_output_tokens": self.parameters.get("max_tokens") or 8192,
+                "temperature": self.parameters.get("temperature") if self.parameters.get("temperature") is not None else 0.7,
+            }
+            if self.parameters.get("top_p") is not None:
+                gen_params["top_p"] = self.parameters["top_p"]
+            return GeminiModel(client=self._gemini_client, model_id=mid, params=gen_params)
 
         raise ValueError(f"Unsupported provider: {model.api_provider}")
 

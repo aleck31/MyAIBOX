@@ -21,7 +21,23 @@ from typing import Dict, Optional
 
 # Models where `adaptive` is the ONLY supported thinking mode — `enabled` 400s here.
 # Substring match, so minor suffixes (e.g. claude-opus-4-7-1) still hit.
-ADAPTIVE_ONLY = ('claude-opus-4-7', 'claude-opus-4-8', 'claude-fable-5', 'claude-sonnet-5')
+ADAPTIVE_ONLY = (
+    'claude-opus-4-7', 'claude-opus-4-8',
+    'claude-opus-5',    # also matches claude-opus-5-5
+    'claude-fable-5',   # also matches claude-fable-5-1
+    'claude-sonnet-5',  # also matches claude-sonnet-5-5
+    'claude-haiku-5',   # claude-haiku-5-5
+)
+
+# Models that reject `temperature` / `top_p` / `top_k` outright (HTTP 400 "deprecated" /
+# "doesn't support the temperature field"), even when thinking is off. Every adaptive-only
+# Claude is in this set; the others were found by probing the live APIs (2026-10).
+NO_SAMPLING_PARAMS = ADAPTIVE_ONLY + (
+    'xai.grok-4.7',
+    'moonshotai.kimi-k3',
+    'openai.gpt-5',     # GPT-5.x on Bedrock Mantle
+    'openai.gpt-6',     # GPT-6 / 6.1
+)
 
 EFFORT_LEVELS = ('low', 'medium', 'high', 'xhigh', 'max')
 DEFAULT_EFFORT = 'high'
@@ -44,6 +60,11 @@ _EFFORT_TO_BUDGET = {
 def uses_adaptive_thinking(model_id: str) -> bool:
     """True if the model only accepts adaptive thinking (Opus 4.7+)."""
     return any(x in model_id for x in ADAPTIVE_ONLY)
+
+
+def rejects_sampling_params(model_id: str) -> bool:
+    """True if the model 400s on temperature/top_p/top_k, so callers must not send them."""
+    return any(x in model_id for x in NO_SAMPLING_PARAMS)
 
 
 def effort_to_budget(effort: str, max_tokens: Optional[int] = None) -> int:

@@ -93,3 +93,43 @@ def test_legacy_intent_translated_for_opus_47():
 def test_uses_adaptive_thinking_substring_match():
     assert uses_adaptive_thinking("us.anthropic.claude-opus-4-7-v1:0")
     assert not uses_adaptive_thinking("global.anthropic.claude-sonnet-4-6")
+
+
+# ── 2026-10 model generation: adaptive-only + sampling restrictions ───────────
+
+import pytest  # noqa: E402
+
+from backend.genai.models.thinking import rejects_sampling_params  # noqa: E402
+
+
+@pytest.mark.parametrize("model_id", [
+    "global.anthropic.claude-opus-5-5", "us.anthropic.claude-opus-5", "global.anthropic.claude-sonnet-5-5",
+    "global.anthropic.claude-haiku-5-5", "global.anthropic.claude-fable-5-1",
+])
+def test_new_claude_generation_is_adaptive_only(model_id):
+    assert uses_adaptive_thinking(model_id)
+    fields = build_thinking_fields(model_id, {"enabled": True, "effort": "high"})
+    assert fields["thinking"] == {"type": "adaptive", "display": "summarized"}
+    assert fields["output_config"] == {"effort": "high"}
+
+
+def test_older_haiku_keeps_budget_thinking():
+    assert not uses_adaptive_thinking("global.anthropic.claude-haiku-4-5-20251001-v1:0")
+
+
+@pytest.mark.parametrize("model_id", [
+    "global.anthropic.claude-opus-4-8", "global.anthropic.claude-opus-5-5", "global.anthropic.claude-sonnet-5",
+    "global.anthropic.claude-haiku-5-5", "global.anthropic.claude-fable-5-1",
+    "global.xai.grok-4.7", "global.moonshotai.kimi-k3", "openai.gpt-5.6-sol", "openai.gpt-6.1-sol", "openai.gpt-6-luna",
+])
+def test_models_that_reject_sampling_params(model_id):
+    assert rejects_sampling_params(model_id)
+
+
+@pytest.mark.parametrize("model_id", [
+    "global.anthropic.claude-sonnet-4-6", "global.anthropic.claude-haiku-4-5-20251001-v1:0", "xai.grok-4.3",
+    "openai.gpt-oss-120b-1:0", "global.zai.glm-5.3", "deepseek.v3.2", "qwen.qwen3-vl-235b-a22b",
+    "global.amazon.nova-2-lite-v1:0", "gemini-3.8-flash",
+])
+def test_models_that_accept_sampling_params(model_id):
+    assert not rejects_sampling_params(model_id)

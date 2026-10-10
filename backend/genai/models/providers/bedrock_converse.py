@@ -9,7 +9,7 @@ from backend.utils.file import FileProcessor
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from backend.genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
-from backend.genai.models.thinking import build_thinking_fields, normalize_intent
+from backend.genai.models.thinking import build_thinking_fields, normalize_intent, rejects_sampling_params
 from . import LLMAPIProvider, LLMProviderError
 from .. import logger
 
@@ -149,8 +149,11 @@ class BedrockConverse(LLMAPIProvider):
         # Handle temperature and top_p for Claude 4.5 models
         # Claude 4.5 models only support one of temperature or top_p, not both
         is_claude_45 = any(v in self.model_id for v in ('claude-haiku-4-5', 'claude-sonnet-4-5', 'claude-sonnet-4-6', 'claude-opus-4-5', 'claude-opus-4-6'))
-        
-        if is_claude_45:
+        no_sampling = rejects_sampling_params(self.model_id)
+
+        if no_sampling:
+            pass  # these models 400 on temperature/top_p/top_k; leave them out entirely
+        elif is_claude_45:
             # For Claude 4.5, prioritize temperature over top_p
             if temperature := kwargs.get('temperature', self.llm_params.temperature):
                 inference_config["temperature"] = temperature
@@ -187,10 +190,12 @@ class BedrockConverse(LLMAPIProvider):
                 additional_fields.update(thinking_fields)
                 logger.debug(f"[BRConverseProvider] Applied thinking params for {self.model_id}: {thinking_fields}")
 
-                # Extended thinking forces temperature=1 and no top_p.
-                inference_config['temperature'] = 1.0
-                if 'topP' in inference_config:
-                    del inference_config['topP']
+                # Extended thinking forces temperature=1 and no top_p (sampling-restricted
+                # models get no sampling params at all).
+                if not no_sampling:
+                    inference_config['temperature'] = 1.0
+                    if 'topP' in inference_config:
+                        del inference_config['topP']
 
                 # Leave room for reasoning. Legacy `enabled` has budget_tokens; adaptive doesn't, so floor.
                 budget_tokens = thinking_fields.get('thinking', {}).get('budget_tokens')
@@ -201,7 +206,7 @@ class BedrockConverse(LLMAPIProvider):
                     inference_config['maxTokens'] = max(inference_config.get('maxTokens', 0), 32000)
 
         # Handle top_k parameter - only if thinking is not enabled for Claude
-        else:
+        elif not no_sampling:
             if top_k := kwargs.get('top_k', self.llm_params.top_k):
                 # Optimize model-specific logic with direct assignment
                 if 'deepseek' in self.model_id:
