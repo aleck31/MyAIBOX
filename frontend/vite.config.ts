@@ -46,10 +46,13 @@ export default defineConfig(({ mode }) => {
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-assistant': ['@assistant-ui/react', '@assistant-ui/react-markdown', '@assistant-ui/core'],
-          'vendor-agui': ['@ag-ui/client', '@ag-ui/core'],
+        // Function form: Vite 8 (rolldown) no longer accepts the object form.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined
+          if (/node_modules\/(react|react-dom|react-router|react-router-dom)\//.test(id)) return 'vendor-react'
+          if (/node_modules\/@assistant-ui\//.test(id)) return 'vendor-assistant'
+          if (/node_modules\/@ag-ui\//.test(id)) return 'vendor-agui'
+          return undefined
         },
       },
     },

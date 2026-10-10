@@ -27,6 +27,11 @@ interface LocalMessage {
   toolCalls?: LocalToolCall[]
 }
 
+/** AG-UI 1.x allows structured tool-result content; the UI keeps a JSON/text string. */
+function toolResultText(content: ToolCallResultEvent['content']): string {
+  return typeof content === 'string' ? content : JSON.stringify(content)
+}
+
 interface LocalToolCall {
   id: string
   name: string
@@ -271,7 +276,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
               prev.map(m => {
                 if (m.id !== assistantId) return m
                 const toolCalls = (m.toolCalls ?? []).map(tc =>
-                  tc.id === event.toolCallId ? { ...tc, result: event.content } : tc
+                  tc.id === event.toolCallId ? { ...tc, result: toolResultText(event.content) } : tc
                 )
                 return { ...m, toolCalls }
               })

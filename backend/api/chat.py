@@ -15,16 +15,15 @@ import asyncio
 import json
 import os
 import uuid
-from typing import Any, AsyncIterator, Dict, List, Literal, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from ag_ui.core import (
     RunAgentInput,
     RunStartedEvent, RunFinishedEvent, RunErrorEvent,
     TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
-    ReasoningMessageContentEvent, ReasoningMessageEndEvent,
+    ReasoningMessageStartEvent, ReasoningMessageContentEvent, ReasoningMessageEndEvent,
     ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent,
     CustomEvent,
-    BaseEvent, EventType,
 )
 from ag_ui.encoder import EventEncoder
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -70,13 +69,6 @@ def _get_chat_service():
     if _chat_service is None:
         _chat_service = ServiceFactory.create_chat_service("chat")
     return _chat_service
-
-
-# Same shim the old handlers used — keeps AG-UI JS client happy with role='reasoning'.
-class ReasoningMessageStartEvent(BaseEvent):
-    type: Literal[EventType.REASONING_MESSAGE_START] = EventType.REASONING_MESSAGE_START  # type: ignore[assignment]
-    message_id: str
-    role: Literal["reasoning"] = "reasoning"
 
 
 # ─── Utilities ───────────────────────────────────────────────────────────────
