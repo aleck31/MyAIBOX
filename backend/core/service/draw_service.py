@@ -4,6 +4,7 @@ import json
 import base64
 from PIL import Image
 from typing import Dict, Optional, Any
+from backend.common.errors import ModelUnavailableError
 from backend.core.session import Session
 from backend.core.module_config import module_config
 from backend.genai.models.providers import LLMProviderError
@@ -289,7 +290,7 @@ class DrawService(BaseService):
 
         model = model_manager.get_model_by_id(model_id)
         if not model:
-            raise ValueError(f"Model not found: {model_id}")
+            raise ModelUnavailableError(model_id)
 
         self._validate_model(model_id, model.api_provider)
 
@@ -318,7 +319,7 @@ class DrawService(BaseService):
 
             model = model_manager.get_model_by_id(model_id)
             if not model:
-                raise ValueError(f"Model not found: {model_id}")
+                raise ModelUnavailableError(model_id)
 
             api_provider = model.api_provider
             self._validate_model(model_id, api_provider)
@@ -347,7 +348,7 @@ class DrawService(BaseService):
             model_id = await self.get_session_model(session)
             model = model_manager.get_model_by_id(model_id)
             if not model:
-                raise ValueError(f"Model not found: {model_id}")
+                raise ModelUnavailableError(model_id)
 
             api_provider = model.api_provider
             self._validate_model(model_id, api_provider)

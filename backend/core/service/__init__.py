@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 from datetime import datetime
+from backend.common.errors import ModelUnavailableError
 from backend.common.logger import setup_logger
 from backend.core.session import Session, SessionStore
 from backend.core.module_config import module_config
@@ -149,7 +150,7 @@ class BaseService:
                     raise ValueError(f"Model {model_id} is an image model, use _get_creative_provider instead")
                 logger.debug(f"[BaseService] Found text model: {model.name} ({model.api_provider})")
             else:
-                raise ValueError(f"Model not found: {model_id}")
+                raise ModelUnavailableError(model_id)
 
             # Get default params if not provided
             if not llm_params:
@@ -221,7 +222,7 @@ class BaseService:
                     raise ValueError(f"Model {model_id} is not a creative model, use _get_text_provider instead")
                 logger.debug(f"[BaseService] Found creative model: {model.name} ({model.api_provider})")
             else:
-                raise ValueError(f"Model not found: {model_id}")
+                raise ModelUnavailableError(model_id)
 
             # Get default params if not provided
             if not gen_params:

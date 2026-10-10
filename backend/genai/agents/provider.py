@@ -1,6 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
 from typing import Dict, AsyncIterator, Optional, List
+from backend.common.errors import ModelUnavailableError
 from backend.common.logger import logger
 from backend.core.config import env_config
 from strands import Agent
@@ -59,7 +60,7 @@ class AgentProvider:
         mid = model_id or self.model_id
         model = model_manager.get_model_by_id(mid)
         if not model:
-            raise ValueError(f"Model {mid} not found")
+            raise ModelUnavailableError(mid)
 
         api_provider = model.api_provider.upper()
 

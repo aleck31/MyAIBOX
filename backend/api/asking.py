@@ -16,6 +16,7 @@ from backend.genai.models.providers import LLMMessage, LLMParameters, create_mod
 from backend.genai.models.thinking import DEFAULT_INTENT
 from backend.api.auth import get_auth_user
 from backend.api.prompts.asking import SYSTEM_PROMPT
+from backend.common.errors import ModelUnavailableError, user_message
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
 from backend.common.logger import setup_logger
@@ -32,7 +33,7 @@ _provider_cache = ProviderCache()
 def _get_provider(model_id: str):
     model = model_manager.get_model_by_id(model_id)
     if not model:
-        raise ValueError(f"Model not found: {model_id}")
+        raise ModelUnavailableError(model_id)
     params = dict(module_config.get_inference_params('asking') or {})
     tools = module_config.get_enabled_tools('asking') or []
     # Thinking intent lives at the config top level, not under `parameters`. Default on@high
@@ -172,7 +173,7 @@ async def process_asking(
 
         except Exception as e:
             logger.error(f"Asking error for {username}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message="An error occurred."))
+            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred.")))
 
     return StreamingResponse(
         event_stream(),

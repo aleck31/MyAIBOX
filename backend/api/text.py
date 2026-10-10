@@ -12,6 +12,7 @@ from ag_ui.encoder import EventEncoder
 from backend.core.service.service_factory import ServiceFactory
 from backend.api.auth import get_auth_user
 from backend.api.prompts.text import SYSTEM_PROMPTS, STYLES, LANG_MAP
+from backend.common.errors import user_message
 from backend.common.logger import setup_logger
 
 logger = setup_logger('api.text')
@@ -118,7 +119,7 @@ async def process_text(
 
         except Exception as e:
             logger.error(f"Text process error for {username}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message="An error occurred while processing your text."))
+            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred while processing your text.")))
 
     return StreamingResponse(
         event_stream(),

@@ -13,6 +13,7 @@ from backend.core.service.service_factory import ServiceFactory
 from backend.genai.models.model_manager import model_manager
 from backend.api.auth import get_auth_user
 from backend.api.prompts.summary import SYSTEM_PROMPT, build_user_prompt, LANG_MAP
+from backend.common.errors import user_message
 from backend.common.logger import setup_logger
 
 logger = setup_logger('api.summary')
@@ -91,7 +92,7 @@ async def process_summary(
 
         except Exception as e:
             logger.error(f"Summary error for {username}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message="An error occurred while summarizing."))
+            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred while summarizing.")))
 
     return StreamingResponse(
         event_stream(),

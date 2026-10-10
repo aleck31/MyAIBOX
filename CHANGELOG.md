@@ -20,6 +20,7 @@ frontend and lockfiles). The README only highlights the latest release.
 - 3.9.1 Chat works on Gemini, Nova 2 Lite and GPT-OSS again; `.env` is loaded from the project root.
 - 3.9.2 A model that keeps re-calling a tool no longer runs for minutes: an agent turn stops after 90 model calls (`AGENT_MAX_CYCLES`).
 - 3.9.2 `current_time` is a local tool; the Strands one is deprecated and logged a warning on every call.
+- 3.9.2 A retired model id (e.g. from a page opened before a model upgrade) now reports which model is unavailable and to refresh, instead of a generic error.
 
 ### Upgrade notes
 `uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers; apply the model changes in Settings -> Models (the registry is in DynamoDB); on EKS add `transcribe:StartStreamTranscription` and `bedrock:InvokeModelWithBidirectionalStream` to the pod role.

@@ -4,6 +4,7 @@ from threading import Thread
 from typing import Dict, List, Optional, Iterator
 import openai
 from openai import OpenAI
+from backend.common.errors import ModelUnavailableError
 from backend.core.config import env_config
 from backend.utils.aws import get_secret
 from backend.genai.models.model_manager import model_manager
@@ -34,7 +35,7 @@ class OpenAIResponsesProvider(LLMAPIProvider):
         try:
             model = model_manager.get_model_by_id(self.model_id)
             if not model:
-                raise ValueError(f"Model {self.model_id} not found")
+                raise ModelUnavailableError(self.model_id)
             base_url = getattr(model, 'base_url', '') or env_config.mantle_base_url
             secret_id = env_config.bedrock_config.get('secret_id')
             api_key = get_secret(secret_id).get('api_key') if secret_id else None
@@ -42,6 +43,8 @@ class OpenAIResponsesProvider(LLMAPIProvider):
                 raise ValueError("Bedrock API key not configured (Secrets Manager)")
             self.client = OpenAI(base_url=base_url, api_key=api_key)
             self._tool_defs = self._build_tool_defs()
+        except ModelUnavailableError:
+            raise  # already user-facing; don't bury it in a generic init failure
         except Exception as e:
             raise ValueError(f"Failed to initialize OpenAIResponses client: {str(e)}")
 

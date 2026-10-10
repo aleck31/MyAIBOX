@@ -17,6 +17,7 @@ from strands.bidi import BidiAgent
 from strands.bidi.models import BedrockNovaSonicModel
 from strands.bidi.types import AudioDelta
 
+from backend.common.errors import ModelUnavailableError
 from backend.common.logger import logger
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.provider import tool_provider
@@ -50,7 +51,7 @@ class LiveAgentProvider:
         """Build the bidirectional model for this model_id (region from the registry)."""
         model = model_manager.get_model_by_id(self.model_id)
         if not model:
-            raise ValueError(f"Model {self.model_id} not found")
+            raise ModelUnavailableError(self.model_id)
         provider = model.api_provider.upper()
         if provider == 'BEDROCKSONIC':
             region = model.region or 'us-east-1'  # Nova Sonic: us-east-1 only

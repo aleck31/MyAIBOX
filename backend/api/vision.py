@@ -16,6 +16,7 @@ from backend.genai.models.model_manager import model_manager
 from backend.genai.models.providers import LLMMessage, LLMParameters, create_model_provider
 from backend.api.auth import get_auth_user
 from backend.api.prompts.vision import VISION_SYSTEM_PROMPT
+from backend.common.errors import ModelUnavailableError, user_message
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
 from backend.common.logger import setup_logger
@@ -32,7 +33,7 @@ _provider_cache = ProviderCache()
 def _get_provider(model_id: str):
     model = model_manager.get_model_by_id(model_id)
     if not model:
-        raise ValueError(f"Model not found: {model_id}")
+        raise ModelUnavailableError(model_id)
     params = module_config.get_inference_params('vision') or {}
     return _provider_cache.get_or_create(
         model_id, params,
@@ -123,7 +124,7 @@ async def analyze_vision(
 
         except Exception as e:
             logger.error(f"Vision error for {username}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message="An error occurred during analysis."))
+            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred during analysis.")))
 
     return StreamingResponse(
         event_stream(),
