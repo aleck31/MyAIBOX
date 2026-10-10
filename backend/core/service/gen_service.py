@@ -114,7 +114,8 @@ class GenService(BaseService):
             option_params: Optional parameters for LLM generation
             
         Returns:
-            str: Generated text
+            Dict: the provider content (``{'text': ...}``), or ``{'error': True, 'text': ...}``
+            with a user-friendly message when the provider fails.
         """
         try:
             # Get model_id with fallback to module default

@@ -34,7 +34,10 @@ async def test_gen_text_with_session_persists(make_session):
         session=session,
         content={"text": "Count to 3"},
     )
-    assert response and isinstance(response, str)
+    # gen_text returns the provider content dict ({"text": ...}); errors come back as {"error": True, ...}.
+    assert isinstance(response, dict) and not response.get("error"), response
+    assert response.get("text", "").strip()
+    assert [m["role"] for m in session.history[-2:]] == ["user", "assistant"]  # interaction recorded
 
 
 async def test_gen_text_stream_yields_chunks(make_session):
