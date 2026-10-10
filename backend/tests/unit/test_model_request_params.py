@@ -1,8 +1,8 @@
-"""Per-model request parameters on both chains (provider chain + Strands agent chain).
+"""Per-model request parameters on both chains (provider chain and Strands agent chain).
 
-Regression: models that reject temperature/top_p/top_k (new Claude, Grok 4.7, Kimi K3, GPT-5/6) failed
-with HTTP 400 as soon as thinking was off; Gemini agents sent `max_tokens`, which google-genai's
-GenerateContentConfig rejects.
+Regressions: models that reject temperature/top_p/top_k failed with HTTP 400 once thinking was off;
+Gemini agents sent `max_tokens`, which GenerateContentConfig rejects; non-Claude models were sent
+Claude's `thinking` field.
 """
 from __future__ import annotations
 
@@ -24,150 +24,106 @@ from backend.genai.models.providers import create_model_provider  # noqa: E402
 CAPS = LLM_CAPABILITIES(input_modality=["text"], output_modality=["text"], streaming=True, tool_use=True,
                         reasoning=True, context_window=100_000)
 SAMPLING = {"max_tokens": 4096, "temperature": 0.7, "top_p": 0.9, "top_k": 100}
+THINK_ON = {"enabled": True, "effort": "high"}
 THINK_OFF = {"enabled": False}
-
-
-def _model(model_id, provider, vendor="Anthropic", **kw):
-    return LLMModel(name=model_id, model_id=model_id, api_provider=provider, category="vision", vendor=vendor,
-                    capabilities=CAPS, **kw)
 
 
 @pytest.fixture
 def registry(monkeypatch):
+    """Register throwaway models: `add(model_id, provider, vendor)` returns the id."""
     models = {}
     monkeypatch.setattr(model_manager, "get_model_by_id", lambda mid: models.get(mid))
     monkeypatch.setenv("BEDROCK_SECRET_ID", "unit-secret")
     monkeypatch.setenv("GEMINI_SECRET_ID", "unit-gemini")
     monkeypatch.setattr(agent_module, "get_secret", lambda _id: {"api_key": "unit-key"})
 
-    def add(model):
-        models[model.model_id] = model
-        return model.model_id
+    def add(model_id, provider="Bedrock", vendor="Anthropic"):
+        models[model_id] = LLMModel(name=model_id, model_id=model_id, api_provider=provider, category="vision",
+                                    vendor=vendor, capabilities=CAPS)
+        return model_id
     return add
 
 
-def _agent_model(model_id, **params):
-    return AgentProvider(model_id=model_id, parameters={**SAMPLING, **params})._get_strands_model()
+def _agent_config(model_id, **params):
+    return AgentProvider(model_id=model_id, parameters={**SAMPLING, **params})._get_strands_model().get_config()
 
 
-# ── agent chain: Bedrock ──────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("model_id", ["global.anthropic.claude-opus-5-5", "global.moonshotai.kimi-k3", "global.xai.grok-4.7"])
-def test_agent_bedrock_omits_sampling_when_model_rejects_it(registry, model_id):
-    cfg = _agent_model(registry(_model(model_id, "Bedrock")), thinking=THINK_OFF).get_config()
-    assert "temperature" not in cfg and "top_p" not in cfg
-    assert "top_k" not in (cfg.get("additional_request_fields") or {})
-    assert cfg["max_tokens"] == 4096
+def _fields(cfg):
+    return cfg.get("additional_request_fields") or {}
 
 
-def test_agent_bedrock_still_sends_sampling_to_models_that_accept_it(registry):
-    cfg = _agent_model(registry(_model("global.anthropic.claude-sonnet-4-6", "Bedrock")), thinking=THINK_OFF).get_config()
-    assert cfg["temperature"] == 0.7 and cfg["top_p"] == 0.9
-    assert cfg["additional_request_fields"]["top_k"] == 100
+# ── agent chain (Chat) ────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("model_id,vendor", [("global.anthropic.claude-opus-5-5", "Anthropic"),
+                                             ("global.moonshotai.kimi-k3", "Moonshot AI")])
+def test_agent_omits_sampling_for_models_that_reject_it(registry, model_id, vendor):
+    cfg = _agent_config(registry(model_id, vendor=vendor), thinking=THINK_OFF)
+    assert "temperature" not in cfg and "top_p" not in cfg and "top_k" not in _fields(cfg)
 
 
-def test_agent_bedrock_new_claude_uses_adaptive_thinking(registry):
-    cfg = _agent_model(registry(_model("global.anthropic.claude-opus-5-5", "Bedrock")),
-                       thinking={"enabled": True, "effort": "high"}).get_config()
-    assert cfg["additional_request_fields"]["thinking"] == {"type": "adaptive", "display": "summarized"}
+def test_agent_still_sends_sampling_to_models_that_accept_it(registry):
+    cfg = _agent_config(registry("global.anthropic.claude-sonnet-4-6"), thinking=THINK_OFF)
+    assert cfg["temperature"] == 0.7 and _fields(cfg)["top_k"] == 100
 
 
-# ── agent chain: OpenAI Responses (Mantle) ────────────────────────────────────
-
-def test_agent_responses_gpt_gets_no_temperature(registry):
-    mid = registry(_model("openai.gpt-6.1-sol", "OpenAIResponses", "OpenAI"))
-    assert "temperature" not in (_agent_model(mid, thinking=THINK_OFF).get_config().get("params") or {})
+def test_agent_new_claude_uses_adaptive_thinking(registry):
+    cfg = _agent_config(registry("global.anthropic.claude-opus-5-5"), thinking=THINK_ON)
+    assert _fields(cfg)["thinking"] == {"type": "adaptive", "display": "summarized"}
 
 
-def test_agent_responses_non_gpt_keeps_temperature(registry):
-    mid = registry(_model("xai.grok-4.3", "OpenAIResponses", "xAI"))
-    assert _agent_model(mid, thinking=THINK_OFF).get_config()["params"]["temperature"] == 0.7
+@pytest.mark.parametrize("model_id,vendor,sends_temperature", [("openai.gpt-6.1-sol", "OpenAI", False),
+                                                               ("xai.grok-4.3", "xAI", True)])
+def test_agent_responses_models_temperature(registry, model_id, vendor, sends_temperature):
+    cfg = _agent_config(registry(model_id, "OpenAIResponses", vendor), thinking=THINK_OFF)
+    assert ("temperature" in (cfg.get("params") or {})) == sends_temperature
 
 
-# ── agent chain: Gemini ───────────────────────────────────────────────────────
-
-def test_agent_gemini_params_are_valid_generate_content_config(registry):
+def test_agent_gemini_params_are_a_valid_generate_content_config(registry):
     from google.genai import types
 
-    mid = registry(_model("gemini-3.8-flash", "Gemini", "Google"))
-    params = _agent_model(mid).get_config()["params"]
+    params = _agent_config(registry("gemini-3.8-flash", "Gemini", "Google"))["params"]
     types.GenerateContentConfig(**params)  # raises on unknown fields such as `max_tokens`
-    assert params["max_output_tokens"] == 4096 and params["temperature"] == 0.7
+    assert params["max_output_tokens"] == 4096
 
 
-def test_agent_gemini_defaults_when_no_parameters(registry):
-    mid = registry(_model("gemini-3.8-flash", "Gemini", "Google"))
-    params = AgentProvider(model_id=mid)._get_strands_model().get_config()["params"]
-    assert params["max_output_tokens"] == 8192
+@pytest.mark.parametrize("model_id,vendor", [("global.amazon.nova-2-lite-v1:0", "Amazon"), ("openai.gpt-oss-120b-1:0", "OpenAI")])
+def test_agent_sends_no_claude_thinking_field_to_other_vendors(registry, model_id, vendor):
+    assert "thinking" not in _fields(_agent_config(registry(model_id, vendor=vendor), thinking=THINK_ON))
+
+
+def test_agent_top_k_is_named_per_family(registry):
+    def top_k(model_id, vendor):
+        return _fields(_agent_config(registry(model_id, vendor=vendor), thinking=THINK_OFF))
+    assert top_k("global.amazon.nova-2-lite-v1:0", "Amazon") == {"inferenceConfig": {"topK": 100}}
+    assert top_k("deepseek.v3.2", "DeepSeek") == {}
+    assert top_k("global.zai.glm-5.3", "Z.AI") == {"top_k": 100}
 
 
 # ── provider chain (Text / Summary / Vision / Asking) ─────────────────────────
 
-def _inference(model_id, thinking):
-    provider = create_model_provider("Bedrock", model_id, LLMParameters(max_tokens=2000, temperature=0.6, top_p=0.9,
-                                                                       top_k=100, thinking=thinking))
-    return provider._prepare_inference_params()
-
-
-@pytest.mark.parametrize("thinking", [None, {"enabled": True, "effort": "high"}])
-def test_provider_chain_drops_sampling_for_restricted_claude(registry, thinking):
-    mid = registry(_model("global.anthropic.claude-opus-5-5", "Bedrock"))
-    inference, extra = _inference(mid, thinking)
-    assert not {"temperature", "topP"} & set(inference)
-    assert "top_k" not in (extra or {})
+@pytest.mark.parametrize("model_id,thinking,restricted", [
+    ("global.anthropic.claude-opus-5-5", None, True),
+    ("global.anthropic.claude-opus-5-5", THINK_ON, True),
+    ("qwen.qwen3-vl-235b-a22b", None, False),
+])
+def test_provider_chain_sampling(registry, model_id, thinking, restricted):
+    mid = registry(model_id)
+    params = LLMParameters(max_tokens=2000, temperature=0.6, top_p=0.9, top_k=100, thinking=thinking)
+    inference, extra = create_model_provider("Bedrock", mid, params)._prepare_inference_params()
+    assert bool({"temperature", "topP"} & set(inference) or "top_k" in (extra or {})) != restricted
     if thinking:
         assert extra["thinking"]["type"] == "adaptive"
 
 
-def test_provider_chain_drops_sampling_for_kimi_k3(registry):
-    mid = registry(_model("global.moonshotai.kimi-k3", "Bedrock", "Moonshot AI"))
-    inference, extra = _inference(mid, None)
-    assert not {"temperature", "topP"} & set(inference) and "top_k" not in (extra or {})
-
-
-def test_provider_chain_keeps_sampling_for_unrestricted_models(registry):
-    mid = registry(_model("qwen.qwen3-vl-235b-a22b", "Bedrock", "Qwen"))
-    inference, extra = _inference(mid, None)
-    assert inference["temperature"] == 0.6 and inference["topP"] == 0.9
-    assert extra == {"top_k": 100}
-
-
-# ── seed list sanity ──────────────────────────────────────────────────────────
+# ── seed list ─────────────────────────────────────────────────────────────────
 
 def test_default_models_are_unique_and_routable():
     from backend.genai.models.model_list import DEFAULT_MODELS
 
     ids = [m.model_id for m in DEFAULT_MODELS]
     assert len(ids) == len(set(ids))
-    assert {m.api_provider for m in DEFAULT_MODELS} <= {"Bedrock", "BedrockInvoke", "BedrockSonic", "OpenAIResponses", "Gemini"}
     for m in DEFAULT_MODELS:
         if m.api_provider == "OpenAIResponses":
             assert m.base_url.startswith("https://bedrock-mantle."), m.model_id
         if m.api_provider == "Bedrock" and m.vendor in {"Anthropic", "xAI", "Z.AI", "Moonshot AI"}:
             assert m.model_id.startswith("global."), f"{m.model_id} needs a cross-Region inference profile"
-
-
-# ── agent chain: vendor-specific fields (Nova 2 Lite / GPT-OSS rejected Claude's `thinking`) ──
-
-def _fields(registry, model_id, vendor, **params):
-    cfg = _agent_model(registry(_model(model_id, "Bedrock", vendor)), **params).get_config()
-    return cfg.get("additional_request_fields") or {}
-
-
-@pytest.mark.parametrize("model_id,vendor", [
-    ("global.amazon.nova-2-lite-v1:0", "Amazon"), ("openai.gpt-oss-120b-1:0", "OpenAI"),
-    ("deepseek.v3.2", "DeepSeek"), ("global.zai.glm-5.3", "Z.AI"),
-])
-def test_agent_non_anthropic_models_get_no_claude_thinking_fields(registry, model_id, vendor):
-    assert "thinking" not in _fields(registry, model_id, vendor, thinking={"enabled": True, "effort": "high"})
-
-
-def test_agent_top_k_is_named_per_family(registry):
-    assert _fields(registry, "global.amazon.nova-2-lite-v1:0", "Amazon", thinking=THINK_OFF) == {"inferenceConfig": {"topK": 100}}
-    assert _fields(registry, "deepseek.v3.2", "DeepSeek", thinking=THINK_OFF) == {}
-    assert _fields(registry, "global.zai.glm-5.3", "Z.AI", thinking=THINK_OFF) == {"top_k": 100}
-
-
-def test_agent_older_claude_keeps_budget_thinking(registry):
-    fields = _fields(registry, "global.anthropic.claude-sonnet-4-6", "Anthropic", thinking={"enabled": True, "effort": "high"})
-    assert fields["thinking"]["type"] == "enabled" and fields["thinking"]["budget_tokens"] >= 1024

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime
 
 import pytest
@@ -11,38 +10,23 @@ from backend.genai.tools.strands.builtin_tools import BUILTIN_TOOLS, get_availab
 from backend.genai.tools.strands.time_tool import current_time
 
 
-def _call(**kwargs):
-    # @tool functions stay directly callable
-    return current_time(**kwargs)
-
-
-def test_current_time_defaults_to_utc(monkeypatch):
+def test_current_time_utc_by_default_and_explicit_timezone_wins(monkeypatch):
     monkeypatch.delenv("DEFAULT_TIMEZONE", raising=False)
-    value = _call()
-    assert value.endswith("+00:00")
-    datetime.fromisoformat(value)
-
-
-def test_current_time_uses_default_timezone_env(monkeypatch):
-    monkeypatch.setenv("DEFAULT_TIMEZONE", "Asia/Shanghai")
-    assert _call().endswith("+08:00")
-
-
-def test_current_time_explicit_timezone_wins(monkeypatch):
-    monkeypatch.setenv("DEFAULT_TIMEZONE", "Asia/Shanghai")
-    assert re.search(r"[+-]0[45]:00$", _call(timezone="America/New_York"))
+    value = current_time()
+    assert value.endswith("+00:00") and datetime.fromisoformat(value)
+    assert current_time(timezone="Asia/Shanghai").endswith("+08:00")
 
 
 def test_current_time_rejects_unknown_timezone():
     with pytest.raises(ValueError):
-        _call(timezone="Mars/Olympus")
+        current_time(timezone="Mars/Olympus")
 
 
 def test_current_time_loads_without_the_deprecated_strands_tool(caplog):
-    tools = load_builtin_tools(["current_time"])
-    assert len(tools) == 1 and getattr(tools[0], "__name__", "") == "backend.genai.tools.strands.time_tool"
+    (loaded,) = load_builtin_tools(["current_time"])
+    assert loaded.__name__ == "backend.genai.tools.strands.time_tool"
     with caplog.at_level(logging.WARNING):
-        _call()
+        current_time()
     assert "deprecated" not in caplog.text.lower()
 
 

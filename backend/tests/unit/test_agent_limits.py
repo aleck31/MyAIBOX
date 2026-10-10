@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
 os.environ.setdefault("CLIENT_ID", "unit-test-client")
 
@@ -69,13 +67,12 @@ async def test_counter_resets_for_each_user_message():
     assert model.calls == 4  # 2 + 2, not 2 then an immediate stop
 
 
-@pytest.mark.parametrize("raw,expected", [
-    ("", DEFAULT_MAX_CYCLES), ("abc", DEFAULT_MAX_CYCLES), ("0", DEFAULT_MAX_CYCLES), ("-5", DEFAULT_MAX_CYCLES),
-    ("7", 7),
-])
-def test_max_cycles_from_env(monkeypatch, raw, expected):
-    monkeypatch.setenv("AGENT_MAX_CYCLES", raw)
-    assert max_cycles_from_env() == expected
+def test_max_cycles_from_env(monkeypatch):
+    monkeypatch.setenv("AGENT_MAX_CYCLES", "7")
+    assert max_cycles_from_env() == 7
+    for bad in ("", "abc", "0", "-5"):  # a bad value must not crash startup or disable the cap
+        monkeypatch.setenv("AGENT_MAX_CYCLES", bad)
+        assert max_cycles_from_env() == DEFAULT_MAX_CYCLES
 
 
 async def test_agent_provider_tells_the_user_when_the_cap_stops_a_turn(monkeypatch):

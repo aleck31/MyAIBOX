@@ -141,8 +141,6 @@ def _run_with_retry(job) -> tuple[tuple, Result]:
     if not result.ok and result.transient:  # one more try before calling it overload
         time.sleep(5)
         result = _run(model, chain, think)
-    elif not result.ok and chain == "agent" and "tool=False" in result.detail:
-        result = _run(model, chain, think)  # a model may occasionally skip an optional tool call; errors are not retried
     return (model.model_id, chain, think), result
 
 
