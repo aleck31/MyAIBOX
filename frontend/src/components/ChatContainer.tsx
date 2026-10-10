@@ -31,9 +31,11 @@ interface Props {
   agent: ChatAgent
   session: ChatSession
   models: ModelOption[]
+  /** The server said the selected model is gone: reload `models` (the effect below then re-picks). */
+  onModelUnavailable: () => void
 }
 
-export default function ChatContainer({ agent, session, models }: Props) {
+export default function ChatContainer({ agent, session, models, onModelUnavailable }: Props) {
   const { username } = useAuth()
   const confirm = useConfirm()
   const [modelId, setModelId] = useState(session.model_id || agent.default_model || '')
@@ -200,6 +202,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
           threadId={session.session_id}
           initialHistory={chatHistory}
           url={chatStreamUrl}
+          onModelUnavailable={onModelUnavailable}
           onCustomEvent={handleCustomEvent}
           forwardedProps={{ agent_id: agent.id }}
           onMessagesEdited={(msgs) => { if (cloudSync) syncChatHistory(agent.id, msgs).catch(() => {}) }}

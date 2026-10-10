@@ -1,7 +1,8 @@
 export interface SSECallbacks {
   onText?: (delta: string) => void
   onReasoning?: (delta: string) => void
-  onError?: (message: string) => void
+  /** `code` is set for errors the client can act on, e.g. `model_unavailable`. */
+  onError?: (message: string, code?: string) => void
   onMetadata?: (data: Record<string, unknown>) => void
   /** AG-UI `CUSTOM` events — used for out-of-band notifications like `workspace_updated`. */
   onCustom?: (name: string, value: unknown) => void
@@ -33,7 +34,7 @@ export async function readSSE(res: Response, callbacks: SSECallbacks) {
           callbacks.onMetadata?.(evt)
         } else if (evt.type === 'TEXT_MESSAGE_CONTENT') callbacks.onText?.(evt.delta)
         else if (evt.type === 'REASONING_MESSAGE_CONTENT') callbacks.onReasoning?.(evt.delta)
-        else if (evt.type === 'RUN_ERROR') callbacks.onError?.(evt.message || 'An error occurred.')
+        else if (evt.type === 'RUN_ERROR') callbacks.onError?.(evt.message || 'An error occurred.', evt.code)
         else if (evt.type === 'CUSTOM') callbacks.onCustom?.(evt.name, evt.value)
       } catch { /* incomplete JSON, skip */ }
       eventType = ''

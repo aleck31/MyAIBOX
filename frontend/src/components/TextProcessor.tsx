@@ -20,7 +20,7 @@ const OPERATION_ICONS: Record<string, React.ComponentType<LucideProps>> = {
 }
 import ModelSelector from './ModelSelector'
 import { useStoredState } from '../hooks/useStoredState'
-import { ensureValidModel } from '../utils/model'
+import { ensureValidModel, MODEL_UNAVAILABLE } from '../utils/model'
 import type { TextConfig } from '../types/text'
 import SectionBar from './SectionBar'
 
@@ -54,12 +54,12 @@ export default function TextProcessor() {
     saveState({ input, output, operation, targetLang, style })
   }, [input, output, operation, targetLang, style])
 
-  useEffect(() => {
-    getTextConfig().then((cfg) => {
-      setConfig(cfg)
-      if (cfg.models?.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
-    })
-  }, [])
+  // Also run when the server says the selected model is gone, so a page left open recovers by itself.
+  const loadConfig = useCallback(() => getTextConfig().then((cfg) => {
+    setConfig(cfg)
+    if (cfg.models?.length) setModelId(prev => ensureValidModel(prev, cfg.models, cfg.default_model))
+  }), [])
+  useEffect(() => { loadConfig() }, [loadConfig])
 
   const handleProcess = useCallback(async () => {
     if (!input.trim() || loading) return
@@ -77,7 +77,7 @@ export default function TextProcessor() {
       let result = ''
       await readSSE(res, {
         onText: (delta) => { result += delta; setOutput(result) },
-        onError: (msg) => setOutput(msg),
+        onError: (msg, code) => { setOutput(msg); if (code === MODEL_UNAVAILABLE) loadConfig() },
       })
     } catch (err) {
       setOutput('An error occurred while processing your text.')
@@ -85,7 +85,7 @@ export default function TextProcessor() {
     } finally {
       setLoading(false)
     }
-  }, [input, operation, targetLang, style, loading])
+  }, [input, operation, targetLang, style, modelId, loading])
 
   const handleClear = useCallback(() => {
     setInput('')

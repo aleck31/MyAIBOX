@@ -16,7 +16,7 @@ from backend.genai.models.providers import LLMMessage, LLMParameters, create_mod
 from backend.genai.models.thinking import DEFAULT_INTENT
 from backend.api.auth import get_auth_user
 from backend.api.prompts.asking import SYSTEM_PROMPT
-from backend.common.errors import ModelUnavailableError, user_message
+from backend.common.errors import ModelUnavailableError, run_error_fields
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
 from backend.common.logger import setup_logger
@@ -173,7 +173,7 @@ async def process_asking(
 
         except Exception as e:
             logger.error(f"Asking error for {username}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred.")))
+            yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred.")))
 
     return StreamingResponse(
         event_stream(),

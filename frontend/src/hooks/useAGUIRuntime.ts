@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useMemo } from 'react'
 import { HttpAgent } from '@ag-ui/client'
-import type { ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, CustomEvent } from '@ag-ui/core'
+import type { RunErrorEvent, ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, CustomEvent } from '@ag-ui/core'
 import { useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike, AppendMessage } from '@assistant-ui/react'
 import { FileUploadAdapter } from './FileUploadAdapter'
+import { MODEL_UNAVAILABLE } from '../utils/model'
 
 function generateId() {
   return crypto.randomUUID()
@@ -91,6 +92,8 @@ interface UseAGUIRuntimeOptions {
   forwardedProps?: Record<string, unknown>
   /** Called when the message history is edited locally (e.g. edit/retry). Caller typically persists to backend. */
   onMessagesEdited?: (messages: Array<{ role: 'user' | 'assistant'; content: string }>) => void
+  /** Called when the server reports the selected model is gone, so the caller can reload its model list. */
+  onModelUnavailable?: () => void
 }
 
 // Module-level cache: survives route changes, cleared on tab close
@@ -169,7 +172,7 @@ function parseHistoryContent(content: unknown): { text: string; attachments: Loc
   return { text: String(content), attachments: [] }
 }
 
-export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEvent, forwardedProps, onMessagesEdited }: UseAGUIRuntimeOptions) {
+export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEvent, forwardedProps, onMessagesEdited, onModelUnavailable }: UseAGUIRuntimeOptions) {
   // Ref so subscriber captures the latest callback without re-binding.
   const onCustomEventRef = useRef(onCustomEvent)
   onCustomEventRef.current = onCustomEvent
@@ -178,6 +181,8 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   forwardedPropsRef.current = forwardedProps
   const onMessagesEditedRef = useRef(onMessagesEdited)
   onMessagesEditedRef.current = onMessagesEdited
+  const onModelUnavailableRef = useRef(onModelUnavailable)
+  onModelUnavailableRef.current = onModelUnavailable
   const [localMessages, setLocalMessagesRaw] = useState<LocalMessage[]>(() => {
     // Restore priority: _msgCache (route switch) → sessionStorage (refresh)
     // → initialMessages (from backend DDB, e.g. fresh open / cross-device).
@@ -286,6 +291,18 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
             setLocalMessages(prev =>
               prev.map(m => (m.id === assistantId ? { ...m, isStreaming: false } : m))
             )
+          },
+          // The client reports a server-sent RUN_ERROR only here (onRunFailed is for transport failures),
+          // so show it here too; otherwise the reply stays an empty bubble.
+          onRunErrorEvent({ event }: { event: RunErrorEvent }) {
+            setLocalMessages(prev =>
+              prev.map(m =>
+                m.id === assistantId
+                  ? { ...m, content: m.content ? `${m.content}\n\nError: ${event.message}` : `Error: ${event.message}`, isStreaming: false }
+                  : m
+              )
+            )
+            if (event.code === MODEL_UNAVAILABLE) onModelUnavailableRef.current?.()
           },
           onRunFailed({ error }: { error: Error }) {
             setLocalMessages(prev =>

@@ -22,7 +22,7 @@ frontend and lockfiles). The README only highlights the latest release.
 - 3.9.2 `current_time` is a local tool; the Strands one is deprecated and logged a warning on every call.
 - 3.9.2 A retired model id (e.g. from a page opened before a model upgrade) now reports which model is unavailable and to refresh, instead of a generic error.
 - 3.9.3 Chat composer: Send and Stop share one icon button and a reply with THINKING/tool bars keeps one width; the UI now meets the lab visual baseline (sidebar, chevron and Talk-button text >= 4.5:1 contrast, every control >= 42px on touch).
-- 3.9.4 Chat: models that reject stop sequences (DeepSeek, GPT-OSS, Grok 4.7, Kimi K3, Qwen3-VL) no longer fail on the stock agent config; switching model mid-conversation no longer fails on Claude's signed reasoning kept in the history (8 of 16 models did).
+- 3.9.4 Chat works on every model again: models that reject stop sequences (DeepSeek, GPT-OSS, Grok 4.7, Kimi K3, Qwen3-VL) and mid-conversation model switches (8 of 16 models) no longer fail, server errors show instead of an empty bubble, and a page whose model was retired reloads its model list and re-picks. Text sends the model picked after typing. Draw: Nova Canvas removed (AWS Legacy, always failed). UI: scrollable top bars fade their right edge, disabled controls keep >= 5:1 contrast; Settings -> MCP drops the always-1 Tools column.
 
 ### Upgrade notes
 `uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers; apply the model changes in Settings -> Models (the registry is in DynamoDB); on EKS add `transcribe:StartStreamTranscription` and `bedrock:InvokeModelWithBidirectionalStream` to the pod role.

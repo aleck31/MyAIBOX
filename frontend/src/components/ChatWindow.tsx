@@ -28,6 +28,8 @@ interface ChatWindowProps {
   onCustomEvent?: (name: string, value: unknown) => void
   forwardedProps?: Record<string, unknown>
   onMessagesEdited?: (messages: Array<{ role: 'user' | 'assistant'; content: string }>) => void
+  /** The server reported the selected model is gone. */
+  onModelUnavailable?: () => void
   /** Agent whose avatar/name shows on assistant messages. */
   agent?: Pick<ChatAgent, 'id' | 'name' | 'avatar'>
   /** Current logged-in username — used for the user message avatar. */
@@ -256,7 +258,7 @@ function Thread() {
 
 /* ── ChatWindow ──────────────────────────────────────────────────────────── */
 const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWindow(
-  { threadId, initialHistory, url = '/api/chat/stream', onCustomEvent, forwardedProps, onMessagesEdited, agent, username },
+  { threadId, initialHistory, url = '/api/chat/stream', onCustomEvent, forwardedProps, onMessagesEdited, onModelUnavailable, agent, username },
   ref
 ) {
   const { runtime, getMessages, retractLast } = useAGUIRuntime({
@@ -266,6 +268,7 @@ const ChatWindow = forwardRef<ChatWindowHandle, ChatWindowProps>(function ChatWi
     onCustomEvent,
     forwardedProps,
     onMessagesEdited,
+    onModelUnavailable,
   })
 
   useImperativeHandle(ref, () => ({ getMessages }), [getMessages])

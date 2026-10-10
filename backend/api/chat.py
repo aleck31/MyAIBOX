@@ -36,7 +36,7 @@ from backend.api.prompts.chat import (
     OVERRIDABLE_FIELDS,
     WORKSPACE_INSTRUCTIONS,
 )
-from backend.common.errors import user_message
+from backend.common.errors import run_error_fields
 from backend.common.logger import setup_logger
 from backend.common.uploads import resolve_upload, log_rejected
 from backend.core import workspace
@@ -739,7 +739,7 @@ async def _stream_agent(
 
         except Exception as e:
             logger.error(f"Stream error for {sub} agent={agent.id}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred during streaming.")))
+            yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred during streaming.")))
 
     return StreamingResponse(
         _with_keepalive(event_stream()),
@@ -822,7 +822,7 @@ async def _stream_chat(
 
         except Exception as e:
             logger.error(f"Stream error for {sub} agent={agent.id}: {e}", exc_info=True)
-            yield _enc.encode(RunErrorEvent(message=user_message(e, "An error occurred during streaming.")))
+            yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred during streaming.")))
 
     return StreamingResponse(
         _with_keepalive(event_stream()),

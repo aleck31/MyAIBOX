@@ -6,7 +6,7 @@ import ModelSelector from './ModelSelector'
 import FilePreviewPanel from './FilePreviewPanel'
 import { IconTrash } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
-import { ensureValidModel } from '../utils/model'
+import { ensureValidModel, MODEL_UNAVAILABLE } from '../utils/model'
 import type { VisionConfig } from '../types/vision'
 import SectionBar from './SectionBar'
 
@@ -38,12 +38,12 @@ export default function VisionProcessor() {
     saveState({ text, output, previewUrl })
   }, [text, output, previewUrl])
 
-  useEffect(() => {
-    getVisionConfig().then((cfg) => {
-      setConfig(cfg)
-      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
-    })
-  }, [])
+  // Also run when the server says the selected model is gone, so a page left open recovers by itself.
+  const loadConfig = useCallback(() => getVisionConfig().then((cfg) => {
+    setConfig(cfg)
+    if (cfg.models.length) setModelId(prev => ensureValidModel(prev, cfg.models, cfg.default_model))
+  }), [])
+  useEffect(() => { loadConfig() }, [loadConfig])
 
   const handleAnalyze = useCallback(async () => {
     if (loading || (files.length === 0 && !previewUrl)) return
@@ -69,7 +69,7 @@ export default function VisionProcessor() {
       let result = ''
       await readSSE(res, {
         onText: (delta) => { result += delta; setOutput(result) },
-        onError: (msg) => setOutput(msg),
+        onError: (msg, code) => { setOutput(msg); if (code === MODEL_UNAVAILABLE) loadConfig() },
         onMetadata: (data) => {
           const urls = data.file_urls as string[]
           if (urls?.[0]) setPreviewUrl(urls[0])

@@ -1,3 +1,6 @@
+/** RUN_ERROR code the server sends when the selected model was retired or removed. */
+export const MODEL_UNAVAILABLE = 'model_unavailable'
+
 interface ModelOption { model_id: string }
 
 /**

@@ -31,10 +31,11 @@ def client():
     return TestClient(app)
 
 
-def test_text_endpoint_names_the_unavailable_model(client, monkeypatch):
+def test_text_endpoint_names_the_unavailable_model_and_tags_it_for_the_client(client, monkeypatch):
+    """The code lets a stale page reload its model list by itself."""
     monkeypatch.setattr(model_manager, "get_model_by_id", lambda _id: None)
     body = client.post("/api/text/process", json=BODY).text
-    assert "RUN_ERROR" in body and OLD_ID in body and "refresh" in body.lower()
+    assert "RUN_ERROR" in body and OLD_ID in body and '"code":"model_unavailable"' in body.replace(" ", "")
 
 
 def test_other_failures_stay_generic_and_leak_nothing(client, monkeypatch):
@@ -43,3 +44,4 @@ def test_other_failures_stay_generic_and_leak_nothing(client, monkeypatch):
     monkeypatch.setattr(model_manager, "get_model_by_id", boom)
     body = client.post("/api/text/process", json=BODY).text
     assert "An error occurred while processing your text" in body and "secret detail" not in body
+    assert "model_unavailable" not in body

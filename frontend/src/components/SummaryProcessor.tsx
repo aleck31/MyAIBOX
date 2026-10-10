@@ -5,7 +5,7 @@ import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import { IconTrash } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
-import { ensureValidModel } from '../utils/model'
+import { ensureValidModel, MODEL_UNAVAILABLE } from '../utils/model'
 import type { SummaryConfig } from '../types/summary'
 import SectionBar from './SectionBar'
 
@@ -36,12 +36,12 @@ export default function SummaryProcessor() {
     saveState({ input, output, targetLang })
   }, [input, output, targetLang])
 
-  useEffect(() => {
-    getSummaryConfig().then((cfg) => {
-      setConfig(cfg)
-      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
-    })
-  }, [])
+  // Also run when the server says the selected model is gone, so a page left open recovers by itself.
+  const loadConfig = useCallback(() => getSummaryConfig().then((cfg) => {
+    setConfig(cfg)
+    if (cfg.models.length) setModelId(prev => ensureValidModel(prev, cfg.models, cfg.default_model))
+  }), [])
+  useEffect(() => { loadConfig() }, [loadConfig])
 
   const handleProcess = useCallback(async () => {
     if (!input.trim() || loading) return
@@ -59,7 +59,7 @@ export default function SummaryProcessor() {
       let result = ''
       await readSSE(res, {
         onText: (delta) => { result += delta; setOutput(result) },
-        onError: (msg) => setOutput(msg),
+        onError: (msg, code) => { setOutput(msg); if (code === MODEL_UNAVAILABLE) loadConfig() },
       })
     } catch (err) {
       setOutput('An error occurred while summarizing.')

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
 import { useChatSession } from '../hooks/useChatSession'
 import { listChatAgentModels } from '../api/client'
@@ -16,11 +16,12 @@ function ChatPageInner({ agentId }: { agentId: string }) {
   const { agent, session, loading, error } = useChatSession(agentId)
   const [models, setModels] = useState<ModelOption[]>([])
 
-  useEffect(() => {
+  const loadModels = useCallback(() => {
     listChatAgentModels()
       .then(({ models }) => setModels(models.map(m => ({ model_id: m.model_id, name: m.name }))))
       .catch(() => { /* models list is best-effort */ })
   }, [])
+  useEffect(loadModels, [loadModels])
 
   if (loading) {
     return (
@@ -46,7 +47,7 @@ function ChatPageInner({ agentId }: { agentId: string }) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <ChatContainer agent={agent} session={session} models={models} />
+      <ChatContainer agent={agent} session={session} models={models} onModelUnavailable={loadModels} />
     </div>
   )
 }

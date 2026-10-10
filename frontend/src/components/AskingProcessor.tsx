@@ -9,7 +9,7 @@ import { IconTrash, IconEraser, IconClipboard, IconMic, IconPaperclip, IconClose
 import { useTranscribe } from '../hooks/useTranscribe'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
-import { ensureValidModel } from '../utils/model'
+import { ensureValidModel, MODEL_UNAVAILABLE } from '../utils/model'
 import type { AskingConfig } from '../types/asking'
 import SectionBar from './SectionBar'
 
@@ -62,13 +62,12 @@ export default function AskingProcessor() {
     saveState({ input, blocks, customPrompt })
   }, [input, blocks, customPrompt])
 
-  useEffect(() => {
-    getAskingConfig().then((cfg) => {
-      setConfig(cfg)
-      // Drop a stale stored model (disabled/removed) so we never submit a dead id.
-      if (cfg.models.length) setModelId(ensureValidModel(modelId, cfg.models, cfg.default_model))
-    })
-  }, [])
+  // Also run when the server says the selected model is gone, so a page left open recovers by itself.
+  const loadConfig = useCallback(() => getAskingConfig().then((cfg) => {
+    setConfig(cfg)
+    if (cfg.models.length) setModelId(prev => ensureValidModel(prev, cfg.models, cfg.default_model))
+  }), [])
+  useEffect(() => { loadConfig() }, [loadConfig])
 
   // Keep the latest answer in view as it streams.
   useEffect(() => {
@@ -179,7 +178,7 @@ export default function AskingProcessor() {
       await readSSE(res, {
         onText: (delta) => { respBuf += delta; patchLast({ answer: respBuf }) },
         onReasoning: (delta) => { thinkBuf += delta; patchLast({ thinking: thinkBuf }) },
-        onError: (msg) => patchLast({ answer: msg }),
+        onError: (msg, code) => { patchLast({ answer: msg }); if (code === MODEL_UNAVAILABLE) loadConfig() },
       })
     } catch (err) {
       patchLast({ answer: 'An error occurred.' })
