@@ -57,3 +57,20 @@ def cognito_test_credentials() -> tuple[str, str]:
     if not username or not password:
         pytest.skip("AIBOX_TEST_USERNAME / AIBOX_TEST_PASSWORD not set")
     return username, password
+
+
+def pytest_ignore_collect(collection_path, config):
+    """Don't even import integration tests unless they were asked for.
+
+    Integration modules import real services at module level (e.g. the Cognito
+    singleton), so deselecting by marker is too late — collection itself fails
+    on machines without AWS/Cognito config. Opt in with `-m integration` or by
+    passing an integration path explicitly.
+    """
+    if "integration" not in collection_path.parts:
+        return None
+    if "integration" in (config.getoption("markexpr") or "") and "not integration" not in config.getoption("markexpr"):
+        return None
+    if any("integration" in str(a) for a in config.invocation_params.args):
+        return None
+    return True

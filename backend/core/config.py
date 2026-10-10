@@ -10,9 +10,6 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(dotenv_path=env_path, override=True)
 
-# Debug: Print loaded environment variables
-print(f"Loaded SERVER_HOST: {os.getenv('SERVER_HOST')}")
-
 
 class ENVConfig:
     """Environment-specific configuration for deployment settings"""

@@ -6,7 +6,7 @@ class SPAStaticFiles(StaticFiles):
     """Serve index.html for any path that doesn't match a real file.
 
     Required for React Router (client-side routing): requests like
-    /persona don't correspond to files on disk, so we fall back to
+    /chat/assistant don't correspond to files on disk, so we fall back to
     index.html and let the browser-side router handle the path.
     """
     async def get_response(self, path: str, scope):

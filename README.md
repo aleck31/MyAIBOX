@@ -1,6 +1,6 @@
 # MyAIBOX
 
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white) ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![AWS](https://img.shields.io/badge/AWS-Bedrock%20%7C%20Strands_Agent-FF9900?logo=amazonwebservices&logoColor=white) ![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?logo=google&logoColor=white)
 
 MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with FastAPI and React. It provides access to various AI capabilities including AI Agent, multimodal chat, text processing, summarization, image/document recognition, and image creation.
 
@@ -8,7 +8,13 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 
 The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with secure authentication via Amazon Cognito and session management backed by DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
-🎉 **What's New in v3.7**
+🎉 **What's New in v3.8**
+- **Talk**: real-time voice conversation with a LiveAgent (e.g. English-practice coach with multi-level coaching), voice/model switching
+- **More models**: GPT-5 and Grok via Bedrock Mantle, Claude adaptive-thinking models
+- **Chat persistence**: conversations survive a page refresh; cloud sync is independent
+- **Security hardening**: uploads are referenced by server-issued ids only (no client-supplied paths), size-limited, and stdio MCP servers require `ADMIN_SUBS`
+
+**v3.7**
 - **Voice input (Asking)**: speak your question — live transcription via AWS Transcribe streaming, with optional auto-send
 - **Research-style Asking**: questions and follow-ups stack as a scrollable thread (numbered Q/A blocks with collapsible reasoning), plus a resizable rail that indexes every question for quick navigation
 
@@ -45,6 +51,7 @@ The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with
 * **Chat** 💬 — Unified conversational AI: pick an agent (Assistant, Q&A persona, etc.), each with its own tools, skills, system prompt, and workspace
 * **Text** 📝 — Proofreading, rewriting, reduction, expansion, multi-language support
 * **Summary** 📰 — Document and text summarization
+* **Talk** 🎙️ — Real-time voice conversation with a LiveAgent (`/talk/:agentId`)
 * **Asking** 🧠 — Research-style deep Q&A: voice or text input, follow-up threads, per-question reasoning
 * **Vision** 👀 — Image analysis, document understanding (PDF), multi-model support
 * **Draw** 🎨 — AI image generation and editing with prompt optimization, style/ratio/seed options
@@ -104,7 +111,7 @@ my-aibox/
 | **Legacy Tools** | Per-agent toggle | `get_weather`, `search_wikipedia` |
 | **Skills** | Per-agent toggle (from `~/.agents/skills/`) | Anthropic-style skills loaded via Strands `AgentSkills` plugin |
 
-MCP server types: HTTP, stdio, SSE.
+MCP server types: HTTP, stdio, SSE. stdio servers run commands on the host, so adding one requires your Cognito `sub` in `ADMIN_SUBS` (when `ADMIN_SUBS` is set, all MCP changes are admin-only).
 
 ## Setup
 
@@ -138,8 +145,9 @@ uv run python app.py
 | `/` | React SPA (default → `/chat/assistant`) |
 | `/login` | Login page |
 | `/chat/:agentId` | Chat with the selected agent (e.g. `/chat/assistant`, `/chat/family_doctor`) |
+| `/talk/:agentId` | Voice conversation (default `/talk/english-coach`) |
 | `/text`, `/summary`, `/asking`, `/vision`, `/draw` | Tool modules |
-| `/settings/session`, `/settings/modules`, `/settings/models`, `/settings/mcp` | Settings pages |
+| `/settings/session`, `/settings/agents`, `/settings/modules`, `/settings/models`, `/settings/mcp` | Settings pages |
 | `/api/*` | Backend API |
 
 ## Deployment

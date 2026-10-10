@@ -1,7 +1,7 @@
 [project]
 name = "my-aibox"
 version = "3.8.12"
-description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and Gradio"
+description = "MyAIBOX(AI百宝箱) - A comprehensive Gen-AI application suite built with FastAPI and React"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
