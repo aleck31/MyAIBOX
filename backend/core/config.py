@@ -126,7 +126,8 @@ class AppConfig:
     @property
     def cors_config(self) -> Dict[str, Any]:
         """Get CORS configuration"""
-        origins = [o.strip() for o in os.getenv('CORS_ORIGINS', '*').split(',') if o.strip()]
+        # Unset = same-origin only (the SPA is served by this app, so no CORS is needed).
+        origins = [o.strip() for o in os.getenv('CORS_ORIGINS', '').split(',') if o.strip()]
         # Browsers reject `Access-Control-Allow-Origin: *` together with credentials,
         # and SessionMiddleware always sends a cookie. Force an explicit origin list.
         if '*' in origins:

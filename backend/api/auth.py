@@ -84,7 +84,10 @@ async def get_auth_user(request: Request) -> str:
         request.session.clear()
         _unauthorized(request, "Authentication token expired or invalid")
 
-    request.session['auth_user']['access_token'] = validated
+    if validated != access_token:
+        # Reassign the top-level key: Starlette only persists the session cookie when the
+        # session itself is marked modified, which in-place edits of the nested dict don't do.
+        request.session['auth_user'] = {**auth_user, 'access_token': validated}
     cached = cognito_auth.user_info.get(sub, {})
     request.state.user = {
         'sub': sub,
