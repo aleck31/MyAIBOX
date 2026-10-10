@@ -3,6 +3,7 @@ Centralized AWS configuration and client creation
 """
 import os
 import ast
+import json
 import boto3
 from typing import Optional, Dict, Any
 from botocore.config import Config
@@ -111,8 +112,12 @@ def get_secret(secret_name):
         )
         
         # Decrypts secret using the associated KMS key.
-        secret = ast.literal_eval(response['SecretString'])
-        return secret
+        raw = response['SecretString']
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            # Legacy secrets were stored as a Python dict repr (single quotes).
+            return ast.literal_eval(raw)
         
     except Exception as ex:
         logger.error(f"Error getting secret {secret_name}: {str(ex)}")
