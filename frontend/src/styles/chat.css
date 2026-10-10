@@ -44,6 +44,24 @@
   padding-top: 1px;
 }
 
+/* A reply that shows a THINKING or tool bar starts small and grows when the answer text arrives, so a
+   fit-content bubble jumps from ~140px to the full column mid-stream. Give those replies the full
+   column width up front so the bars never change width. Plain short replies still hug their content. */
+/* The bubble's width comes from its parent column (.aui-assistant-message-body), which is itself
+   shrink-wrapped, so the column has to be the one that fills the row. */
+.aui-assistant-message-body:has(.thinking-block) {
+  flex: 1 1 auto;
+}
+.aui-assistant-message-content:has(.thinking-block) {
+  width: 100%;
+}
+
+/* The composer has a single action slot (Send, or Stop while generating): keep it at the bottom-right.
+   The upstream default is space-between, which pins a lone child to the left. */
+.aui-composer-action-wrapper {
+  justify-content: flex-end;
+}
+
 /* ── Agent avatar (left of each assistant message) ── */
 .agent-avatar {
   flex-shrink: 0;

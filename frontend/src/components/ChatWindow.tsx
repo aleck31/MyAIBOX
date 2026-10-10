@@ -6,6 +6,7 @@ import {
   ComposerPrimitive,
   ActionBarPrimitive,
   AttachmentPrimitive,
+  AuiIf,
   useThreadRuntime,
 } from '@assistant-ui/react'
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
@@ -231,14 +232,21 @@ function Thread() {
             placeholder="Type a message…"
           />
           <div className="aui-composer-action-wrapper">
-            <ComposerPrimitive.Cancel className="aui-composer-cancel">
-              <span className="aui-composer-cancel-icon">■</span>
-            </ComposerPrimitive.Cancel>
-            <ComposerPrimitive.Send className="aui-composer-send">
-              <svg className="aui-composer-send-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M13 8L3 3l2 5-2 5 10-5z" strokeLinejoin="round" />
-              </svg>
-            </ComposerPrimitive.Send>
+            {/* One slot, two states: Send while idle, Stop while the assistant is generating. */}
+            <AuiIf condition={({ thread }) => !thread.isRunning}>
+              <ComposerPrimitive.Send className="aui-composer-send" aria-label="Send message" title="Send message">
+                <svg className="aui-composer-send-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                  <path d="M13 8L3 3l2 5-2 5 10-5z" strokeLinejoin="round" />
+                </svg>
+              </ComposerPrimitive.Send>
+            </AuiIf>
+            <AuiIf condition={({ thread }) => thread.isRunning}>
+              <ComposerPrimitive.Cancel className="aui-composer-send" aria-label="Stop generating" title="Stop generating">
+                <svg className="aui-composer-send-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <rect x="3.5" y="3.5" width="9" height="9" rx="1.5" />
+                </svg>
+              </ComposerPrimitive.Cancel>
+            </AuiIf>
           </div>
         </ComposerPrimitive.AttachmentDropzone>
       </ComposerPrimitive.Root>
