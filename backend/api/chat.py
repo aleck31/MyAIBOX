@@ -38,6 +38,7 @@ from backend.api.prompts.chat import (
     WORKSPACE_INSTRUCTIONS,
 )
 from backend.common.logger import setup_logger
+from backend.common.uploads import resolve_upload, log_rejected
 from backend.core import workspace
 from backend.core.agent_context import current_workspace_dir, current_agent_id
 from backend.core.chat_agents import chat_agent_registry
@@ -150,8 +151,12 @@ def _extract_text_and_files(content: Any) -> tuple[str, List[str]]:
             if part.get("type") == "text":
                 texts.append(part.get("text", ""))
             elif part.get("type") == "binary":
-                if p := part.get("data"):
-                    files.append(p)
+                if ref := part.get("data"):
+                    # Never trust a client-supplied path: only ids of files we stored.
+                    if path := resolve_upload(ref):
+                        files.append(path)
+                    else:
+                        log_rejected(ref)
         elif isinstance(part, str):
             texts.append(part)
     return "\n".join(texts), files

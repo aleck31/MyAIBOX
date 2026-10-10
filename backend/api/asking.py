@@ -1,6 +1,5 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
-import os
 import uuid
 from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File, Form
@@ -20,6 +19,7 @@ from backend.api.prompts.asking import SYSTEM_PROMPT
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
 from backend.common.logger import setup_logger
+from backend.common.uploads import save_upload
 
 logger = setup_logger('api.asking')
 
@@ -27,9 +27,6 @@ router = APIRouter(prefix="/asking", tags=["asking"])
 
 _enc = EventEncoder()
 _provider_cache = ProviderCache()
-
-UPLOAD_DIR = "storage/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _get_provider(model_id: str):
@@ -53,16 +50,6 @@ def _get_provider(model_id: str):
             tools=tools,
         ),
     )
-
-
-async def _save_file(f: UploadFile) -> str:
-    ext = os.path.splitext(f.filename or "")[1].lower()
-    file_id = f"{uuid.uuid4().hex}{ext}"
-    path = os.path.join(UPLOAD_DIR, file_id)
-    content = await f.read()
-    with open(path, "wb") as out:
-        out.write(content)
-    return path
 
 
 @router.get("/config")
@@ -108,7 +95,7 @@ async def process_asking(
     file_paths = []
     for f in files:
         if f.filename:
-            path = await _save_file(f)
+            path, _ = await save_upload(f)
             file_paths.append(path)
 
     # Build content

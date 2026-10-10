@@ -19,6 +19,7 @@ from backend.api.prompts.vision import VISION_SYSTEM_PROMPT
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
 from backend.common.logger import setup_logger
+from backend.common.uploads import resolve_upload, save_upload
 
 logger = setup_logger('api.vision')
 
@@ -26,9 +27,6 @@ router = APIRouter(prefix="/vision", tags=["vision"])
 
 _enc = EventEncoder()
 _provider_cache = ProviderCache()
-
-UPLOAD_DIR = "storage/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _get_provider(model_id: str):
@@ -43,16 +41,6 @@ def _get_provider(model_id: str):
             LLMParameters(**params) if params else LLMParameters(),
         ),
     )
-
-
-async def _save_file(f: UploadFile) -> tuple[str, str]:
-    ext = os.path.splitext(f.filename or "")[1].lower()
-    file_id = f"{uuid.uuid4().hex}{ext}"
-    path = os.path.join(UPLOAD_DIR, file_id)
-    content = await f.read()
-    with open(path, "wb") as out:
-        out.write(content)
-    return path, file_id
 
 
 @router.get("/config")
@@ -85,18 +73,17 @@ async def analyze_vision(
     file_urls = []
     for f in files:
         if f.filename:
-            path, file_id = await _save_file(f)
+            path, file_id = await save_upload(f)
             file_paths.append(path)
             file_urls.append(f"/api/upload/{file_id}")
 
     # Reuse previously uploaded files
     if not file_paths and existing_files:
         for file_id in existing_files.split(","):
-            file_id = file_id.strip().split("/")[-1]  # extract file_id from URL or raw id
-            path = os.path.join(UPLOAD_DIR, file_id)
-            if os.path.exists(path):
+            path = resolve_upload(file_id)  # accepts URL or raw id; rejects anything else
+            if path:
                 file_paths.append(path)
-                file_urls.append(f"/api/upload/{file_id}")
+                file_urls.append(f"/api/upload/{os.path.basename(path)}")
 
     if not file_paths:
         async def empty():
