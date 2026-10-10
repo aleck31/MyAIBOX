@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 
 import pytest
+from botocore.exceptions import ClientError
 
 # Importing the providers touches config; give them dummy values (a real .env still wins).
 os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
@@ -20,6 +21,9 @@ from backend.genai.agents.provider import AgentProvider  # noqa: E402
 from backend.genai.models import LLM_CAPABILITIES, LLMModel, LLMParameters  # noqa: E402
 from backend.genai.models.model_manager import model_manager  # noqa: E402
 from backend.genai.models.providers import create_model_provider  # noqa: E402
+from backend.genai.models.providers import LLMProviderError  # noqa: E402
+from backend.genai.models.providers.bedrock_converse import BedrockConverse  # noqa: E402
+from backend.genai.models.providers.bedrock_invoke import BedrockInvoke  # noqa: E402
 
 CAPS = LLM_CAPABILITIES(input_modality=["text"], output_modality=["text"], streaming=True, tool_use=True,
                         reasoning=True, context_window=100_000)
@@ -152,3 +156,13 @@ def test_switching_model_drops_reasoning_blocks_from_history(registry):
     provider.update_model(registry("qwen.qwen3-vl-235b-a22b", vendor="Qwen"))
     assert provider.messages[1]["content"] == [{"text": "156"}]
     assert provider.messages[0]["content"] == [{"text": "12*13?"}]
+
+
+@pytest.mark.parametrize("provider_cls", [BedrockInvoke, BedrockConverse])
+def test_retired_bedrock_model_gets_an_actionable_message(provider_cls):
+    """AWS answers ResourceNotFoundException for models it retired; 'Please try again' would be wrong."""
+    err = ClientError({"Error": {"Code": "ResourceNotFoundException", "Message": "Legacy model"}}, "InvokeModel")
+    with pytest.raises(LLMProviderError) as raised:
+        provider_cls._handle_bedrock_error(object.__new__(provider_cls), err)
+    assert "choose another model" in raised.value.message.lower()
+    assert "try again" not in raised.value.message.lower()

@@ -288,7 +288,7 @@ class ModuleConfig:
                 'setting_name': 'creative',
                 'type': 'module',
                 'description': 'Creative Module',
-                'default_model': 'amazon.nova-canvas-v1:0',
+                'default_model': 'stability.sd3-5-large-v1:0',
                 # basic parameters for generative models
                 'parameters': {
                     'height': 1152,

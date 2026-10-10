@@ -7,7 +7,7 @@ import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff, IconPlus } from '.
 import SectionBar from './SectionBar'
 
 
-interface McpServer { name: string; type: string; status: string; url: string; tools_count: number }
+interface McpServer { name: string; type: string; status: string; url: string }
 
 export default function McpPanel() {
   const confirm = useConfirm()
@@ -56,7 +56,7 @@ export default function McpPanel() {
       <div className="settings-content">
         <table className="settings-table">
           <thead>
-            <tr><th>Name</th><th>Type</th><th>Status</th><th>Tools</th><th>URL / Command</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Type</th><th>Status</th><th>URL / Command</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {servers.map((s) => (
@@ -64,7 +64,6 @@ export default function McpPanel() {
                 <td>{s.name}</td>
                 <td>{s.type}</td>
                 <td>{s.status}</td>
-                <td>{s.tools_count}</td>
                 <td className="settings-session-id" style={{ maxWidth: 300 }}>{s.url}</td>
                 <td>
                   <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} className="btn--row-action">

@@ -121,6 +121,8 @@ class BedrockConverse(LLMAPIProvider):
             'ValidationException': "There was an issue with the request format. Please try again with different input.",
             'ModelTimeoutException': "The model took too long to respond. Please try with a shorter message.",
             'ModelNotReadyException': "The model is currently initializing. Please try again in a moment.",
+            'ResourceNotFoundException': "This model is no longer available from AWS (retired or not enabled for this account). Please choose another model.",
+            'AccessDeniedException': "This model is not enabled for this account. Please choose another model.",
             'ModelStreamErrorException': "Error in model stream. Please try again with different parameters.",
             'ModelErrorException': "The model encountered an error processing your request. Please try again with different input."
         }

@@ -247,15 +247,7 @@ async def toggle_model(model_id: str, body: ToggleModelRequest, username: str = 
 @router.get("/mcp-servers")
 async def list_mcp_servers(username: str = Depends(get_auth_user)):
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
-    from backend.genai.tools.provider import tool_provider
     servers = mcp_server_manager.get_mcp_servers()
-    # Pre-compute per-server tool counts
-    try:
-        all_tools = tool_provider.list_tools()
-        mcp_tools = [t for t in all_tools if t.get('type') == 'mcp_server']
-    except Exception as e:
-        logger.warning(f"[settings] listing MCP tools failed, showing 0 tools: {e}")
-        mcp_tools = []
     result = []
     for name, cfg in servers.items():
         stype = cfg.get('type', 'unknown')
@@ -265,11 +257,10 @@ async def list_mcp_servers(username: str = Depends(get_auth_user)):
             url = f"{cmd} {' '.join(str(a) for a in args)}".strip()
         else:
             url = cfg.get('url', '')
-        tools_count = len([t for t in mcp_tools if t['name'] == name]) if not cfg.get('disabled') else 0
         result.append({
             "name": name, "type": stype,
             "status": "Disabled" if cfg.get('disabled') else "Enabled",
-            "url": url, "tools_count": tools_count,
+            "url": url,
         })
     return result
 

@@ -259,23 +259,6 @@ DEFAULT_MODELS = [
         ),
     ),
     LLMModel(
-        name='Nova Canvas',
-        model_id='amazon.nova-canvas-v1:0',
-        api_provider='BedrockInvoke',
-        category='image',
-        vendor='Amazon',
-        description="Amazon's image generation model. Generates images from text prompts and supports editing existing images.",
-        region='us-east-1',
-        capabilities=LLM_CAPABILITIES(
-            input_modality=['text', 'image'],
-            output_modality=['image'],
-            streaming=False,
-            tool_use=False,
-            reasoning=False,
-            context_window=131072,
-        ),
-    ),
-    LLMModel(
         name='Nova Reel',
         model_id='amazon.nova-reel-v1:0',
         api_provider='BedrockInvoke',
