@@ -11,6 +11,7 @@ from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.utils.aws import get_aws_session, get_secret
 from backend.genai.models.model_manager import model_manager
+from backend.genai.agents.limits import CycleLimit, max_cycles_from_env
 from backend.genai.models.thinking import build_thinking_fields, rejects_sampling_params, top_k_fields, DEFAULT_INTENT
 from backend.genai.tools.provider import tool_provider
 from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
@@ -46,6 +47,7 @@ class AgentProvider:
         # Agent creation. Empty list = no plugin injected.
         self.skills: List = list(skills or [])
         self._agent: Optional[Agent] = None
+        self._cycle_limit = CycleLimit(max_cycles_from_env(), model_id)
         self._mcp_clients: list = []
         # HTTP clients shared across model swaps so update_model() does not
         # leak sockets. Bedrock reuses a module-level boto3 session already.
@@ -212,6 +214,7 @@ class AgentProvider:
             messages=history_messages or [],
             callback_handler=None,
             conversation_manager=SlidingWindowConversationManager(window_size=40),
+            hooks=[self._cycle_limit],
         )
         if plugins:
             agent_kwargs["plugins"] = plugins
@@ -302,6 +305,11 @@ class AgentProvider:
             async for event in agent.stream_async(prompt):
                 if chunk := self._convert_event(event, tool_state):
                     yield chunk
+
+            # The cap ends the turn with an assistant message Strands does not stream as text,
+            # so tell the user ourselves instead of leaving the answer blank.
+            if self._cycle_limit.stop_message:
+                yield create_text_chunk(self._cycle_limit.stop_message)
 
         except Exception as e:
             logger.error(f"Generation error: {e}", exc_info=True)

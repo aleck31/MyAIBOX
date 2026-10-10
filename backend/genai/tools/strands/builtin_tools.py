@@ -20,9 +20,15 @@ BUILTIN_TOOLS = [
 ]
 
 
+# Tools implemented in this repo instead of `strands_tools` (the upstream one is deprecated).
+_LOCAL_TOOLS = {
+    'current_time': 'backend.genai.tools.strands.time_tool',
+}
+
+
 def _import_tool(tool_name: str):
-    """Import `strands_tools.<tool_name>` and return the module."""
-    return importlib.import_module(f"strands_tools.{tool_name}")
+    """Import the module providing `tool_name` (local replacement first, else `strands_tools.<name>`)."""
+    return importlib.import_module(_LOCAL_TOOLS.get(tool_name) or f"strands_tools.{tool_name}")
 
 
 def load_builtin_tools(tool_filter: Optional[List[str]] = None) -> List:

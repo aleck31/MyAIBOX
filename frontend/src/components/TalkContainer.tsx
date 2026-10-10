@@ -28,7 +28,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
   const [models, setModels] = useState<ModelOption[]>([])
   const [voices, setVoices] = useState<Voice[]>([])
   const [levels, setLevels] = useState<Level[]>([])
-  // Top-bar model + voice are per-agent UI preferences (ARD 001): persist in
+  // Top-bar model + voice are per-agent UI preferences: persist in
   // localStorage, defaulting to the agent's (override-merged) value. Priority:
   // user pick → agent override → module default → first eligible (ensureValidModel).
   const [modelId, setModelId] = useStoredState(`talk-model:${agent.id}`, agent.default_model ?? '')

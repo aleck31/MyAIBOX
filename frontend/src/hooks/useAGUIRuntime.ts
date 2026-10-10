@@ -97,8 +97,8 @@ interface UseAGUIRuntimeOptions {
 const _msgCache = new Map<string, LocalMessage[]>()
 const _agentCache = new Map<string, HttpAgent>()
 
-// Per-thread sessionStorage mirror so conversation survives a refresh (ARD 001/002:
-// "no clear = it stays"). _msgCache is the fast route-switch cache; sessionStorage
+// Per-thread sessionStorage mirror so conversation survives a refresh
+// ("no clear = it stays"). _msgCache is the fast route-switch cache; sessionStorage
 // is the refresh-proof backstop. cloud_sync (DDB) is independent and only adds cross-device sync.
 const _msgsKey = (threadId: string) => `chat-msgs:${threadId}`
 function loadStoredMsgs(threadId: string): LocalMessage[] | null {
@@ -179,7 +179,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   const onMessagesEditedRef = useRef(onMessagesEdited)
   onMessagesEditedRef.current = onMessagesEdited
   const [localMessages, setLocalMessagesRaw] = useState<LocalMessage[]>(() => {
-    // Restore priority (ARD 002): _msgCache (route switch) → sessionStorage (refresh)
+    // Restore priority: _msgCache (route switch) → sessionStorage (refresh)
     // → initialMessages (from backend DDB, e.g. fresh open / cross-device).
     const cached = _msgCache.get(threadId)
     if (cached) return cached

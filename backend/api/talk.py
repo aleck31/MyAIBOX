@@ -34,7 +34,7 @@ logger = setup_logger('api.talk')
 
 router = APIRouter(prefix="/talk", tags=["talk"])
 
-# Per-(user, talk-agent) provider cache (ARD 002): hang up pauses the BidiAgent
+# Per-(user, talk-agent) provider cache: hang up pauses the BidiAgent
 # but keeps it cached, so reconnecting resumes with the prior transcript as context.
 import time
 _TALK_TTL = 1800           # 30 min idle eviction (voice sessions are short-lived)
@@ -43,7 +43,7 @@ _talk_cache: dict = {}     # key -> (LiveAgentProvider, last_ts)
 
 async def _get_or_create_provider(sub: str, agent_id: str, model_id: str, system_prompt: str,
                                    voice_id: str, tool_config: dict, history: list):
-    """Resolve a voice session (ARD 002 priority): cached BidiAgent → reuse (it
+    """Resolve a voice session: cached BidiAgent → reuse (it
     already holds the conversation); else build fresh, seeding it with `history`
     sent by the client (the front-end transcript the user hasn't cleared) so the
     agent resumes even after the cache TTL evicted the live session."""
@@ -213,7 +213,7 @@ async def talk_ws(ws: WebSocket, agent_id: str):
     if voice_id not in _VOICES:
         voice_id = agent.voice_id
 
-    # Model priority (ARD 001): ?model_id= top-bar pick → agent override → module default.
+    # Model priority: ?model_id= top-bar pick → agent override → module default.
     # Validate the requested id against the realtime-eligible set before trusting it.
     requested_model = ws.query_params.get("model_id")
     eligible = {m.model_id for m in (model_manager.get_models(filter=module_config.get_model_filter('talk')) or [])}
@@ -243,7 +243,7 @@ async def talk_ws(ws: WebSocket, agent_id: str):
         level_id = DEFAULT_LEVEL
     system_prompt = build_prompt(agent.prompt, level_id, agent.enabled_tools)
 
-    # Per-(user, agent) session cache (ARD 002): reuse cached BidiAgent (resumes the
+    # Per-(user, agent) session cache: reuse cached BidiAgent (resumes the
     # conversation); else build fresh seeded with the client history.
     provider = await _get_or_create_provider(sub, agent_id, model_id, system_prompt, voice_id, tool_config, history)
 

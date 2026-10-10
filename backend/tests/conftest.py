@@ -13,6 +13,11 @@ from typing import Optional
 
 import pytest
 
+# Keep test runs out of the service's log: logs/app.log is shared with production when the tests run on
+# the same host, and tests fake errors on purpose (SECURITY_ALERT, "auth down", ...). This must run before
+# any backend module is imported, because the logger reads it at import time. Override with LOG_TO_FILE=true.
+os.environ.setdefault("LOG_TO_FILE", "false")
+
 from backend.core.session.models import Session, SessionMetadata
 
 
