@@ -11,7 +11,7 @@ from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.utils.aws import get_aws_session, get_secret
 from backend.genai.models.model_manager import model_manager
-from backend.genai.models.thinking import build_thinking_fields, rejects_sampling_params, DEFAULT_INTENT
+from backend.genai.models.thinking import build_thinking_fields, rejects_sampling_params, top_k_fields, DEFAULT_INTENT
 from backend.genai.tools.provider import tool_provider
 from backend.genai.agents.chunk_builder import create_text_chunk, create_tool_chunk, create_thinking_chunk
 
@@ -67,7 +67,9 @@ class AgentProvider:
             additional_fields: Dict = {}
             # Default on@high for reasoning models; disable via Agents page.
             thinking_fields = {}
-            if model.capabilities.reasoning:
+            # Only Anthropic models take Bedrock's Claude `thinking` request fields; other reasoning
+            # models (Nova, GPT-OSS, DeepSeek, Qwen...) reason internally and may reject them.
+            if model.capabilities.reasoning and model.vendor == 'Anthropic':
                 intent = self.parameters.get("thinking") or DEFAULT_INTENT
                 thinking_fields = build_thinking_fields(mid, intent, self.parameters.get("max_tokens"))
 
@@ -80,8 +82,7 @@ class AgentProvider:
                 allowed = ("max_tokens", "stop_sequences")
             else:
                 allowed = ("max_tokens", "temperature", "top_p", "stop_sequences")
-                if self.parameters.get("top_k") is not None:
-                    additional_fields["top_k"] = self.parameters["top_k"]
+                additional_fields.update(top_k_fields(mid, self.parameters.get("top_k")))
             for k in allowed:
                 if self.parameters.get(k) is not None:
                     kwargs[k] = self.parameters[k]

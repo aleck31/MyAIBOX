@@ -67,6 +67,19 @@ def rejects_sampling_params(model_id: str) -> bool:
     return any(x in model_id for x in NO_SAMPLING_PARAMS)
 
 
+def top_k_fields(model_id: str, top_k: Optional[int]) -> Dict:
+    """Bedrock `additionalModelRequestFields` carrying top_k, which each family names differently.
+
+    Shared by the provider chain and the agent chain so a model never gets a field it rejects:
+    DeepSeek takes none, Nova nests it under inferenceConfig, everything else uses `top_k`.
+    """
+    if not top_k or 'deepseek' in model_id:
+        return {}
+    if 'nova' in model_id:
+        return {'inferenceConfig': {'topK': top_k}}
+    return {'top_k': top_k}
+
+
 def effort_to_budget(effort: str, max_tokens: Optional[int] = None) -> int:
     """Map an effort tier to a legacy budget_tokens, clamped below max_tokens."""
     budget = _EFFORT_TO_BUDGET.get(effort, _EFFORT_TO_BUDGET[DEFAULT_EFFORT])

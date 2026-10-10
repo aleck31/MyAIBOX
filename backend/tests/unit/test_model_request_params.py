@@ -145,3 +145,29 @@ def test_default_models_are_unique_and_routable():
             assert m.base_url.startswith("https://bedrock-mantle."), m.model_id
         if m.api_provider == "Bedrock" and m.vendor in {"Anthropic", "xAI", "Z.AI", "Moonshot AI"}:
             assert m.model_id.startswith("global."), f"{m.model_id} needs a cross-Region inference profile"
+
+
+# ── agent chain: vendor-specific fields (Nova 2 Lite / GPT-OSS rejected Claude's `thinking`) ──
+
+def _fields(registry, model_id, vendor, **params):
+    cfg = _agent_model(registry(_model(model_id, "Bedrock", vendor)), **params).get_config()
+    return cfg.get("additional_request_fields") or {}
+
+
+@pytest.mark.parametrize("model_id,vendor", [
+    ("global.amazon.nova-2-lite-v1:0", "Amazon"), ("openai.gpt-oss-120b-1:0", "OpenAI"),
+    ("deepseek.v3.2", "DeepSeek"), ("global.zai.glm-5.3", "Z.AI"),
+])
+def test_agent_non_anthropic_models_get_no_claude_thinking_fields(registry, model_id, vendor):
+    assert "thinking" not in _fields(registry, model_id, vendor, thinking={"enabled": True, "effort": "high"})
+
+
+def test_agent_top_k_is_named_per_family(registry):
+    assert _fields(registry, "global.amazon.nova-2-lite-v1:0", "Amazon", thinking=THINK_OFF) == {"inferenceConfig": {"topK": 100}}
+    assert _fields(registry, "deepseek.v3.2", "DeepSeek", thinking=THINK_OFF) == {}
+    assert _fields(registry, "global.zai.glm-5.3", "Z.AI", thinking=THINK_OFF) == {"top_k": 100}
+
+
+def test_agent_older_claude_keeps_budget_thinking(registry):
+    fields = _fields(registry, "global.anthropic.claude-sonnet-4-6", "Anthropic", thinking={"enabled": True, "effort": "high"})
+    assert fields["thinking"]["type"] == "enabled" and fields["thinking"]["budget_tokens"] >= 1024
