@@ -133,10 +133,12 @@ def _agent_dto(agent: Agent) -> Dict[str, Any]:
     }
 
 
-def _extract_text_and_files(content: Any) -> tuple[str, List[str]]:
+def _extract_text_and_files(content: Any, owner: Optional[str] = None) -> tuple[str, List[str]]:
     """Pull plain text + a list of uploaded file paths from an AG-UI message content.
 
     Accepts str, dict/list-of-dict (wire shape), or Pydantic models (typed shape).
+    Attachment references are resolved against `owner`'s uploads; with no owner
+    (history rendering, text only) attachments are ignored.
     """
     if isinstance(content, str):
         return content, []
@@ -151,9 +153,9 @@ def _extract_text_and_files(content: Any) -> tuple[str, List[str]]:
             if part.get("type") == "text":
                 texts.append(part.get("text", ""))
             elif part.get("type") == "binary":
-                if ref := part.get("data"):
-                    # Never trust a client-supplied path: only ids of files we stored.
-                    if path := resolve_upload(ref):
+                if (ref := part.get("data")) and owner:
+                    # Never trust a client-supplied path: only ids of this user's uploads.
+                    if path := resolve_upload(ref, owner):
                         files.append(path)
                     else:
                         log_rejected(ref)
@@ -513,7 +515,7 @@ async def chat_stream(
         return StreamingResponse(empty(), media_type="text/event-stream")
 
     last_user_msg = user_messages[-1]
-    msg_text, files = _extract_text_and_files(last_user_msg.content)
+    msg_text, files = _extract_text_and_files(last_user_msg.content, owner=sub)
     history = [
         {"role": m.role, "content": _normalize_history_content(m.content)}
         for m in body.messages

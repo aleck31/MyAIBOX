@@ -23,6 +23,7 @@ VALID_ID = "b" * 32 + ".png"
 def stored_upload(tmp_path, monkeypatch):
     monkeypatch.setattr(uploads, "UPLOAD_DIR", str(tmp_path))
     (tmp_path / VALID_ID).write_bytes(b"x")
+    (tmp_path / (VALID_ID + uploads.OWNER_SUFFIX)).write_text("alice")
     return str(tmp_path / VALID_ID)
 
 
@@ -31,12 +32,23 @@ def _binary(data: str) -> dict:
 
 
 def test_chat_keeps_stored_upload(stored_upload):
-    text, files = chat._extract_text_and_files([{"type": "text", "text": "hi"}, _binary(f"storage/uploads/{VALID_ID}")])
+    text, files = chat._extract_text_and_files([{"type": "text", "text": "hi"}, _binary(f"storage/uploads/{VALID_ID}")], owner="alice")
     assert text == "hi"
     assert files == [stored_upload]
 
 
 @pytest.mark.parametrize("evil", ["/etc/passwd", "/home/ubuntu/repos/my-aibox/.env", "../../secret.png", "/tmp/x.png"])
 def test_chat_drops_client_supplied_paths(stored_upload, evil):
-    _, files = chat._extract_text_and_files([_binary(evil)])
+    _, files = chat._extract_text_and_files([_binary(evil)], owner="alice")
     assert files == []
+
+
+def test_chat_drops_another_users_upload(stored_upload):
+    _, files = chat._extract_text_and_files([_binary(f"storage/uploads/{VALID_ID}")], owner="mallory")
+    assert files == []
+
+
+def test_chat_ignores_attachments_without_an_owner(stored_upload):
+    """History rendering passes no owner and only needs the text."""
+    text, files = chat._extract_text_and_files([{"type": "text", "text": "hi"}, _binary(VALID_ID)])
+    assert (text, files) == ("hi", [])

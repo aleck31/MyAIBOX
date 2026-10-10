@@ -95,7 +95,7 @@ async def process_asking(
     file_paths = []
     for f in files:
         if f.filename:
-            path, _ = await save_upload(f)
+            path, _ = await save_upload(f, username)
             file_paths.append(path)
 
     # Build content

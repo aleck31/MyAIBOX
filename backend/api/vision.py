@@ -73,14 +73,14 @@ async def analyze_vision(
     file_urls = []
     for f in files:
         if f.filename:
-            path, file_id = await save_upload(f)
+            path, file_id = await save_upload(f, username)
             file_paths.append(path)
             file_urls.append(f"/api/upload/{file_id}")
 
     # Reuse previously uploaded files
     if not file_paths and existing_files:
         for file_id in existing_files.split(","):
-            path = resolve_upload(file_id)  # accepts URL or raw id; rejects anything else
+            path = resolve_upload(file_id, username)  # accepts URL or raw id; rejects anything else
             if path:
                 file_paths.append(path)
                 file_urls.append(f"/api/upload/{os.path.basename(path)}")

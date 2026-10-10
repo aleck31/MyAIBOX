@@ -5,6 +5,10 @@ Clients never get to name a path. They hold a `file_id` (``<uuid4 hex>.<ext>``)
 and anything they send back (bare id, ``/api/upload/<id>`` URL, or the
 ``storage/uploads/<id>`` path returned by the upload endpoint) is reduced to
 that id and re-validated before touching the filesystem.
+
+Each upload also gets a ``<file_id>.owner`` sidecar holding the uploader's
+Cognito `sub`; `resolve_upload` refuses other users. Files uploaded before
+sidecars existed have none and stay readable by any logged-in user.
 """
 from __future__ import annotations
 
@@ -33,14 +37,28 @@ ALLOWED_EXTENSIONS = {
 MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_MB", "20")) * 1024 * 1024
 _CHUNK = 1024 * 1024
 
+OWNER_SUFFIX = ".owner"
 _FILE_ID = re.compile(r"^[0-9a-f]{32}\.[a-z0-9]{1,8}$")
 
 
-def resolve_upload(ref: str) -> Optional[str]:
+def _owner_file(path: str) -> str:
+    return path + OWNER_SUFFIX
+
+
+def _owned_by(path: str, owner: str) -> bool:
+    """True if `owner` may access `path`. Legacy files (no sidecar) are open."""
+    try:
+        with open(_owner_file(path), encoding="utf-8") as f:
+            return f.read().strip() == owner
+    except FileNotFoundError:
+        return True
+
+
+def resolve_upload(ref: str, owner: str) -> Optional[str]:
     """Map a client-supplied reference to an existing upload path, or None.
 
     Only the final path component is considered, and it must be exactly a
-    ``<uuid4 hex>.<ext>`` id produced by `save_upload`.
+    ``<uuid4 hex>.<ext>`` id produced by `save_upload` that `owner` uploaded.
     """
     if not ref or not isinstance(ref, str):
         return None
@@ -48,11 +66,13 @@ def resolve_upload(ref: str) -> Optional[str]:
     if not _FILE_ID.match(file_id):
         return None
     path = os.path.join(UPLOAD_DIR, file_id)
-    return path if os.path.isfile(path) else None
+    if not os.path.isfile(path) or not _owned_by(path, owner):
+        return None
+    return path
 
 
-async def save_upload(file: UploadFile) -> Tuple[str, str]:
-    """Stream an upload to disk. Returns ``(path, file_id)``.
+async def save_upload(file: UploadFile, owner: str) -> Tuple[str, str]:
+    """Stream an upload to disk and record `owner`. Returns ``(path, file_id)``.
 
     Raises HTTPException 400 for a disallowed extension and 413 when the file
     exceeds ``MAX_UPLOAD_BYTES`` (the partial file is removed).
@@ -78,6 +98,8 @@ async def save_upload(file: UploadFile) -> Tuple[str, str]:
         if os.path.exists(path):
             os.remove(path)
         raise
+    with open(_owner_file(path), "w", encoding="utf-8") as f:
+        f.write(owner)
     return path, file_id
 
 
