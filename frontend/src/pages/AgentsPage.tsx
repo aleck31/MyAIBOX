@@ -18,6 +18,7 @@ import {
 } from '../api/client'
 import AgentCard from '../components/AgentCard'
 import LiveAgentCard from '../components/LiveAgentCard'
+import SectionBar from '../components/SectionBar'
 
 interface ModelOpt { model_id: string; name: string; reasoning?: boolean }
 interface NameDesc { name: string; description: string }
@@ -117,14 +118,14 @@ export default function AgentsPage() {
 
   return (
     <div className="settings-panel">
-      <div className="section-bar">
+      <SectionBar>
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Agent settings</span>
         <div className="section-actions">
           <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
             {agents.length + talkAgents.length} agents
           </span>
         </div>
-      </div>
+      </SectionBar>
       <div className="settings-content">
         <div className="settings-section" style={{ gap: 10 }}>
           <div className="settings-group-label">Chat agents</div>

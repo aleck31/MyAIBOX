@@ -9,6 +9,7 @@ import { IconTrash, IconWand, IconEdit } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
 import { ensureValidModel } from '../utils/model'
 import type { DrawConfig } from '../types/draw'
+import SectionBar from './SectionBar'
 
 const STORAGE_KEY = 'draw-processor-state'
 
@@ -190,7 +191,7 @@ export default function DrawProcessor() {
   return (
     <div className="module-layout">
       {/* Top bar */}
-      <div className="section-bar">
+      <SectionBar>
         <div className="segmented" role="tablist" aria-label="Mode">
           <button
             type="button"
@@ -210,7 +211,7 @@ export default function DrawProcessor() {
         <div className="section-actions">
           <ModelSelector models={isEdit ? config.edit_models : config.models} value={modelId} onChange={setModelId} />
         </div>
-      </div>
+      </SectionBar>
 
       {/* Main content */}
       <div className="module-panel-main">

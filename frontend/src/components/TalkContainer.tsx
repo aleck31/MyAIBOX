@@ -6,6 +6,7 @@ import ModelSelector, { type ModelOption } from './ModelSelector'
 import { getTalkConfig, clearTalkSession } from '../api/client'
 import { IconMic, IconClose, IconTrash } from './icons'
 import type { TalkAgent } from '../api/client'
+import SectionBar from './SectionBar'
 
 interface Turn { role: 'user' | 'assistant'; text: string; final: boolean }
 interface Voice { id: string; name: string }
@@ -76,7 +77,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
   return (
     <div className="assistant-layout">
       <div className="assistant-chat-col">
-        <div className="section-bar">
+        <SectionBar>
           <ModelSelector models={models} value={modelId} onChange={setModelId} disabled={talk.connected} />
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select className="select" value={voice} onChange={e => setVoice(e.target.value)}
@@ -88,7 +89,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
               <IconTrash size={14} />
             </button>
           </div>
-        </div>
+        </SectionBar>
 
         <div className="talk-thread" ref={threadRef}>
           {turns.length === 0 ? (

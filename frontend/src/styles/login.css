@@ -166,7 +166,7 @@
 
 .login-submit:hover:not(:disabled) { opacity: 0.82; }
 .login-submit:active:not(:disabled) { transform: scale(0.99); }
-.login-submit:disabled { opacity: 0.35; cursor: not-allowed; }
+.login-submit:disabled { background: hsl(var(--muted)); color: hsl(var(--disabled-foreground)); cursor: not-allowed; }
 
 .login-options {
   display: flex;

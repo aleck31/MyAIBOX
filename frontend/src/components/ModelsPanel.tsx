@@ -4,6 +4,7 @@ import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
 import { useConfirm } from './ConfirmDialog'
 import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff } from './icons'
+import SectionBar from './SectionBar'
 
 
 const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'BedrockSonic', 'Gemini', 'OpenAI', 'OpenAIResponses']
@@ -73,7 +74,7 @@ export default function ModelsPanel() {
 
   return (
     <div className="settings-panel">
-      <div className="section-bar">
+      <SectionBar>
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Model Management</span>
         <div className="section-actions">
           <Button onClick={() => load(true)} disabled={refreshing}>
@@ -82,7 +83,7 @@ export default function ModelsPanel() {
           </Button>
           <Button variant="primary" onClick={openAdd}><IconPlus size={14} style={{ marginRight: 4 }} />Add Model</Button>
         </div>
-      </div>
+      </SectionBar>
 
       <div className="settings-content">
         <table className="settings-table">

@@ -7,6 +7,7 @@ import { IconTrash } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
 import { ensureValidModel } from '../utils/model'
 import type { SummaryConfig } from '../types/summary'
+import SectionBar from './SectionBar'
 
 const STORAGE_KEY = 'summary-processor-state'
 
@@ -92,7 +93,7 @@ export default function SummaryProcessor() {
   return (
     <div className="module-layout">
       {/* Controls bar */}
-      <div className="section-bar">
+      <SectionBar>
         <div className="section-actions">
           <select
             className="select"
@@ -105,7 +106,7 @@ export default function SummaryProcessor() {
           </select>
           <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
         </div>
-      </div>
+      </SectionBar>
 
       {/* Text areas */}
       <div className="module-panel-main module-panel-main--equal">

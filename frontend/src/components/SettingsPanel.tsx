@@ -4,6 +4,7 @@ import { Button } from './Button'
 import { IconRefresh, IconTrash, IconEraser } from './icons'
 import type { SessionInfo } from '../types/settings'
 import { useConfirm } from './ConfirmDialog'
+import SectionBar from './SectionBar'
 
 export default function SettingsPanel({ username }: { username: string }) {
   const confirm = useConfirm()
@@ -29,12 +30,12 @@ export default function SettingsPanel({ username }: { username: string }) {
 
   return (
     <div className="settings-panel">
-      <div className="section-bar">
+      <SectionBar>
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Active Sessions for {username}</span>
         <div className="section-actions">
           <Button onClick={loadSessions}><IconRefresh size={14} style={{ marginRight: 4 }} />Refresh</Button>
         </div>
-      </div>
+      </SectionBar>
       <div className="settings-content">
         <div className="settings-section">
           <table className="settings-table">

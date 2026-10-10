@@ -22,6 +22,7 @@ import ModelSelector from './ModelSelector'
 import { useStoredState } from '../hooks/useStoredState'
 import { ensureValidModel } from '../utils/model'
 import type { TextConfig } from '../types/text'
+import SectionBar from './SectionBar'
 
 const STORAGE_KEY = 'text-processor-state'
 
@@ -110,7 +111,7 @@ export default function TextProcessor() {
   return (
     <div className="module-layout">
       {/* Controls bar */}
-      <div className="section-bar">
+      <SectionBar>
         <div className="segmented" role="tablist" aria-label="Operation">
           {config.operations.map((op) => {
             const Icon = OPERATION_ICONS[op.key]
@@ -152,7 +153,7 @@ export default function TextProcessor() {
           </select>
           <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
         </div>
-      </div>
+      </SectionBar>
 
       {/* Text areas */}
       <div className="module-panel-main module-panel-main--equal">

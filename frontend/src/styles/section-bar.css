@@ -17,6 +17,12 @@
   display: none;
 }
 
+/* Controls are hidden past the right edge (set by SectionBar): fade it out so the bar reads as scrollable. */
+.section-bar[data-fade-end] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
 /* Narrow screens: tighten padding + gap so everything stays on one row
    (section-bar itself is overflow-x: auto as a safety net). */
 @media (max-width: 768px) {
@@ -50,7 +56,10 @@
   background: hsl(var(--muted));
 }
 
-.bar-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.bar-icon-btn:disabled {
+  background: hsl(var(--muted)); border-color: hsl(var(--border)); color: hsl(var(--disabled-foreground));
+  cursor: not-allowed;
+}
 
 .bar-icon-btn.done {
   border-color: hsl(142 60% 40%);
@@ -110,10 +119,8 @@
   background: hsl(var(--primary) / 0.9);
 }
 
-.segmented-item:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
+.segmented-item:disabled { color: hsl(var(--disabled-foreground)); cursor: not-allowed; }
+.segmented-item.is-active:disabled { background: hsl(var(--border)); }
 
 @media (max-width: 768px) {
   .segmented-item {

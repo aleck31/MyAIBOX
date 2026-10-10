@@ -8,6 +8,7 @@ import { IconTrash } from './icons'
 import { useStoredState } from '../hooks/useStoredState'
 import { ensureValidModel } from '../utils/model'
 import type { VisionConfig } from '../types/vision'
+import SectionBar from './SectionBar'
 
 const STORAGE_KEY = 'vision-processor-state'
 
@@ -108,11 +109,11 @@ export default function VisionProcessor() {
   return (
     <div className="module-layout">
       {/* Top bar */}
-      <div className="section-bar">
+      <SectionBar>
         <div className="section-actions">
           <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
         </div>
-      </div>
+      </SectionBar>
 
       {/* Main content */}
       <div className="module-panel-main">

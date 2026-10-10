@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getModulesConfig, updateModuleConfig } from '../api/client'
 import type { ModulesData, ModuleConfig } from '../types/settings'
 import ModuleCard from '../components/ModuleCard'
+import SectionBar from '../components/SectionBar'
 
 export default function ModulesPage() {
   const [data, setData] = useState<ModulesData | null>(null)
@@ -54,14 +55,14 @@ export default function ModulesPage() {
 
   return (
     <div className="settings-panel">
-      <div className="section-bar">
+      <SectionBar>
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>Module settings</span>
         <div className="section-actions">
           <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
             {entries.length} modules
           </span>
         </div>
-      </div>
+      </SectionBar>
       <div className="settings-content">
         <div className="settings-section" style={{ gap: 10 }}>
           {entries.map(([name, cfg], idx) => (

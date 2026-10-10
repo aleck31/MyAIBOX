@@ -25,6 +25,7 @@ import ModelSelector, { type ModelOption } from './ModelSelector'
 import { ensureValidModel } from '../utils/model'
 import ChatWindow, { type ChatWindowHandle } from './ChatWindow'
 import WorkspacePanel, { type WorkspacePanelHandle } from './workspace/WorkspacePanel'
+import SectionBar from './SectionBar'
 
 interface Props {
   agent: ChatAgent
@@ -147,7 +148,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
   return (
     <div className="assistant-layout">
       <div className="assistant-chat-col">
-        <div className="section-bar">
+        <SectionBar>
           <ModelSelector
             models={models}
             value={modelId}
@@ -191,7 +192,7 @@ export default function ChatContainer({ agent, session, models }: Props) {
               </button>
             )}
           </div>
-        </div>
+        </SectionBar>
 
         <ChatWindow
           key={chatKey}

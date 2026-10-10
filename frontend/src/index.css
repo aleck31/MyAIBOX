@@ -35,6 +35,7 @@
     --secondary-foreground:     220 14% 10%;
     --muted:                    220 14% 96%;
     --muted-foreground:         220 10% 46%;
+    --disabled-foreground:      220 10% 42%;    /* 5.1:1 on --muted: disabled text stays readable */
     --accent:                   220 14% 96%;
     --accent-foreground:        220 14% 10%;
     --destructive:              0 72% 51%;
@@ -502,7 +503,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .btn:hover:not(:disabled) { border-color: hsl(var(--foreground) / 0.4); background: hsl(var(--muted)); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Disabled: a flat muted fill with readable text (opacity would drop the label to ~2:1). */
+.btn:disabled, .btn--primary:disabled, .btn--danger:disabled {
+  background: hsl(var(--muted)); border-color: hsl(var(--border)); color: hsl(var(--disabled-foreground));
+  cursor: not-allowed;
+}
+.btn--ghost:disabled { background: transparent; border-color: transparent; }
 /* Primary CTA */
 .btn--primary { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border-color: hsl(var(--primary)); }
 .btn--primary:hover:not(:disabled) { background: hsl(var(--primary) / 0.85); border-color: hsl(var(--primary) / 0.85); }
@@ -594,7 +600,7 @@ body {
   transition: border-color 0.12s;
 }
 .input:focus { border-color: hsl(var(--foreground)); }
-.input:disabled { opacity: 0.4; cursor: not-allowed; }
+.input:disabled { background: hsl(var(--muted)); color: hsl(var(--disabled-foreground)); cursor: not-allowed; }
 
 /* Select primitive (custom chevron, appearance: none) */
 .select {
@@ -617,7 +623,7 @@ body {
   min-width: 160px;
 }
 .select:focus { border-color: hsl(var(--foreground)); }
-.select:disabled { opacity: 0.4; cursor: not-allowed; }
+.select:disabled { background: hsl(var(--muted)); color: hsl(var(--disabled-foreground)); cursor: not-allowed; }
 
 /* Mobile: input / textarea also stay 16px to prevent iOS auto-zoom. */
 @media (max-width: 768px) {

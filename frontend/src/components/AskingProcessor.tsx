@@ -11,6 +11,7 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
 import { ensureValidModel } from '../utils/model'
 import type { AskingConfig } from '../types/asking'
+import SectionBar from './SectionBar'
 
 const STORAGE_KEY = 'asking-processor-state'
 
@@ -269,7 +270,7 @@ export default function AskingProcessor() {
           The rail sits alongside (full height), matching the Chat workspace
           layout for visual consistency. */}
       <div className="asking-main">
-        <div className="section-bar">
+        <SectionBar>
           <div className="section-actions" style={{ marginLeft: 'auto' }}>
             <ModelSelector models={config.models} value={modelId} onChange={setModelId} />
             <button
@@ -280,7 +281,7 @@ export default function AskingProcessor() {
               <IconPanelRight size={14} />
             </button>
           </div>
-        </div>
+        </SectionBar>
 
         {/* Stacked Q/A blocks — document style, not chat bubbles */}
         <div className="asking-thread" ref={threadRef}>

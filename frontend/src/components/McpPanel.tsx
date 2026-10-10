@@ -4,6 +4,7 @@ import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
 import { useConfirm } from './ConfirmDialog'
 import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff, IconPlus } from './icons'
+import SectionBar from './SectionBar'
 
 
 interface McpServer { name: string; type: string; status: string; url: string; tools_count: number }
@@ -44,13 +45,13 @@ export default function McpPanel() {
 
   return (
     <div className="settings-panel">
-      <div className="section-bar">
+      <SectionBar>
         <span style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>MCP Server Management</span>
         <div className="section-actions">
           <Button onClick={load}><IconRefresh size={14} style={{ marginRight: 4 }} />Refresh</Button>
           <Button variant="primary" onClick={() => setShowAdd(true)}><IconPlus size={14} style={{ marginRight: 4 }} />Add Server</Button>
         </div>
-      </div>
+      </SectionBar>
 
       <div className="settings-content">
         <table className="settings-table">
