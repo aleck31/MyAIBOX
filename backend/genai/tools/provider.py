@@ -163,8 +163,8 @@ class ToolProvider:
                 )
             ))
         elif server_type == 'http':
-            from mcp.client.streamable_http import streamablehttp_client
-            return MCPClient(lambda: streamablehttp_client(server_config['url']))
+            from mcp.client.streamable_http import streamable_http_client
+            return MCPClient(lambda: streamable_http_client(server_config['url']))
         elif server_type == 'sse':
             from mcp.client.sse import sse_client
             return MCPClient(lambda: sse_client(server_config['url']))

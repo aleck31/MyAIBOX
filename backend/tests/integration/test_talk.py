@@ -51,12 +51,10 @@ async def _ask_with_voice(question: str, enabled_tools: list) -> dict:
     async def collect():
         async for ev in prov.events():
             t = ev.get("type") if isinstance(ev, dict) else None
-            if t == "tool_use_stream":
-                tu = ev.get("current_tool_use") or {}
-                if tu.get("name"):
-                    out["tool_uses"].append(tu["name"])
-            elif t == "bidi_transcript_stream" and ev.get("role") == "assistant":
-                out["text"].append(ev.get("text", ""))
+            if t == "bidi_tool_use_blocks":
+                out["tool_uses"].extend(tu["name"] for tu in ev.get("tool_uses", []) if tu.get("name"))
+            elif t == "bidi_transcript_block" and ev.get("role") == "assistant":
+                out["text"].append(ev.get("transcript", ""))
 
     task = asyncio.create_task(collect())
     try:

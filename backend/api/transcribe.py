@@ -17,16 +17,17 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from aws_sdk_transcribe_streaming.client import TranscribeStreamingClient
-from aws_sdk_transcribe_streaming.config import Config
+from aws_sdk_transcribe_streaming.client import AsyncTranscribeStreamingClient
+from aws_sdk_transcribe_streaming.config import AsyncTranscribeStreamingConfig
 from aws_sdk_transcribe_streaming.models import (
     StartStreamTranscriptionInput,
     AudioEvent,
     AudioStreamAudioEvent,
 )
-from smithy_aws_core.identity.chain import create_default_chain
+
 from smithy_http.aio.crt import AWSCRTHTTPClient
 
+from backend.common.aws_identity import Boto3CredentialsResolver
 from backend.common.logger import setup_logger
 from backend.core.config import env_config
 from backend.common.sso import introspect as sso_introspect, SSOError
@@ -43,15 +44,18 @@ _LANGUAGE_OPTIONS = "zh-CN,en-US"  # auto-detected via identify_multiple_languag
 _REGION = os.getenv('TRANSCRIBE_REGION', 'ap-southeast-1')
 
 
-def _new_client() -> TranscribeStreamingClient:
-    """Build a Transcribe streaming client using the default AWS credential chain."""
-    transport = AWSCRTHTTPClient()
-    config = Config(
+async def _new_client() -> AsyncTranscribeStreamingClient:
+    """Build a Transcribe streaming client.
+
+    Bidirectional streaming needs the CRT transport (the default aiohttp one is unary-only).
+    Credentials come from boto3's chain: the SDK's own chain has no instance-profile support.
+    """
+    config = await AsyncTranscribeStreamingConfig.resolve(
         region=_REGION,
-        aws_credentials_identity_resolver=create_default_chain(transport),
-        transport=transport,
+        transport=AWSCRTHTTPClient(),
+        aws_credentials_identity_resolver=Boto3CredentialsResolver(),
     )
-    return TranscribeStreamingClient(config=config)
+    return AsyncTranscribeStreamingClient(config=config)
 
 
 async def _authenticate_ws(ws: WebSocket) -> Optional[str]:
@@ -114,8 +118,8 @@ async def transcribe_ws(ws: WebSocket):
     if not sub:
         return
 
-    client = _new_client()
     try:
+        client = await _new_client()
         stream = await client.start_stream_transcription(
             input=StartStreamTranscriptionInput(
                 media_sample_rate_hertz=_SAMPLE_RATE,

@@ -16,7 +16,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from pydantic import BaseModel
@@ -166,20 +166,29 @@ async def reset_agent(agent_id: str, sub: str = Depends(get_auth_user)):
     return _agent_dto(agent)
 
 
-def _to_frame(event) -> Optional[dict]:
-    """Translate a BidiOutputEvent into a compact client JSON frame (or None to skip)."""
+def _to_frame(event, transcripts: Dict[str, str]) -> Optional[dict]:
+    """Translate a BidiOutputEvent into a compact client JSON frame (or None to skip).
+
+    The client replaces the open transcript turn with each non-final frame, so
+    transcript frames carry the *accumulated* text of the turn (`transcripts`,
+    keyed by content_id, holds the per-connection state); the block event closes it.
+    """
     etype = event.get("type") if isinstance(event, dict) else None
-    if etype == "bidi_transcript_stream":
-        return {"type": "transcript", "text": event.get("text", ""),
-                "role": event.get("role", "assistant"), "final": bool(event.get("is_final"))}
-    if etype == "bidi_audio_stream":
+    if etype == "bidi_transcript_delta":
+        cid = event.get("content_id", "")
+        transcripts[cid] = transcripts.get(cid, "") + event.get("delta", "")
+        return {"type": "transcript", "text": transcripts[cid],
+                "role": event.get("role", "assistant"), "final": False}
+    if etype == "bidi_transcript_block":
+        transcripts.pop(event.get("content_id", ""), None)
+        return {"type": "transcript", "text": event.get("transcript", ""),
+                "role": event.get("role", "assistant"), "final": True}
+    if etype == "bidi_audio_delta":
         return {"type": "audio", "audio": event.get("audio", ""),
                 "sample_rate": event.get("sample_rate", 16000)}
-    if etype == "bidi_interruption":
+    if etype == "bidi_barge_in":
         return {"type": "interrupted"}
-    if etype == "bidi_error":
-        return {"type": "error", "message": str(event.get("message", "error"))}
-    return None  # connection/usage/complete events not surfaced to the client
+    return None  # connection/usage/response events are not surfaced to the client
 
 
 _VOICES = {"matthew", "tiffany", "amy"}
@@ -249,9 +258,10 @@ async def talk_ws(ws: WebSocket, agent_id: str):
         return
 
     async def pump_events() -> None:
+        transcripts: Dict[str, str] = {}
         try:
             async for event in provider.events():
-                frame = _to_frame(event)
+                frame = _to_frame(event, transcripts)
                 if frame is None:
                     continue
                 try:
@@ -260,6 +270,10 @@ async def talk_ws(ws: WebSocket, agent_id: str):
                     return
         except Exception as e:
             logger.warning(f"[talk] event pump ended for {sub}: {e}")
+            try:  # strands now raises on model/stream failure instead of emitting an error event
+                await ws.send_text(json.dumps({"type": "error", "message": "voice session interrupted"}))
+            except Exception:
+                pass
 
     pump_task = asyncio.create_task(pump_events())
 

@@ -6,13 +6,14 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     # Fundamental
-    "fastapi>=0.100.0",
-    "boto3>=1.43.19",
-    "google-genai>=1.7.0",
-    "openai>=2.40",
+    "fastapi>=0.143.0",
+    "boto3>=1.43.111",
+    "google-genai>=2.29.0",
+    "openai>=3.28",
     # Strands Agents
-    "strands-agents>=1.42",
-    "strands-agents-tools>=0.2.21",
+    "strands-agents>=1.59",
+    "strands-agents-tools>=0.8.9",
+    "mcp>=2.1",
     # Utilities
     "uvicorn[standard]>=0.23.0",
     "python-dotenv>=1.0.0",
@@ -21,9 +22,9 @@ dependencies = [
     "aiohttp>=3.8.5",
     "wikipedia>=1.4.0",
     "ddgs>=9.6.0",
-    "ag-ui-protocol>=0.1.13",
-    "aws-sdk-transcribe-streaming>=0.6.0",
-    "aws-sdk-bedrock-runtime>=0.6.0",
+    "ag-ui-protocol>=1.0.0",
+    "aws-sdk-transcribe-streaming[awscrt]>=0.12.0",
+    "aws-sdk-bedrock-runtime[awscrt]>=0.12.0",
 ]
 
 [dependency-groups]
@@ -48,10 +49,13 @@ line-length = 120
 exclude = [".deprecated"]
 
 [tool.ruff.lint]
+# Pin the classic default rule set: ruff 0.17 widened its defaults (938 new findings).
+select = ["E4", "E7", "E9", "F"]
 ignore = ["E402", "E701"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
 markers = [

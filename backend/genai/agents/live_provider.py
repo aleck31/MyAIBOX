@@ -10,18 +10,18 @@ above this layer (api/voice WS, frontend) is model-agnostic.
 It is a full agent (tool loop / barge-in / event routing built in), not a bare
 model call — tools are loaded from the same tool_provider as AgentProvider.
 """
+import base64
 from typing import AsyncIterator, Dict, Optional
 
-from strands.experimental.bidi.agent.agent import BidiAgent
-from strands.experimental.bidi.models.nova_sonic import BidiNovaSonicModel
-from strands.experimental.bidi.types.events import BidiAudioInputEvent
+from strands.bidi import BidiAgent
+from strands.bidi.models import BedrockNovaSonicModel
+from strands.bidi.types import AudioDelta
 
 from backend.common.logger import logger
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.provider import tool_provider
 
-# Audio formats fixed by the model contract (Nova Sonic).
-INPUT_SAMPLE_RATE = 16000
+# Nova Sonic input is 16 kHz mono PCM (the BedrockNovaSonicModel default); the browser mic matches.
 
 
 class LiveAgentProvider:
@@ -54,13 +54,10 @@ class LiveAgentProvider:
         provider = model.api_provider.upper()
         if provider == 'BEDROCKSONIC':
             region = model.region or 'us-east-1'  # Nova Sonic: us-east-1 only
-            return BidiNovaSonicModel(
+            return BedrockNovaSonicModel(
                 model_id=self.model_id,
-                # BidiNovaSonicModel reads the voice at provider_config['audio']['voice']
-                # (it maps to audioOutputConfiguration.voiceId); any other key silently
-                # falls back to the 'matthew' default.
-                provider_config={'audio': {'voice': self.voice_id}},
-                client_config={'region': region},
+                voice=self.voice_id,
+                region=region,
             )
         raise ValueError(f"Unsupported realtime provider: {model.api_provider}")
 
@@ -112,9 +109,7 @@ class LiveAgentProvider:
         """Send a base64-encoded 16 kHz mono PCM chunk to the model."""
         if not self._started or self._agent is None:
             return
-        await self._agent.send(BidiAudioInputEvent(
-            audio=pcm_base64, format="pcm", sample_rate=INPUT_SAMPLE_RATE, channels=1,
-        ))
+        await self._agent.send(AudioDelta(format="pcm", source={"bytes": base64.b64decode(pcm_base64)}))
 
     async def events(self) -> AsyncIterator:
         """Yield BidiOutputEvents (transcript / audio / interrupted / tool / error)."""
