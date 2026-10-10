@@ -57,8 +57,8 @@ export default function SettingsPanel({ username }: { username: string }) {
                   <td>{new Date(s.created).toLocaleString()}</td>
                   <td>{new Date(s.updated).toLocaleString()}</td>
                   <td>
-                    <Button variant="ghost" onClick={() => handleClearHistory(s.session_id)} title="Clear history" style={{ padding: '2px 4px', minHeight: 0 }}><IconEraser size={16} /></Button>
-                    <Button variant="danger" onClick={() => handleDelete(s.session_id)} title="Delete" style={{ padding: '2px 4px', minHeight: 0, border: 'none' }}><IconTrash size={16} /></Button>
+                    <Button variant="ghost" onClick={() => handleClearHistory(s.session_id)} title="Clear history" className="btn--row-action"><IconEraser size={16} /></Button>
+                    <Button variant="danger" onClick={() => handleDelete(s.session_id)} title="Delete" className="btn--row-action" style={{ border: 'none' }}><IconTrash size={16} /></Button>
                   </td>
                 </tr>
               ))}

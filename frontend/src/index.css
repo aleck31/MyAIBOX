@@ -45,7 +45,9 @@
     --radius:                   0.5rem;
     /* sidebar */
     --sidebar:                  220 14% 10%;
-    --sidebar-foreground:       220 14% 70%;
+    --sidebar-foreground:       220 14% 70%;    /* 8.1:1 on the sidebar */
+    --sidebar-muted:            220 14% 58%;     /* 5.5:1 - labels, version, captions; never opacity-on-white */
+    --sidebar-brand-accent:     221 83% 68%;     /* logo accent, 6.1:1 */
     --sidebar-primary:          221 83% 53%;     /* blue accent */
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent:           220 14% 15%;
@@ -115,8 +117,8 @@
   --bp-md: 768px;
   --bp-lg: 1024px;
 
-  /* Touch target — iOS HIG / Material guideline */
-  --tap-size: 44px;
+  /* Touch target: >= 42px on touch devices (lab baseline: standards/VISUAL-DESIGN.md) */
+  --tap-size: 42px;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -190,14 +192,14 @@ body {
 
 .sidebar-brand-name em {
   font-style: normal;
-  color: hsl(var(--ring));
+  color: hsl(var(--sidebar-brand-accent));
 }
 
 .sidebar-brand-sub {
   font-family: 'Cormorant Garamond', serif;
   font-style: italic;
   font-size: 11px;
-  color: hsl(var(--background) / 0.32);
+  color: hsl(var(--sidebar-muted));
   margin-top: 3px;
 }
 
@@ -206,7 +208,7 @@ body {
   font-style: normal;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
-  color: hsl(var(--background) / 0.22);
+  color: hsl(var(--sidebar-muted));
   margin-left: 2px;
 }
 
@@ -226,7 +228,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: hsl(var(--background) / 0.22);
+  color: hsl(var(--sidebar-muted));
   padding: 6px 8px 3px;
 }
 
@@ -330,7 +332,7 @@ body {
 .sidebar-user-name {
   flex: 1;
   font-size: 12px;
-  color: hsl(var(--background) / 0.45);
+  color: hsl(var(--sidebar-muted));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -473,9 +475,9 @@ body {
     width: 100%;
   }
 
-  /* Module options bar: left padding for hamburger */
+  /* Module options bar: left padding for hamburger (6px offset + button + 6px gap) */
   .section-bar {
-    padding: 8px 12px 8px 44px;
+    padding: 8px 12px 8px calc(var(--tap-size) + 12px);
   }
 }
 
@@ -517,10 +519,41 @@ body {
 .btn.is-active { background: hsl(var(--foreground)); color: hsl(var(--background)); border-color: hsl(var(--foreground)); }
 .btn.is-active:hover:not(:disabled) { background: hsl(var(--foreground) / 0.85); }
 
-/* Touch devices — guarantee tap target */
+/* Compact icon buttons inside table rows (desktop). Touch devices get the full tap size below. */
+.btn--row-action { padding: 2px 4px; min-height: 0; }
+
+/* Touch devices — guarantee tap target. Desktop (mouse) layout is unchanged. Icon buttons keep their
+   glyph size; only the hit area grows. */
 @media (pointer: coarse) {
-  .btn { min-height: var(--tap-size); }
+  .btn,
+  .select,
+  .input:not([type='checkbox']):not([type='radio']),
+  .segmented-item,
+  .nav-item,
+  .settings-module-header,
+  .asking-autosend-toggle,
+  .asking-prompt-summary { min-height: var(--tap-size); }
+  .btn--icon,
+  .bar-icon-btn,
+  .composer-add-attachment,
+  .aui-composer-send,
+  .aui-action-bar-button,
+  .sidebar-toggle,
+  .sidebar-logout { min-width: var(--tap-size); min-height: var(--tap-size); }
   .btn--icon { width: var(--tap-size); height: var(--tap-size); }
+  .btn--row-action { min-width: var(--tap-size); min-height: var(--tap-size); padding: 0 8px; }
+  /* Tables keep one line per row and scroll sideways, instead of squeezing every column (which wrapped text
+     and made rows ~130px tall once the row actions reached the tap size). */
+  .settings-table th,
+  .settings-table td { white-space: nowrap; }
+  .agent-stop-tag-remove { min-width: var(--tap-size); min-height: var(--tap-size); display: inline-flex; align-items: center; justify-content: center; }
+  .asking-prompt-summary { display: flex; align-items: center; }
+  /* Checkboxes and sliders sit inside a <label>; the whole label toggles/targets them, so grow the label. */
+  .agent-toggle,
+  .draw-checkbox-label,
+  .agent-param { min-height: var(--tap-size); align-items: center; }
+  input[type='checkbox'], input[type='radio'] { width: 22px; height: 22px; }
+  input[type='range'] { min-height: var(--tap-size); }
 }
 
 /* NOTE: .bar-icon-btn (chat/persona), .settings-action-btn, and

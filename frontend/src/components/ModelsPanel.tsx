@@ -5,7 +5,6 @@ import { Modal, ModalActions } from './Modal'
 import { useConfirm } from './ConfirmDialog'
 import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff } from './icons'
 
-const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
 const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'BedrockSonic', 'Gemini', 'OpenAI', 'OpenAIResponses']
 const CATEGORIES = ['text', 'vision', 'image', 'video', 'embedding', 'realtime']
@@ -103,11 +102,11 @@ export default function ModelsPanel() {
                 <td>{m.capabilities.tool_use ? '✓' : ''}</td>
                 <td>{m.capabilities.reasoning ? '✓' : ''}</td>
                 <td>
-                  <Button variant="ghost" onClick={() => handleToggle(m.model_id, enabled)} title={enabled ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
+                  <Button variant="ghost" onClick={() => handleToggle(m.model_id, enabled)} title={enabled ? 'Disable' : 'Enable'} className="btn--row-action">
                     {enabled ? <IconToggleOn size={18} /> : <IconToggleOff size={18} />}
                   </Button>
-                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" style={ACTION_BTN_STYLE}><IconEdit size={16} /></Button>
-                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={16} /></Button>
+                  <Button variant="ghost" onClick={() => openEdit(m)} title="Edit" className="btn--row-action"><IconEdit size={16} /></Button>
+                  <Button variant="danger" onClick={() => handleDelete(m.model_id)} title="Delete" className="btn--row-action" style={{ border: 'none' }}><IconTrash size={16} /></Button>
                 </td>
               </tr>
               )

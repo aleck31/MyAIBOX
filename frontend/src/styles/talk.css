@@ -89,10 +89,11 @@
   transition: background 0.15s, transform 0.05s;
 }
 .talk-call-btn:active { transform: scale(0.97); }
-.talk-call-btn--start { background: hsl(145 60% 42%); }
-.talk-call-btn--start:hover { background: hsl(145 60% 37%); }
-.talk-call-btn--end { background: hsl(0 70% 55%); }
-.talk-call-btn--end:hover { background: hsl(0 70% 48%); }
+/* White text on both: 5.5:1 / 5.9:1 (the lighter greens and reds were 3.0:1 / 4.4:1). */
+.talk-call-btn--start { background: hsl(145 70% 28%); }
+.talk-call-btn--start:hover { background: hsl(145 70% 24%); }
+.talk-call-btn--end { background: hsl(0 70% 45%); }
+.talk-call-btn--end:hover { background: hsl(0 70% 40%); }
 
 /* Mic activity dot: pulses while listening (not while the model speaks). */
 .talk-mic-indicator {
@@ -168,7 +169,7 @@
 
 .live-agent-card-chevron {
   font-size: 10px;
-  opacity: 0.6;
+  color: hsl(var(--muted-foreground));
 }
 
 .live-agent-card-body {

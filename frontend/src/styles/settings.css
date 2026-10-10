@@ -145,7 +145,7 @@
 
 .agent-card-chevron {
   font-size: 10px;
-  opacity: 0.6;
+  color: hsl(var(--muted-foreground));
 }
 
 .agent-card-body {
@@ -235,7 +235,7 @@
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
-  color: hsl(var(--muted-foreground));
+  color: hsl(var(--foreground) / 0.75);  /* sits on the grey tag background, where muted-foreground is 4.45:1 */
   padding: 0;
 }
 

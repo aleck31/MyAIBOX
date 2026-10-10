@@ -5,7 +5,6 @@ import { Modal, ModalActions } from './Modal'
 import { useConfirm } from './ConfirmDialog'
 import { IconRefresh, IconTrash, IconToggleOn, IconToggleOff, IconPlus } from './icons'
 
-const ACTION_BTN_STYLE = { padding: '2px 4px', minHeight: 0 } as const
 
 interface McpServer { name: string; type: string; status: string; url: string; tools_count: number }
 
@@ -67,10 +66,10 @@ export default function McpPanel() {
                 <td>{s.tools_count}</td>
                 <td className="settings-session-id" style={{ maxWidth: 300 }}>{s.url}</td>
                 <td>
-                  <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} style={ACTION_BTN_STYLE}>
+                  <Button variant="ghost" onClick={() => handleToggle(s.name, s.status)} title={s.status === 'Enabled' ? 'Disable' : 'Enable'} className="btn--row-action">
                     {s.status === 'Enabled' ? <IconToggleOn size={18} /> : <IconToggleOff size={18} />}
                   </Button>
-                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" style={{ ...ACTION_BTN_STYLE, border: 'none' }}><IconTrash size={16} /></Button>
+                  <Button variant="danger" onClick={() => handleDelete(s.name)} title="Delete" className="btn--row-action" style={{ border: 'none' }}><IconTrash size={16} /></Button>
                 </td>
               </tr>
             ))}

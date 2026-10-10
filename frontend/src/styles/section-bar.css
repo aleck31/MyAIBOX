@@ -23,7 +23,7 @@
   .section-bar {
     gap: 6px;
     padding: 6px 10px;
-    min-height: 40px;
+    min-height: calc(var(--tap-size) + 12px);  /* room for the fixed menu button */
   }
 }
 

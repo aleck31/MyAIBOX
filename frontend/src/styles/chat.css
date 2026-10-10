@@ -56,6 +56,18 @@
   width: 100%;
 }
 
+/* Composer gutter: it used to fill the whole column edge to edge, touching the sidebar and the window.
+   Sides match the 16px the message list already has, so bubbles and composer share one column; the bottom
+   only needs a hairline so the rounded corners are not flush with the window. On phones the sides shrink
+   (width is scarce) but stay, otherwise the large corner radius is clipped by the screen edge. */
+.aui-composer-root {
+  width: auto;
+  margin: 0 16px 6px;
+}
+@media (max-width: 768px) {
+  .aui-composer-root { margin: 0 4px 4px; }
+}
+
 /* The composer has a single action slot (Send, or Stop while generating): keep it at the bottom-right.
    The upstream default is space-between, which pins a lone child to the left. */
 .aui-composer-action-wrapper {
