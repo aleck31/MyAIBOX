@@ -163,7 +163,7 @@ class LiveAgentProvider:
         for client in self._mcp_clients:
             try:
                 client.stop(None, None, None)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[LiveAgent] MCP client stop failed: {e}")
         self._mcp_clients.clear()
         self._agent = None

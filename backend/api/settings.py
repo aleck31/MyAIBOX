@@ -253,7 +253,8 @@ async def list_mcp_servers(username: str = Depends(get_auth_user)):
     try:
         all_tools = tool_provider.list_tools()
         mcp_tools = [t for t in all_tools if t.get('type') == 'mcp_server']
-    except Exception:
+    except Exception as e:
+        logger.warning(f"[settings] listing MCP tools failed, showing 0 tools: {e}")
         mcp_tools = []
     result = []
     for name, cfg in servers.items():

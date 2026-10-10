@@ -54,8 +54,8 @@ async def _get_or_create_provider(sub: str, agent_id: str, model_id: str, system
             _talk_cache.pop(k, None)
             try:
                 await prov.destroy()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"[talk] failed to destroy idle session {k}: {e}")
     entry = _talk_cache.get(key)
     if entry:
         provider, _ = entry
@@ -80,8 +80,8 @@ async def _evict_session(sub: str, agent_id: str) -> None:
     if entry:
         try:
             await entry[0].destroy()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"[talk] failed to destroy session for {sub}:{agent_id}: {e}")
 
 
 @router.delete("/session/{agent_id}")
@@ -224,8 +224,8 @@ async def talk_ws(ws: WebSocket, agent_id: str):
                 if text:
                     history.append({"role": "assistant" if h.get("role") == "assistant" else "user",
                                     "content": [{"text": text}]})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"[talk] no usable start message for {sub}: {e}")
 
     # Level (learner ability: vocabulary cap + pace) shapes the teaching prompt;
     # chosen per fresh call, validated against the known set. Decoupled from voice.
