@@ -8,43 +8,11 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 
 The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with secure authentication via Amazon Cognito and session management backed by DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
-🎉 **What's New in v3.8**
-- **Talk**: real-time voice conversation with a LiveAgent (e.g. English-practice coach with multi-level coaching), voice/model switching
-- **More models**: GPT-5 and Grok via Bedrock Mantle, Claude adaptive-thinking models
-- **Chat persistence**: conversations survive a page refresh; cloud sync is independent
-- **Security hardening**: uploads are referenced by server-issued ids only (no client-supplied paths), size-limited, and stdio MCP servers require `ADMIN_SUBS`
-
-**v3.7**
-- **Voice input (Asking)**: speak your question — live transcription via AWS Transcribe streaming, with optional auto-send
-- **Research-style Asking**: questions and follow-ups stack as a scrollable thread (numbered Q/A blocks with collapsible reasoning), plus a resizable rail that indexes every question for quick navigation
-
-**v3.6**
-- **Models enable/disable**: toggle individual models off in Settings → Models without deleting them
-- **Per-agent inference parameters**: `temperature` / `top_p` / `max_tokens` configured in Agents settings are now actually applied
-- **Tool progress hints**: long-running tools (e.g. `file_write`) no longer make the UI look frozen
-- **MCP health check**: cached agent providers verify MCP sessions and rebuild on dead connections
-
-**v3.5**
-- **Unified Chat Module**: Assistant + Persona merged into a single `/chat/:agentId` route; each agent = system prompt + tools + params + skills
-- **Strands-native Skills**: Agents can load Anthropic-style skills via the `AgentSkills` plugin (requires `strands-agents>=1.39`)
-- **Per-agent Workspace**: Each agent gets its own isolated workspace at `storage/workspace/<username>/<agent_id>/`
-- **Configurable Agents**: Users can override model, parameters, tools, and skills per agent (persisted in DynamoDB)
-- **Breaking**: `/assistant` and `/persona` routes now redirect to `/chat/assistant`; `/api/assistant/*` and `/api/persona/*` endpoints replaced by `/api/chat/*`
-
-**v3.2**
-- **Agent Session Cache**: Per-session Strands Agent caching with 2h TTL, hot-swap model, persistent MCP connections
-- **Multimodal Chat**: File attachments and image display in Agent conversations
-- **Image Editing**: Edit images with text instructions (Gemini, Nova Canvas, Stability AI)
-- **Shared SSE Parser**: Unified `readSSE()` with proper line buffering, fixing stream truncation across modules
-- **CLI Tools**: `my-aibox build` (with auto version sync) and `my-aibox check` (ruff linting)
-
-**v3.0**
-- **React Frontend**: Full migration from Gradio to React + AG-UI Protocol with SSE streaming
-- **Generative UI**: Dual-track streaming (CoT reasoning + tool use UI)
-- **Model & MCP Management**: In-app model registry and MCP server configuration
-
-**v2.x**
-- **Multi-provider Agent**: Bedrock, Gemini, and OpenAI models via Strands SDK
+🎉 **What's New in v3.9**
+- **Security**: MCP changes are admin-gated (`ADMIN_SUBS`); chat attachments resolve only server-issued upload ids; uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`)
+- **Dependencies**: strands 1.59 / openai 3 / mcp 2 / ag-ui 1.0 on the backend, vite 8 / react-router 7 on the frontend (`npm audit` clean)
+- **Fixes**: refreshed Cognito tokens persist to the session cookie; `CORS_ORIGINS` defaults to same-origin
+- **Upgrading**: run `uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers. See [CHANGELOG.md](CHANGELOG.md) for details and earlier versions.
 
 ## Features
 
@@ -99,6 +67,7 @@ my-aibox/
 │   └── full-stack/                   # Dockerfile + EKS reference (examples/)
 ├── docs/                         # README screenshots, etc.
 ├── pyproject.toml
+├── CHANGELOG.md                  # Release history
 └── README.md
 ```
 
