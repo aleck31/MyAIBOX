@@ -3,51 +3,24 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
-## [3.9.0] - 2026-10-10
+## [3.9.0] - 2026-10-10 ... [3.9.1] - 2026-10-10
 
-### Security
-- **MCP servers**: changes are admin-gated. With `ADMIN_SUBS` set (comma-separated Cognito `sub`s), every MCP
-  add/delete/toggle requires an admin; unset, adding **stdio** servers (which run commands on the host) is refused
-  while http/sse stay open to any logged-in user.
-- **Chat attachments** resolve only server-issued upload ids (`<uuid>.<ext>`). Client-supplied paths are dropped
-  and logged; previously any `*.png/jpg` readable by the server could be attached.
-- **Uploads** are streamed with a size limit (`MAX_UPLOAD_MB`, default 20 -> HTTP 413), checked against an
-  extension allowlist, and **owner-scoped** (`<id>.owner` sidecar). Upload, vision and asking share one
-  implementation (`backend/common/uploads.py`); the duplicate download route is merged and the missing `..` check
-  on `GET /api/upload/{file_id}` is closed.
-
-### Fixed
-- Refreshed Cognito access tokens are now persisted to the session cookie (Cognito password mode only; SSO mode is
-  unaffected). Previously users were signed out when the first token expired.
-- `CORS_ORIGINS` defaults to same-origin instead of an unusable `*` that made startup fail. `*` is still rejected.
-- `get_secret` parses Secrets Manager values as JSON, falling back to the legacy Python-repr format.
-- Bare `pytest` no longer fails at collection without Cognito config; integration tests are only collected when
-  requested (`-m integration`).
-- Exceptions that were silently swallowed (Talk session teardown, MCP client stop, Settings tool listing) are logged.
-- The EKS example manifest no longer ships a `SECRET_KEY` / `CORS_ORIGINS` the app refuses to start with.
+### Added
+- **Latest-generation models** (3.9.1): Claude Opus/Sonnet/Haiku 5.5 + Fable 5.1, GPT-6 Astra/6.1 Sol/Luna, Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL 235B, Nova 2.5 Sonic, Gemini 3.8 Flash.
+- **`ADMIN_SUBS`** (3.9.0): MCP changes are admin-only; without it, stdio servers cannot be added.
+- **Upload hardening** (3.9.0): attachments accept only server-issued ids; uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`, default 20).
 
 ### Changed
-- **Backend dependencies** (`uv lock --upgrade`): strands-agents 1.59, openai 3, mcp 2, ag-ui-protocol 1.0,
-  aws-sdk-* 0.12, fastapi, boto3, google-genai. Code adapted accordingly:
-  - Voice input uses the new Transcribe streaming SDK with the CRT transport; credentials come from boto3 via
-    `common/aws_identity.py` (the SDK's own chain has no EC2 instance-profile / container / web-identity support).
-  - Talk moved to `strands.bidi` and its new event schema; a failed event stream now reaches the client as an
-    error frame.
-  - HTTP MCP servers use mcp 2's `streamable_http_client`.
-  - ruff 0.17's wider default rule set is pinned back to the previous one.
-- **Frontend dependencies**: vite 8, react-router 7, `@ag-ui/*` 1.x, `@types/node`; `npm audit` reports 0
-  vulnerabilities. `vite.config.ts` is now type-checked by `npm run build`.
-- EKS IAM example: adds `transcribe:StartStreamTranscription` and `bedrock:InvokeModelWithBidirectionalStream`,
-  drops the unused `cognito-idp:Admin*` actions.
+- **Models** (3.9.1): only the latest generation of each family is kept; Claude 4.x / Sonnet 5 / Fable 5, GPT-5.x, Grok 4.3, GLM 5, Qwen3 235B, Nova Pro, Nova 2 Sonic and Gemini 2.5/3.5 Flash are retired.
+- **Dependencies** (3.9.0): strands 1.59, openai 3, mcp 2, ag-ui 1.0, aws-sdk 0.12; vite 8, react-router 7 (`npm audit` clean).
+
+### Fixed (patch releases)
+- 3.9.0 Refreshed Cognito tokens persist to the session cookie; `CORS_ORIGINS` defaults to same-origin; secrets parse as JSON.
+- 3.9.1 Models that reject `temperature`/`top_p`/`top_k` (Claude 4.7+, Grok 4.7, Kimi K3, GPT-5/6) no longer fail when thinking is off; Opus 5.x and Haiku 5.5 use adaptive thinking.
+- 3.9.1 Chat works on Gemini, Nova 2 Lite and GPT-OSS again; `.env` is loaded from the project root.
 
 ### Upgrade notes
-1. `uv sync`, then `my-aibox build`.
-2. Set `ADMIN_SUBS` (find your `sub` at `/api/auth/me`) to keep adding stdio MCP servers from Settings.
-3. On EKS, add the two IAM permissions above to the pod role.
-4. Files uploaded before 3.9 have no owner record and remain readable by any logged-in user.
-
-### Not verified
-OpenAI/Bedrock-Mantle with a real API key, Gemini live calls, and authenticated pages in a real browser.
+`uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers; apply the model changes in Settings -> Models (the registry is in DynamoDB); on EKS add `transcribe:StartStreamTranscription` and `bedrock:InvokeModelWithBidirectionalStream` to the pod role.
 
 ## [3.8.0] - 2026-05-31 ... [3.8.12] - 2026-07-01
 

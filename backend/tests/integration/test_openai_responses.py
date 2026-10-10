@@ -15,7 +15,7 @@ from backend.genai.models.providers import create_model_provider
 
 pytestmark = pytest.mark.integration
 
-GPT5 = "openai.gpt-5.5"
+GPT5 = "openai.gpt-6.1-sol"
 
 
 @pytest.fixture(scope="module", autouse=True)

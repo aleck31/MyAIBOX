@@ -9,10 +9,10 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with secure authentication via Amazon Cognito and session management backed by DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
 🎉 **What's New in v3.9**
-- **Security**: MCP changes are admin-gated (`ADMIN_SUBS`); chat attachments resolve only server-issued upload ids; uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`)
-- **Dependencies**: strands 1.59 / openai 3 / mcp 2 / ag-ui 1.0 on the backend, vite 8 / react-router 7 on the frontend (`npm audit` clean)
-- **Fixes**: refreshed Cognito tokens persist to the session cookie; `CORS_ORIGINS` defaults to same-origin
-- **Upgrading**: run `uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers. See [CHANGELOG.md](CHANGELOG.md) for details and earlier versions.
+- **Models**: only the latest generation of each family — Claude 5.5 (Opus/Sonnet/Haiku) + Fable 5.1, GPT-6 (Astra/6.1 Sol/Luna), Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL, Nova 2.5 Sonic, Gemini 3.8 Flash; older generations are retired
+- **Security**: MCP changes are admin-gated (`ADMIN_SUBS`); uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`)
+- **Fixes**: models that reject `temperature`/`top_p`/`top_k` no longer fail when thinking is off; Chat works on Gemini, Nova and GPT-OSS again
+- **Upgrading**: run `uv sync` and `my-aibox build`; apply the model changes in Settings → Models. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
 

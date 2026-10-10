@@ -19,7 +19,7 @@ from backend.genai.models.model_manager import model_manager
 
 pytestmark = pytest.mark.integration
 
-NOVA_SONIC = "amazon.nova-2-sonic-v1:0"
+NOVA_SONIC = "amazon.nova-2-5-sonic"
 
 
 @pytest.fixture(scope="module", autouse=True)

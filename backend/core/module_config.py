@@ -212,7 +212,7 @@ class ModuleConfig:
                 'setting_name': 'text',
                 'type': 'module',
                 'description': 'Text Module',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
+                'default_model': 'global.anthropic.claude-sonnet-5-5',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 2000,
@@ -223,7 +223,7 @@ class ModuleConfig:
                 'setting_name': 'summary',
                 'type': 'module',
                 'description': 'Summary Module',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
+                'default_model': 'global.anthropic.claude-sonnet-5-5',
                 'parameters': {
                     'temperature': Decimal('0.2'),
                     'max_tokens': 2000
@@ -236,7 +236,7 @@ class ModuleConfig:
                 'setting_name': 'vision',
                 'type': 'module',
                 'description': 'Vision Module',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
+                'default_model': 'global.anthropic.claude-sonnet-5-5',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 2048,
@@ -248,7 +248,7 @@ class ModuleConfig:
                 'setting_name': 'asking',
                 'type': 'module',
                 'description': 'Asking Module',
-                'default_model': 'global.anthropic.claude-sonnet-4-6',
+                'default_model': 'global.anthropic.claude-sonnet-5-5',
                 'parameters': {
                     'temperature': Decimal('0.7'),
                     'max_tokens': 4096
@@ -266,7 +266,7 @@ class ModuleConfig:
                 'setting_name': 'draw',
                 'type': 'module',
                 'description': 'Draw Module',
-                'default_model': 'stability.stable-image-ultra-v1:0',
+                'default_model': 'stability.stable-image-ultra-v1:1',
                 # basic parameters for generative models
                 'parameters': {
                     'height': 1152,
@@ -278,7 +278,7 @@ class ModuleConfig:
                 'setting_name': 'talk',
                 'type': 'module',
                 'description': 'Talk with Agent (realtime voice)',
-                'default_model': 'amazon.nova-2-sonic-v1:0',
+                'default_model': 'amazon.nova-2-5-sonic',
                 'parameters': {
                     'voice_id': 'matthew'
                 },
