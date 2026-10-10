@@ -20,7 +20,15 @@
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream"
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:InvokeModelWithBidirectionalStream"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "transcribe:StartStreamTranscription"
       ],
       "Resource": "*"
     },
@@ -31,17 +39,6 @@
       ],
       "Resource": [
         "arn:aws:secretsmanager:ap-southeast-1:222829864634:secret:dev_gemini_api*"
-      ]
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "cognito-idp:AdminGetUser",
-        "cognito-idp:AdminInitiateAuth",
-        "cognito-idp:AdminRespondToAuthChallenge"
-      ],
-      "Resource": [
-        "arn:aws:cognito-idp:ap-southeast-1:222829864634:userpool/ap-southeast-1_WBHlZF1Zf"
       ]
     }
   ]
