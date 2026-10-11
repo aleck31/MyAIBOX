@@ -11,7 +11,6 @@ Dispatch rules at stream time:
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import uuid
@@ -35,6 +34,7 @@ from backend.api.prompts.chat import (
     WORKSPACE_INSTRUCTIONS,
 )
 from backend.api.reply_events import ReplyEvents
+from backend.api.runs import runs
 from backend.common.errors import run_error_fields
 from backend.common.logger import setup_logger
 from backend.common.uploads import resolve_upload, log_rejected
@@ -543,55 +543,45 @@ async def chat_stream(
         )
 
 
-# SSE comment that proxies and browsers ignore — used to keep the connection
-# warm during long idle gaps (e.g. file_write streaming or model thinking
-# silently). CloudFront's idle timeout is the binding constraint (default 30s,
-# max 60s); 15s gives a 2x safety margin.
-_KEEPALIVE_INTERVAL = 15.0
-_KEEPALIVE_FRAME = b": ping\n\n"
+
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"}
 
 
-async def _with_keepalive(
-    source: AsyncIterator[bytes], interval: float = _KEEPALIVE_INTERVAL,
-) -> AsyncIterator[bytes]:
-    """Forward chunks from `source`, injecting an SSE-comment ping when idle > `interval`.
+def _run_error_event(message: str) -> str:
+    return _enc.encode(RunErrorEvent(message=message))
 
-    The producer runs in a single long-lived task so its ContextVar set/reset
-    pairs both happen in the same Context (Token reset would otherwise blow up
-    if reset ran in a different context than set).
+
+def _run_response(sub: str, agent_id: str, run_id: str, source: AsyncIterator[str]) -> StreamingResponse:
+    """Start the reply as a run of its own and stream it to this client.
+
+    The run does not depend on this connection (see backend/api/runs.py): if the client goes away the reply
+    still completes, and the client can fetch it again from /stream/resume.
     """
-    queue: asyncio.Queue = asyncio.Queue()
-    _DONE = object()
+    run = runs.start((sub, agent_id), run_id, source, _run_error_event)
+    return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)
 
-    async def _producer():
-        try:
-            async for chunk in source:
-                await queue.put(chunk)
-        except Exception as e:
-            await queue.put(e)
-        finally:
-            await queue.put(_DONE)
 
-    producer = asyncio.create_task(_producer())
-    try:
-        while True:
-            try:
-                item = await asyncio.wait_for(queue.get(), timeout=interval)
-            except asyncio.TimeoutError:
-                yield _KEEPALIVE_FRAME
-                continue
-            if item is _DONE:
-                return
-            if isinstance(item, Exception):
-                raise item
-            yield item
-    finally:
-        if not producer.done():
-            producer.cancel()
-            try:
-                await producer
-            except (asyncio.CancelledError, Exception):
-                pass
+@router.get("/stream/resume")
+async def resume_stream(
+    agent_id: str = Query(...),
+    run_id: str = Query(...),
+    sub: str = Depends(get_auth_user),
+):
+    """Attach to a reply that is still running, or finished recently: all its events from the start."""
+    run = runs.get((sub, agent_id), run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found (it may have expired)")
+    return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.post("/stream/cancel")
+async def cancel_stream(
+    agent_id: str = Query(...),
+    run_id: str = Query(...),
+    sub: str = Depends(get_auth_user),
+):
+    """The user pressed Stop. A closed connection no longer stops a reply, so this does."""
+    return {"ok": runs.cancel((sub, agent_id), run_id)}
 
 
 async def _stream_agent(
@@ -716,11 +706,7 @@ async def _stream_agent(
             logger.error(f"Stream error for {sub} agent={agent.id}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred during streaming.")))
 
-    return StreamingResponse(
-        _with_keepalive(event_stream()),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
-    )
+    return _run_response(sub, agent.id, run_id, event_stream())
 
 
 async def _stream_chat(
@@ -784,8 +770,4 @@ async def _stream_chat(
             logger.error(f"Stream error for {sub} agent={agent.id}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred during streaming.")))
 
-    return StreamingResponse(
-        _with_keepalive(event_stream()),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
-    )
+    return _run_response(sub, agent.id, run_id, event_stream())

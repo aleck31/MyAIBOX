@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
-import { HttpAgent } from '@ag-ui/client'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import type { HttpAgent } from '@ag-ui/client'
+import { ResumableAgent } from '../api/resumableAgent'
 import type { RunErrorEvent, ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, CustomEvent } from '@ag-ui/core'
 import { useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike, AppendMessage } from '@assistant-ui/react'
@@ -99,6 +100,49 @@ interface UseAGUIRuntimeOptions {
 // Module-level cache: survives route changes, cleared on tab close
 const _msgCache = new Map<string, LocalMessage[]>()
 const _agentCache = new Map<string, HttpAgent>()
+
+/** How a reply that lost its connection is re-attached: tries, with a growing pause before each (1s, 2s, 4s, 8s, 8s...). */
+const RESUME_ATTEMPTS = 8
+const resumeDelayMs = (attempt: number) => Math.min(1000 * 2 ** attempt, 8000)
+/** Coming back to the page after less than this, the connection is assumed fine. */
+const HIDDEN_LONG_ENOUGH_MS = 2000
+
+/** One reply in flight, as the client sees it. */
+interface ActiveRun {
+  id: string
+  assistantId: string
+  /** Agent messages as they were when the run started: what a replay starts from. */
+  baseMessages: HttpAgent['messages']
+  /** The server said how it ended (RUN_FINISHED / RUN_ERROR), or we gave up. */
+  finished: boolean
+  /** The user pressed Stop, or sent a newer message. */
+  stopped: boolean
+  /** A re-attach loop is running. */
+  resuming: boolean
+  /** We aborted the connection ourselves on coming back to the page, in order to re-attach. */
+  recycle: boolean
+  subscriber?: Parameters<HttpAgent['runAgent']>[1]
+}
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
+
+/** Resolves once the page is visible (at once if it already is). A hidden page has no working network. */
+function whenVisible(): Promise<void> {
+  if (!document.hidden) return Promise.resolve()
+  return new Promise(resolve => {
+    const onChange = () => {
+      if (document.hidden) return
+      document.removeEventListener('visibilitychange', onChange)
+      resolve()
+    }
+    document.addEventListener('visibilitychange', onChange)
+  })
+}
+
+/** A failed fetch (offline, connection reset, page frozen) is a TypeError; HTTP and protocol errors are not. */
+function isConnectionLoss(error: Error): boolean {
+  return error instanceof TypeError
+}
 
 // Per-thread sessionStorage mirror so conversation survives a refresh
 // ("no clear = it stays"). _msgCache is the fast route-switch cache; sessionStorage
@@ -219,7 +263,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
 
   const agentRef = useRef(
     _agentCache.get(threadId) ??
-    new HttpAgent({
+    new ResumableAgent({
       url,
       threadId,
       initialMessages: initialMessages.map((m, i) => ({
@@ -238,22 +282,87 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   const localMessagesRef = useRef(localMessages)
   localMessagesRef.current = localMessages
 
+  const activeRunRef = useRef<ActiveRun | null>(null)
+
+  const stopStreaming = useCallback((assistantId: string) => {
+    setLocalMessages(prev => prev.map(m => (m.id === assistantId ? { ...m, isStreaming: false } : m)))
+  }, [setLocalMessages])
+
+  const showError = useCallback((assistantId: string, message: string, keepText = false) => {
+    setLocalMessages(prev =>
+      prev.map(m => {
+        if (m.id !== assistantId) return m
+        const content = keepText && m.content ? `${m.content}\n\nError: ${message}` : `Error: ${message}`
+        return { ...m, content, isStreaming: false }
+      })
+    )
+  }, [setLocalMessages])
+
+  /**
+   * Re-attach to a reply whose connection was lost. The server keeps producing it (backend/api/runs.py), so the
+   * reply is replayed from the start: what was drawn is cleared first and the agent's messages go back to
+   * what they were when the run started.
+   */
+  const startResume = useCallback((run: ActiveRun) => {
+    if (run.resuming) return
+    run.resuming = true
+    run.recycle = false
+    void (async () => {
+      const agent = agentRef.current
+      for (let attempt = 0; attempt < RESUME_ATTEMPTS && !run.finished && !run.stopped; attempt++) {
+        await sleep(resumeDelayMs(attempt))
+        await whenVisible()
+        if (run.finished || run.stopped) break
+        agent.setMessages(run.baseMessages)
+        setLocalMessages(prev =>
+          prev.map(m => (m.id === run.assistantId
+            ? { ...m, content: '', reasoning: undefined, toolCalls: undefined, isStreaming: true }
+            : m))
+        )
+        try {
+          await agent.connectAgent({ runId: run.id, forwardedProps: forwardedPropsRef.current }, run.subscriber)
+        } catch (err) {
+          // The reply is gone from the server (restarted, or kept too long): nothing to re-attach to.
+          if (!isConnectionLoss(err as Error)) break
+        }
+      }
+      run.resuming = false
+      if (!run.finished && !run.stopped) {
+        run.finished = true
+        showError(run.assistantId, 'the connection was lost and the reply could not be recovered. Send your message again.')
+      } else {
+        stopStreaming(run.assistantId)   // finished while re-attached: onRunFinalized stays quiet in that case
+      }
+    })()
+  }, [setLocalMessages, showError, stopStreaming])
+
   const runAgent = useCallback((assistantId: string) => {
-    agentRef.current
-      .runAgent(
-        { runId: generateId(), forwardedProps: forwardedPropsRef.current },
-        {
+    const agent = agentRef.current
+    // A newer message replaces a reply that is still being produced or recovered (the server does the same).
+    if (activeRunRef.current) activeRunRef.current.stopped = true
+    const run: ActiveRun = {
+      id: generateId(),
+      assistantId,
+      baseMessages: [...agent.messages],
+      finished: false,
+      stopped: false,
+      resuming: false,
+      recycle: false,
+    }
+    activeRunRef.current = run
+
+    run.subscriber = {
           onTextMessageContentEvent({ event }: { event: TextMessageContentEvent }) {
             setLocalMessages(prev =>
               prev.map(m =>
-                m.id === assistantId ? { ...m, content: m.content + event.delta } : m
+                m.id === run.assistantId ? { ...m, content: m.content + event.delta } : m
               )
             )
           },
           onReasoningMessageContentEvent({ event }: { event: ReasoningMessageContentEvent }) {
             setLocalMessages(prev =>
               prev.map(m =>
-                m.id === assistantId
+                m.id === run.assistantId
                   ? { ...m, reasoning: (m.reasoning ?? '') + event.delta }
                   : m
               )
@@ -262,7 +371,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           onToolCallStartEvent({ event }: { event: ToolCallStartEvent }) {
             setLocalMessages(prev =>
               prev.map(m => {
-                if (m.id !== assistantId) return m
+                if (m.id !== run.assistantId) return m
                 // GPT-5 Responses API re-emits start for the same toolCallId; dedupe.
                 if ((m.toolCalls ?? []).some(tc => tc.id === event.toolCallId)) return m
                 return { ...m, toolCalls: [...(m.toolCalls ?? []), { id: event.toolCallId, name: event.toolCallName, args: '' }] }
@@ -272,7 +381,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           onToolCallArgsEvent({ event }: { event: ToolCallArgsEvent }) {
             setLocalMessages(prev =>
               prev.map(m =>
-                m.id === assistantId
+                m.id === run.assistantId
                   ? { ...m, toolCalls: (m.toolCalls ?? []).map(tc => tc.id === event.toolCallId ? { ...tc, args: tc.args + event.delta } : tc) }
                   : m
               )
@@ -284,7 +393,7 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           onToolCallResultEvent({ event }: { event: ToolCallResultEvent }) {
             setLocalMessages(prev =>
               prev.map(m => {
-                if (m.id !== assistantId) return m
+                if (m.id !== run.assistantId) return m
                 const toolCalls = (m.toolCalls ?? []).map(tc =>
                   tc.id === event.toolCallId ? { ...tc, result: toolResultText(event.content) } : tc
                 )
@@ -292,44 +401,57 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
               })
             )
           },
+          onRunFinishedEvent() {
+            run.finished = true
+          },
           onRunFinalized() {
-            setLocalMessages(prev =>
-              prev.map(m => (m.id === assistantId ? { ...m, isStreaming: false } : m))
-            )
+            if (run.resuming) return
+            // The stream ended without the server saying how: the connection was cut. Collect the reply.
+            if (!run.finished && !run.stopped && !run.recycle) { startResume(run); return }
+            stopStreaming(run.assistantId)
           },
           // The client reports a server-sent RUN_ERROR only here (onRunFailed is for transport failures),
           // so show it here too; otherwise the reply stays an empty bubble.
           onRunErrorEvent({ event }: { event: RunErrorEvent }) {
             // Stop (or leaving the page) surfaces here as "signal is aborted": not a failure, keep what streamed.
-            if (isAbort(event.message)) {
-              setLocalMessages(prev => prev.map(m => (m.id === assistantId ? { ...m, isStreaming: false } : m)))
-              return
-            }
-            setLocalMessages(prev =>
-              prev.map(m =>
-                m.id === assistantId
-                  ? { ...m, content: m.content ? `${m.content}\n\nError: ${event.message}` : `Error: ${event.message}`, isStreaming: false }
-                  : m
-              )
-            )
+            if (isAbort(event.message)) { stopStreaming(run.assistantId); return }
+            run.finished = true
+            showError(run.assistantId, event.message, true)
             if (event.code === MODEL_UNAVAILABLE) onModelUnavailableRef.current?.()
           },
           onRunFailed({ error }: { error: Error }) {
-            const aborted = isAbort(error.message, error.name)
-            setLocalMessages(prev =>
-              prev.map(m =>
-                m.id !== assistantId ? m
-                  : aborted ? { ...m, isStreaming: false }
-                  : { ...m, content: `Error: ${error.message}`, isStreaming: false }
-              )
-            )
+            if (run.resuming) return                      // the re-attach loop handles its own failures
+            if (!run.finished && !run.stopped) {
+              // Our own abort on returning to the page, or the connection dying (a phone sent to the
+              // background): the server still has the reply.
+              if ((run.recycle && isAbort(error.message, error.name)) || isConnectionLoss(error)) { startResume(run); return }
+            }
+            run.finished = true
+            if (isAbort(error.message, error.name)) stopStreaming(run.assistantId)
+            else showError(run.assistantId, error.message)
           },
           onCustomEvent({ event }: { event: CustomEvent }) {
             onCustomEventRef.current?.(event.name, event.value)
           },
         }
-      )
-      .catch(() => {})
+
+    agent.runAgent({ runId: run.id, forwardedProps: forwardedPropsRef.current }, run.subscriber).catch(() => {})
+  }, [setLocalMessages, startResume, stopStreaming, showError])
+
+  // Coming back to the page after a while (a phone in the background, a screen that was off): the connection is
+  // probably dead even if the page has not noticed yet, so re-attach at once instead of waiting for it to fail.
+  useEffect(() => {
+    let hiddenAt = 0
+    const onChange = () => {
+      if (document.hidden) { hiddenAt = Date.now(); return }
+      const run = activeRunRef.current
+      if (!run || run.finished || run.stopped || run.resuming) return
+      if (Date.now() - hiddenAt < HIDDEN_LONG_ENOUGH_MS) return
+      run.recycle = true
+      agentRef.current.abortRun()
+    }
+    document.addEventListener('visibilitychange', onChange)
+    return () => document.removeEventListener('visibilitychange', onChange)
   }, [])
 
   const fileUploadAdapter = useMemo(() => new FileUploadAdapter(), [])
@@ -398,9 +520,16 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   )
 
   const onCancel = useCallback(async () => {
+    const run = activeRunRef.current
+    if (run && !run.finished) {
+      run.stopped = true
+      // The server keeps a reply going when its connection closes, so Stop has to say so explicitly.
+      const query = new URLSearchParams({ agent_id: String(forwardedPropsRef.current?.agent_id ?? ''), run_id: run.id })
+      fetch(`${url}/cancel?${query}`, { method: 'POST', credentials: 'include' }).catch(() => {})
+    }
     agentRef.current.abortRun()
     setLocalMessages(prev => prev.map(m => (m.isStreaming ? { ...m, isStreaming: false } : m)))
-  }, [])
+  }, [url])
 
   const onReload = useCallback(async () => {
     const newAssistantId = generateId()
