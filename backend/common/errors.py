@@ -19,6 +19,19 @@ class ModelUnavailableError(ValueError):
         )
 
 
+# Stop reasons that mean the provider cut the reply off by policy. The stream just ends, usually with no text at
+# all, so the user is left looking at a half-written answer unless we say what happened.
+BLOCKED_STOP_REASONS = ("content_filtered", "guardrail_intervened")
+
+
+def blocked_reply_notice(stop_reason: object) -> str:
+    """User-facing sentence for a reply the provider blocked; empty string for any other stop reason."""
+    if stop_reason in BLOCKED_STOP_REASONS:
+        return ("The model stopped without finishing: the provider's content filter blocked this response. "
+                "Try rephrasing the question, or choose another model.")
+    return ""
+
+
 def user_message(exc: BaseException, default: str) -> str:
     """Message to show the user: the exception's own text if it is meant for users, else `default`.
 

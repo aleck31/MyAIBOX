@@ -3,7 +3,7 @@
 import asyncio
 import threading
 from typing import Dict, AsyncIterator, Optional, List
-from backend.common.errors import ModelUnavailableError
+from backend.common.errors import ModelUnavailableError, blocked_reply_notice
 from backend.common.logger import logger
 from backend.core.config import env_config
 from strands import Agent
@@ -352,6 +352,10 @@ class AgentProvider:
                 async for event in stream:
                     if chunk := self._convert_event(event, tool_state):
                         yield chunk
+                    elif notice := blocked_reply_notice(getattr(event.get('result'), 'stop_reason', None)):
+                        # The provider cut the reply off by policy; the stream just ends, often with no text
+                        logger.warning(f"[AgentProvider] Reply blocked by the provider: {event['result'].stop_reason}")
+                        yield create_text_chunk(notice)
             finally:
                 # If the consumer stopped early (browser gone, Stop), Strands' own generator would stay
                 # suspended, and with it the agent's invocation lock, until it is garbage collected:

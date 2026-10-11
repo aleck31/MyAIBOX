@@ -9,6 +9,7 @@ from backend.utils.file import FileProcessor
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from backend.genai.models import ResponseMetadata, LLMParameters, LLMMessage, LLMResponse
+from backend.common.errors import blocked_reply_notice
 from backend.genai.models.thinking import (
     build_thinking_fields, normalize_intent, rejects_sampling_params, rejects_stop_sequences,
 )
@@ -743,8 +744,11 @@ class BedrockConverse(LLMAPIProvider):
             # Use StringIO for efficient string accumulation
             from io import StringIO
             
+            blocked_retries = 1  # a reply blocked with no text is retried once: the filter is not deterministic
             while True:  # Continue until no more tool uses
                 has_tool_use = False
+                stop_reason = None  # why this response ended (carried by a chunk that has no content)
+                turn_text = []  # text streamed before a tool call: it belongs in the assistant message with the call
                 thinking_buffer = StringIO()  # track thinking content that comes before a tool use
                 reasoning_signature = ""  # Initialize reasoning signature
 
@@ -758,9 +762,14 @@ class BedrockConverse(LLMAPIProvider):
                     content = chunk.get('content', {})
                     thinking_block = chunk.get('thinking', {})
 
+                    stop_reason = chunk.get('metadata', {}).get('stop_reason') or stop_reason
+
                     # Only update signature if it's not empty
                     if signature := thinking_block.get('signature', ''):
                         reasoning_signature = signature
+
+                    if text_piece := content.get('text'):
+                        turn_text.append(text_piece)
 
                     # Process thinking text if present
                     if thinking_text := thinking_block.get('text', ''):
@@ -797,6 +806,11 @@ class BedrockConverse(LLMAPIProvider):
                                     }
                                 }
                             })
+
+                        # Text the model wrote before the call stays in the history, otherwise on the next
+                        # request it cannot see what it already told the user and says it again
+                        if written := ''.join(turn_text).strip():
+                            content_blocks.append({'text': written})
 
                         # Add tool use block
                         content_blocks.append({'toolUse': tool_use})
@@ -853,6 +867,16 @@ class BedrockConverse(LLMAPIProvider):
                 
                 # Break outer loop if no tool use in this turn
                 if not has_tool_use:
+                    # A blocked reply ends the stream with no text. The provider's filter is not deterministic
+                    # (the same request passed about half the time), so retry once; if it is blocked again,
+                    # tell the user instead of going silent.
+                    if notice := blocked_reply_notice(stop_reason):
+                        logger.warning(f"[BRConverseProvider] Reply blocked by the provider: {stop_reason}")
+                        if blocked_retries and not turn_text:
+                            blocked_retries -= 1
+                            thinking_buffer.close()
+                            continue
+                        yield {'content': {'text': notice}, 'thinking': '', 'metadata': {'stop_reason': stop_reason}}
                     logger.debug("[BRConverseProvider] No more tool uses detected, ending loop")
                     break
 

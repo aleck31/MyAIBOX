@@ -133,3 +133,92 @@ def test_a_new_message_stops_a_turn_that_is_still_running(monkeypatch):
 
     asyncio.run(scenario())
 
+
+# ── Replies the provider cuts off by policy ───────────────────────────────────
+
+from backend.common.errors import blocked_reply_notice  # noqa: E402
+from backend.genai.models.providers.bedrock_converse import BedrockConverse  # noqa: E402
+
+
+@pytest.mark.parametrize("stop_reason,blocked", [
+    ("content_filtered", True), ("guardrail_intervened", True),
+    ("end_turn", False), ("tool_use", False), ("max_tokens", False), (None, False),
+])
+def test_blocked_stop_reasons_get_a_notice(stop_reason, blocked):
+    assert bool(blocked_reply_notice(stop_reason)) is blocked
+
+
+def _converse_provider(streams):
+    """A BedrockConverse whose Bedrock call returns the given chunk lists, one per request."""
+    provider = object.__new__(BedrockConverse)
+    provider.llm_params = types.SimpleNamespace(thinking=None)
+    provider._convert_messages = lambda messages: []
+    sent = []
+    it = iter(streams)
+
+    def fake_stream(messages, **_):
+        sent.append([dict(m) for m in messages])
+        yield from next(it)
+
+    provider._converse_stream_sync = fake_stream
+    return provider, sent
+
+
+def test_asking_tells_the_user_when_the_reply_after_a_tool_call_is_blocked(monkeypatch):
+    """Seen with Claude on search results: the 2nd response is only 'content_filtered', so the answer just stopped."""
+    tool = {"toolUseId": "t1", "name": "search_internet", "input": {"query": "x"}}
+
+    async def fake_execute(name, **kw):
+        return {"results": []}
+    monkeypatch.setattr("backend.genai.models.providers.bedrock_converse.legacy_tool_registry.execute_tool", fake_execute)
+
+    provider, sent = _converse_provider([
+        [{"role": "assistant", "content": {"text": "I will search. "}}, {"role": "assistant", "tool_use": tool}],
+        [{"role": "assistant", "content": {}, "metadata": {"stop_reason": "content_filtered"}}],
+        [{"role": "assistant", "content": {}, "metadata": {"stop_reason": "content_filtered"}}],   # the retry
+    ])
+    chunks = list(provider.generate_stream(messages=[], system_prompt=""))
+    text = "".join((c.get("content") or {}).get("text", "") for c in chunks)
+    assert "content filter" in text
+    # the sentence written before the call is part of the assistant message sent back with the tool result
+    assistant = next(m for m in sent[1] if m.get("role") == "assistant")
+    assert assistant["content"][0] == {"text": "I will search."} and "toolUse" in assistant["content"][1]
+
+
+def test_chat_tells_the_user_when_strands_ends_on_a_blocked_reply(monkeypatch):
+    async def strands_stream(_prompt, cancel_signal=None):
+        yield {"data": "Let me look. "}
+        yield {"result": types.SimpleNamespace(stop_reason="content_filtered")}
+
+    provider = AgentProvider.__new__(AgentProvider)
+    provider._agent = types.SimpleNamespace(stream_async=strands_stream)
+    provider._cycle_limit = types.SimpleNamespace(stop_message=None)
+    provider.tool_config = {}
+    provider._turn_cancel = None
+    provider._idle = asyncio.Event()
+    provider._idle.set()
+    monkeypatch.setattr(provider, "_ensure_agent", lambda _history=None: provider._agent)
+
+    async def collect():
+        return [c async for c in provider.generate_stream("hi")]
+
+    text = "".join(c.get("text", "") for c in asyncio.run(collect()))
+    assert text.startswith("Let me look.") and "content filter" in text
+
+
+def test_a_blocked_reply_is_retried_once_before_giving_up(monkeypatch):
+    """The same request passed about half the time, so one retry saves most of them."""
+    tool = {"toolUseId": "t1", "name": "search_internet", "input": {"query": "x"}}
+
+    async def fake_execute(name, **kw):
+        return {"results": []}
+    monkeypatch.setattr("backend.genai.models.providers.bedrock_converse.legacy_tool_registry.execute_tool", fake_execute)
+
+    provider, sent = _converse_provider([
+        [{"role": "assistant", "tool_use": tool}],
+        [{"role": "assistant", "content": {}, "metadata": {"stop_reason": "content_filtered"}}],
+        [{"role": "assistant", "content": {"text": "Here is the answer."}}],
+    ])
+    text = "".join((c.get("content") or {}).get("text", "") for c in provider.generate_stream(messages=[], system_prompt=""))
+    assert text == "Here is the answer."          # no notice: the retry went through
+    assert len(sent) == 3
