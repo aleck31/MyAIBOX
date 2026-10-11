@@ -172,6 +172,11 @@ function parseHistoryContent(content: unknown): { text: string; attachments: Loc
   return { text: String(content), attachments: [] }
 }
 
+/** True for the error the fetch layer raises when the user stops a run or leaves the page. */
+function isAbort(message: string, name?: string): boolean {
+  return name === 'AbortError' || /\babort(ed)?\b/i.test(message)
+}
+
 export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEvent, forwardedProps, onMessagesEdited, onModelUnavailable }: UseAGUIRuntimeOptions) {
   // Ref so subscriber captures the latest callback without re-binding.
   const onCustomEventRef = useRef(onCustomEvent)
@@ -295,6 +300,11 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           // The client reports a server-sent RUN_ERROR only here (onRunFailed is for transport failures),
           // so show it here too; otherwise the reply stays an empty bubble.
           onRunErrorEvent({ event }: { event: RunErrorEvent }) {
+            // Stop (or leaving the page) surfaces here as "signal is aborted": not a failure, keep what streamed.
+            if (isAbort(event.message)) {
+              setLocalMessages(prev => prev.map(m => (m.id === assistantId ? { ...m, isStreaming: false } : m)))
+              return
+            }
             setLocalMessages(prev =>
               prev.map(m =>
                 m.id === assistantId
@@ -305,11 +315,12 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
             if (event.code === MODEL_UNAVAILABLE) onModelUnavailableRef.current?.()
           },
           onRunFailed({ error }: { error: Error }) {
+            const aborted = isAbort(error.message, error.name)
             setLocalMessages(prev =>
               prev.map(m =>
-                m.id === assistantId
-                  ? { ...m, content: `Error: ${error.message}`, isStreaming: false }
-                  : m
+                m.id !== assistantId ? m
+                  : aborted ? { ...m, isStreaming: false }
+                  : { ...m, content: `Error: ${error.message}`, isStreaming: false }
               )
             )
           },

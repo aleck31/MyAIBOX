@@ -58,6 +58,9 @@ class FakeProvider:
     def mcp_healthy(self) -> bool:
         return True
 
+    async def supersede_running_turn(self, timeout: float = 30.0) -> bool:
+        return True
+
     def set_messages(self, history_messages):
         self.messages = list(history_messages)
         self.set_messages_calls.append(list(history_messages))

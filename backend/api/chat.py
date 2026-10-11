@@ -20,8 +20,6 @@ from typing import Any, AsyncIterator, Dict, List, Optional
 from ag_ui.core import (
     RunAgentInput,
     RunStartedEvent, RunFinishedEvent, RunErrorEvent,
-    TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
-    ReasoningMessageStartEvent, ReasoningMessageContentEvent, ReasoningMessageEndEvent,
     ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent,
     CustomEvent,
 )
@@ -36,6 +34,7 @@ from backend.api.prompts.chat import (
     OVERRIDABLE_FIELDS,
     WORKSPACE_INSTRUCTIONS,
 )
+from backend.api.reply_events import ReplyEvents
 from backend.common.errors import run_error_fields
 from backend.common.logger import setup_logger
 from backend.common.uploads import resolve_upload, log_rejected
@@ -642,8 +641,7 @@ async def _stream_agent(
             tool_config = _build_tool_config(agent)
             skills = skill_registry.get_many(agent.enabled_skills)
 
-            thinking_started = False
-            text_started = False
+            reply = ReplyEvents(message_id, thinking_id)
             tool_started_ids: set = set()
 
             async for chunk in service.streaming_reply_with_history(
@@ -661,25 +659,12 @@ async def _stream_agent(
                     continue
 
                 if thinking := chunk.get("thinking"):
-                    if not thinking_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                        thinking_started = True
-                    yield _enc.encode(ReasoningMessageContentEvent(
-                        message_id=thinking_id, delta=thinking,
-                    ))
+                    for event in reply.reasoning(thinking):
+                        yield event
 
                 if text := chunk.get("text"):
-                    if not text_started:
-                        if thinking_started:
-                            yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-                            thinking_started = False
-                        yield _enc.encode(TextMessageStartEvent(
-                            message_id=message_id, role="assistant",
-                        ))
-                        text_started = True
-                    yield _enc.encode(TextMessageContentEvent(
-                        message_id=message_id, delta=text,
-                    ))
+                    for event in reply.text(text):
+                        yield event
 
                 # Hold the AG-UI 4-event tool sequence until the terminal
                 # chunk (avoids ghost entries when the LLM abandons a
@@ -693,22 +678,14 @@ async def _stream_agent(
                     if tool_status == "running":
                         if tc_id not in tool_started_ids:
                             tool_started_ids.add(tc_id)
-                            if not thinking_started and not text_started:
-                                yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                                thinking_started = True
-                            yield _enc.encode(ReasoningMessageContentEvent(
-                                message_id=thinking_id, delta=f"\n🔧 Calling {tool_name}…\n",
-                            ))
+                            for event in reply.reasoning(f"\n🔧 Calling {tool_name}…\n"):
+                                yield event
                         continue
 
-                    if not thinking_started and not text_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                        thinking_started = True
                     ok = tool_status in ("completed", "success")
                     mark = "✅ Done" if ok else "⚠️ Failed"
-                    yield _enc.encode(ReasoningMessageContentEvent(
-                        message_id=thinking_id, delta=f"\n🔧 {tool_name} {mark}\n",
-                    ))
+                    for event in reply.reasoning(f"\n🔧 {tool_name} {mark}\n"):
+                        yield event
                     yield _enc.encode(ToolCallStartEvent(
                         tool_call_id=tc_id, tool_call_name=tool_name,
                         parent_message_id=message_id,
@@ -731,10 +708,8 @@ async def _stream_agent(
                             role="tool",
                         ))
 
-            if thinking_started and not text_started:
-                yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-            if text_started:
-                yield _enc.encode(TextMessageEndEvent(message_id=message_id))
+            for event in reply.finish():
+                yield event
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:
@@ -781,8 +756,7 @@ async def _stream_chat(
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
 
-            thinking_started = False
-            text_started = False
+            reply = ReplyEvents(message_id, thinking_id)
 
             async for chunk in service.streaming_reply(
                 session=session,
@@ -795,29 +769,15 @@ async def _stream_chat(
                     continue
 
                 if thinking := chunk.get("thinking"):
-                    if not thinking_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id))
-                        thinking_started = True
-                    yield _enc.encode(ReasoningMessageContentEvent(
-                        message_id=thinking_id, delta=thinking,
-                    ))
+                    for event in reply.reasoning(thinking):
+                        yield event
 
                 if text := chunk.get("text"):
-                    if not text_started:
-                        if thinking_started:
-                            yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-                        yield _enc.encode(TextMessageStartEvent(
-                            message_id=message_id, role="assistant",
-                        ))
-                        text_started = True
-                    yield _enc.encode(TextMessageContentEvent(
-                        message_id=message_id, delta=text,
-                    ))
+                    for event in reply.text(text):
+                        yield event
 
-            if thinking_started and not text_started:
-                yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-            if text_started:
-                yield _enc.encode(TextMessageEndEvent(message_id=message_id))
+            for event in reply.finish():
+                yield event
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:

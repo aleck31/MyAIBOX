@@ -6,8 +6,6 @@ from fastapi import APIRouter, Depends, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from ag_ui.core import (
     RunStartedEvent, RunFinishedEvent, RunErrorEvent,
-    TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
-    ReasoningMessageStartEvent, ReasoningMessageContentEvent, ReasoningMessageEndEvent,
 )
 from ag_ui.encoder import EventEncoder
 from backend.core.module_config import module_config
@@ -16,6 +14,7 @@ from backend.genai.models.providers import LLMMessage, LLMParameters, create_mod
 from backend.genai.models.thinking import DEFAULT_INTENT
 from backend.api.auth import get_auth_user
 from backend.api.prompts.asking import SYSTEM_PROMPT
+from backend.api.reply_events import ReplyEvents
 from backend.common.errors import ModelUnavailableError, run_error_fields
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
@@ -119,8 +118,7 @@ async def process_asking(
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
 
-            thinking_started = False
-            text_started = False
+            reply = ReplyEvents(msg_id, thinking_id)
             tool_seen: set = set()
             message = LLMMessage(role="user", content=content)
 
@@ -137,10 +135,8 @@ async def process_asking(
                     delta_text = thinking.get('text', '') if isinstance(thinking, dict) else str(thinking)
                     if not delta_text:
                         continue
-                    if not thinking_started:
-                        yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="reasoning"))
-                        thinking_started = True
-                    yield _enc.encode(ReasoningMessageContentEvent(message_id=thinking_id, delta=delta_text))
+                    for event in reply.reasoning(delta_text):
+                        yield event
 
                 # Surface tool calls as a one-line note in the reasoning block so
                 # the UI shows progress instead of looking frozen during a search.
@@ -149,26 +145,16 @@ async def process_asking(
                     name = tool_use.get('name')
                     if tc_id and name and tc_id not in tool_seen:
                         tool_seen.add(tc_id)
-                        if not thinking_started:
-                            yield _enc.encode(ReasoningMessageStartEvent(message_id=thinking_id, role="reasoning"))
-                            thinking_started = True
-                        yield _enc.encode(ReasoningMessageContentEvent(
-                            message_id=thinking_id, delta=f"\n🔧 Calling {name}…\n",
-                        ))
+                        for event in reply.reasoning(f"\n🔧 Calling {name}…\n"):
+                            yield event
 
                 if c := chunk.get('content'):
                     if txt := c.get('text'):
-                        if thinking_started and not text_started:
-                            yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-                        if not text_started:
-                            yield _enc.encode(TextMessageStartEvent(message_id=msg_id, role="assistant"))
-                            text_started = True
-                        yield _enc.encode(TextMessageContentEvent(message_id=msg_id, delta=txt))
+                        for event in reply.text(txt):
+                            yield event
 
-            if thinking_started and not text_started:
-                yield _enc.encode(ReasoningMessageEndEvent(message_id=thinking_id))
-            if text_started:
-                yield _enc.encode(TextMessageEndEvent(message_id=msg_id))
+            for event in reply.finish():
+                yield event
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:

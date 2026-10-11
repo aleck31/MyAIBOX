@@ -134,6 +134,10 @@ class AgentService(BaseService):
 
         # Return cached provider if its MCP sessions are still alive.
         if provider := self._get_cached_provider(session_id):
+            # Before switching the model or rewriting history under it, let a turn that is still
+            # running end; changing either mid-turn breaks that turn and the next request.
+            if not await provider.supersede_running_turn():
+                raise RuntimeError("The previous reply is still finishing. Please try again in a moment.")
             if provider.mcp_healthy():
                 if provider.model_id != model_id:
                     provider.update_model(model_id)

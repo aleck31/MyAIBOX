@@ -1,5 +1,7 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
+import asyncio
+import threading
 from typing import Dict, AsyncIterator, Optional, List
 from backend.common.errors import ModelUnavailableError
 from backend.common.logger import logger
@@ -51,6 +53,10 @@ class AgentProvider:
         self.skills: List = list(skills or [])
         self._agent: Optional[Agent] = None
         self._cycle_limit = CycleLimit(max_cycles_from_env(), model_id)
+        # The turn in progress: set its cancel event to stop it; _idle is set when no turn runs.
+        self._turn_cancel: Optional[threading.Event] = None
+        self._idle = asyncio.Event()
+        self._idle.set()
         self._mcp_clients: list = []
         # HTTP clients shared across model swaps so update_model() does not
         # leak sockets. Bedrock reuses a module-level boto3 session already.
@@ -242,6 +248,26 @@ class AgentProvider:
         self._drop_reasoning_from_history()
         logger.info(f"[AgentProvider] Model switched to {model_id}")
 
+    async def supersede_running_turn(self, timeout: float = 30.0) -> bool:
+        """Stop the turn still running on this agent, if any, and wait until it has ended.
+
+        A turn outlives its client when the client gives up without the server noticing (an error shown in
+        the browser, a dropped connection behind a proxy). The user's next message then arrived while the
+        agent was busy and failed with "Agent is already processing a request". The new message wins: the
+        old turn is cancelled (Strands stops at its next safe point; a tool already running finishes first).
+        Returns False if it did not end within `timeout` seconds.
+        """
+        if self._idle.is_set():
+            return True
+        logger.info("[AgentProvider] A previous turn is still running; cancelling it for the new message")
+        if self._turn_cancel is not None:
+            self._turn_cancel.set()
+        try:
+            await asyncio.wait_for(self._idle.wait(), timeout)
+            return True
+        except asyncio.TimeoutError:
+            return False
+
     def _drop_reasoning_from_history(self) -> None:
         """Remove reasoning blocks from the conversation so far.
 
@@ -318,9 +344,22 @@ class AgentProvider:
             # Grok's pre-answer-in-tool-round duplicate is stopped at the source via
             # parallel_tool_calls=False (see _get_strands_model), so stream text directly.
             tool_state = {}
-            async for event in agent.stream_async(prompt):
-                if chunk := self._convert_event(event, tool_state):
-                    yield chunk
+            cancel = threading.Event()
+            self._turn_cancel = cancel
+            self._idle.clear()
+            stream = agent.stream_async(prompt, cancel_signal=cancel)
+            try:
+                async for event in stream:
+                    if chunk := self._convert_event(event, tool_state):
+                        yield chunk
+            finally:
+                # If the consumer stopped early (browser gone, Stop), Strands' own generator would stay
+                # suspended, and with it the agent's invocation lock, until it is garbage collected:
+                # the next message on this cached agent would fail with "already processing a request".
+                await stream.aclose()
+                if self._turn_cancel is cancel:
+                    self._turn_cancel = None
+                    self._idle.set()
 
             # The cap ends the turn with an assistant message Strands does not stream as text,
             # so tell the user ourselves instead of leaving the answer blank.
