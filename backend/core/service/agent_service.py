@@ -29,6 +29,10 @@ def shutdown_all() -> None:
         service._agent_cache.clear()
 
 
+# Stands in for the reply to a request the user stopped (or that failed) before any answer was given.
+STOPPED_TURN_NOTE = "(This request was stopped before it finished; no answer was given. Do not resume it unless asked again.)"
+
+
 class AgentService(BaseService):
     """Strands Agent service with per-session Agent caching."""
 
@@ -108,11 +112,19 @@ class AgentService(BaseService):
                     elif isinstance(content, (list, tuple)):
                         content = ' '.join(str(item) for item in content)
 
-                    strands_messages.append(Message({
-                        'role': msg['role'],
-                        'content': [{'text': str(content)}]
-                    }))
+                    role, text = msg['role'], str(content)
+                    if role == 'assistant' and not text.strip():
+                        text = STOPPED_TURN_NOTE
+                    # Two user messages in a row: the first got no answer (Stop, or the reply failed). The
+                    # frontend drops an empty reply, so say so; otherwise the model takes the old request as
+                    # still pending and runs it again (re-running its tools) before answering the new one.
+                    if role == 'user' and strands_messages and strands_messages[-1]['role'] == 'user':
+                        strands_messages.append(Message({'role': 'assistant', 'content': [{'text': STOPPED_TURN_NOTE}]}))
+                    strands_messages.append(Message({'role': role, 'content': [{'text': text}]}))
 
+            # History ends before the new message, so a user message last was not answered either
+            if strands_messages and strands_messages[-1]['role'] == 'user':
+                strands_messages.append(Message({'role': 'assistant', 'content': [{'text': STOPPED_TURN_NOTE}]}))
             return strands_messages
 
         except Exception as e:

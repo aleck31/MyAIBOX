@@ -41,8 +41,8 @@ def test_convert_to_strands_format_skips_malformed_entries():
         {"role": "user", "content": "ok"},
     ]
     out = svc._convert_to_strands_format(ui)
-    assert len(out) == 1
     assert out[0]["content"] == [{"text": "ok"}]
+    assert [m["role"] for m in out] == ["user", "assistant"]   # the unanswered "ok" gets a stopped-turn note
 
 
 def test_convert_to_strands_format_empty_returns_empty():
@@ -89,3 +89,17 @@ def test_default_tool_config_shape():
     assert cfg["mcp_tools_enabled"] is False
     assert cfg["strands_tools_enabled"] is True
     assert cfg["legacy_tools"] == []
+
+
+def test_a_request_with_no_answer_is_marked_as_stopped():
+    """After Stop the frontend sent [old request, new request]: the model took the old one as pending and ran
+    its tool again (a 10s sleep) before answering, and mixed both answers into the reply."""
+    svc = _svc()
+    out = svc._convert_to_strands_format([
+        {"role": "user", "content": "sleep 10s then say done"},     # stopped: no reply was kept
+        {"role": "user", "content": "say pong"},
+        {"role": "assistant", "content": ""},                       # an empty reply is no answer either
+    ])
+    assert [m["role"] for m in out] == ["user", "assistant", "user", "assistant"]
+    notes = [m["content"][0]["text"] for m in out if m["role"] == "assistant"]
+    assert all("stopped" in n for n in notes)
