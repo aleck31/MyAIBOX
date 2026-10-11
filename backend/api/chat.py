@@ -25,7 +25,8 @@ from ag_ui.core import (
 from ag_ui.encoder import EventEncoder
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, ValidationError
 
 from backend.api.auth import get_auth_user
 from backend.api.prompts.chat import (
@@ -144,16 +145,63 @@ def _extract_text_and_files(content: Any, owner: Optional[str] = None) -> tuple[
         if isinstance(part, dict):
             if part.get("type") == "text":
                 texts.append(part.get("text", ""))
-            elif part.get("type") == "binary":
-                if (ref := part.get("data")) and owner:
-                    # Never trust a client-supplied path: only ids of this user's uploads.
-                    if path := resolve_upload(ref, owner):
-                        files.append(path)
-                    else:
-                        log_rejected(ref)
+            elif (ref := _attachment_ref(part)) and owner:
+                # Never trust a client-supplied path: only ids of this user's uploads.
+                if path := resolve_upload(ref, owner):
+                    files.append(path)
+                else:
+                    log_rejected(ref)
         elif isinstance(part, str):
             texts.append(part)
     return "\n".join(texts), files
+
+
+_MEDIA_PART_TYPES = ("image", "audio", "video", "document")
+
+
+def _attachment_ref(part: Dict[str, Any]) -> Optional[str]:
+    """The upload reference a content part carries, if any.
+
+    AG-UI 1.x sends attachments as image/audio/video/document parts whose `source.value` is what the client put
+    in `data` (here: the server-issued upload path); the client library converts the app's `binary` parts to that
+    shape before sending. A `binary` part is still read for old clients and stored history.
+    """
+    if part.get("type") == "binary":
+        return part.get("data") or None
+    if part.get("type") in _MEDIA_PART_TYPES and isinstance(part.get("source"), dict):
+        return part["source"].get("value") or None
+    return None
+
+
+def _upgrade_legacy_parts(raw: Any) -> Any:
+    """Turn `binary` content parts into the AG-UI 1.x media parts the request model accepts.
+
+    The AG-UI client library does this itself, but a page loaded before the 1.x upgrade (or any older client)
+    still sends `binary`, and the request then failed validation with a 422 shown to the user. Same mapping as
+    the library: the MIME type picks the part type, `data` becomes a data source and `url` a url source.
+    """
+    if not isinstance(raw, dict) or not isinstance(raw.get("messages"), list):
+        return raw
+    for message in raw["messages"]:
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, list):
+            continue
+        for i, part in enumerate(content):
+            if not (isinstance(part, dict) and part.get("type") == "binary"):
+                continue
+            mime = part.get("mimeType") or "application/octet-stream"
+            kind = next((k for k in ("image", "audio", "video") if mime.startswith(k + "/")), "document")
+            if part.get("data"):
+                source = {"type": "data", "value": part["data"], "mimeType": mime}
+            elif part.get("url"):
+                source = {"type": "url", "value": part["url"], "mimeType": mime}
+            else:
+                continue
+            upgraded = {"type": kind, "source": source}
+            if part.get("filename"):
+                upgraded["metadata"] = {"filename": part["filename"]}
+            content[i] = upgraded
+    return raw
 
 
 def _normalize_history_content(content: Any) -> str:
@@ -480,7 +528,6 @@ async def delete_workspace_file(
 
 @router.post("/stream")
 async def chat_stream(
-    body: RunAgentInput,
     request: Request,
     sub: str = Depends(get_auth_user),
 ):
@@ -491,6 +538,10 @@ async def chat_stream(
     configured with ``forwardedProps: { agent_id }`` so the field rides
     along on every runAgent call.
     """
+    try:
+        body = RunAgentInput.model_validate(_upgrade_legacy_parts(await request.json()))
+    except ValidationError as e:
+        raise RequestValidationError(e.errors()) from e
     forwarded = body.forwarded_props or {}
     agent_id = forwarded.get("agent_id") if isinstance(forwarded, dict) else None
     if not agent_id:
