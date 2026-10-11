@@ -8,7 +8,7 @@
   background: hsl(var(--background));
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
-  min-height: 44px;
+  height: var(--bar-h);  /* one height on every page; the fixed menu button is centred from it */
   overflow-x: auto;
   scrollbar-width: none;  /* Firefox */
 }
@@ -29,7 +29,6 @@
   .section-bar {
     gap: 6px;
     padding: 6px 10px;
-    min-height: calc(var(--tap-size) + 12px);  /* room for the fixed menu button */
   }
 }
 
@@ -127,3 +126,6 @@
     padding: 4px 8px;
   }
 }
+/* Bar buttons keep their label on one line: the bar has a fixed height on narrow screens and scrolls
+   sideways instead (a wrapped "Add Server" made the button 45px tall and overflowed the bar). */
+.section-bar .btn { white-space: nowrap; flex-shrink: 0; }

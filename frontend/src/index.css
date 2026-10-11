@@ -120,6 +120,13 @@
 
   /* Touch target: >= 42px on touch devices (lab baseline: standards/VISUAL-DESIGN.md) */
   --tap-size: 42px;
+  --tap-visual: 36px;  /* drawn size of bordered icon buttons on touch; their hit area is still --tap-size */
+
+  /* Top bar of every page: one height everywhere (it used to vary 44-52px between pages), including its
+     1px bottom border. The fixed menu button is centred on it from these numbers. Touch overrides both. */
+  --bar-h: 53px;
+  --toggle-size: 32px;
+  --sidebar-w: 196px;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -169,7 +176,7 @@ body {
 
 /* ── Sidebar ── */
 .sidebar {
-  width: 196px;
+  width: var(--sidebar-w);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -177,10 +184,48 @@ body {
   overflow: hidden;
 }
 
+/* Desktop: the user can hide the sidebar (state kept in localStorage). It slides out by its own width rather
+   than shrinking, so the labels do not reflow while it moves; visibility switches after the slide. */
+@media (min-width: 769px) {
+  .sidebar { transition: margin-left 0.2s ease, visibility 0s linear 0s; }
+  .shell-root.sidebar-hidden .sidebar {
+    margin-left: calc(-1 * var(--sidebar-w));
+    visibility: hidden;
+    transition: margin-left 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .shell-root.sidebar-hidden .sidebar-toggle { display: flex; }
+  .shell-root.sidebar-hidden .section-bar { padding-left: calc(var(--tap-size) + 12px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .shell-root.sidebar-hidden .sidebar { transition: none; }
+}
+
 .sidebar-brand {
-  padding: 18px 14px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 18px 10px 14px 14px;
   border-bottom: 1px solid hsl(var(--background) / 0.07);
 }
+
+/* Hide-sidebar button, top right of the sidebar (on phones it closes the drawer). */
+.sidebar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -6px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: hsl(var(--sidebar-muted));
+  cursor: pointer;
+}
+.sidebar-collapse:hover { color: hsl(var(--background)); background: hsl(var(--background) / 0.08); }
+.sidebar-collapse:focus-visible { outline: 2px solid hsl(var(--sidebar-brand-accent)); outline-offset: 1px; }
 
 .sidebar-brand-name {
   font-family: 'Syne', sans-serif;
@@ -426,10 +471,17 @@ body {
   color: hsl(var(--background));
   border: none;
   border-radius: var(--radius);
-  padding: 6px;
+  width: var(--toggle-size);
+  height: var(--toggle-size);
+  padding: 0;
+  top: calc((var(--bar-h) - 1px - var(--toggle-size)) / 2);
+  left: calc((var(--bar-h) - 1px - var(--toggle-size)) / 2);
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   backdrop-filter: blur(4px);
 }
+.sidebar-toggle:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
 
 .sidebar-overlay {
   display: none;
@@ -476,7 +528,7 @@ body {
     width: 100%;
   }
 
-  /* Module options bar: left padding for hamburger (6px offset + button + 6px gap) */
+  /* Module options bar: left padding leaves room for the menu button */
   .section-bar {
     padding: 8px 12px 8px calc(var(--tap-size) + 12px);
   }
@@ -534,19 +586,54 @@ body {
   .btn,
   .select,
   .input:not([type='checkbox']):not([type='radio']),
-  .segmented-item,
   .nav-item,
   .settings-module-header,
   .asking-autosend-toggle,
   .asking-prompt-summary { min-height: var(--tap-size); }
-  .btn--icon,
-  .bar-icon-btn,
   .composer-add-attachment,
   .aui-composer-send,
   .aui-action-bar-button,
-  .sidebar-toggle,
   .sidebar-logout { min-width: var(--tap-size); min-height: var(--tap-size); }
-  .btn--icon { width: var(--tap-size); height: var(--tap-size); }
+  /* Bordered icon buttons are drawn smaller than the tap size, which looked oversized; an ::after reaches the
+     remaining 3px on every side, so the tappable area is still --tap-size. Neighbours are >= 6px apart, so the
+     areas touch but do not overlap. */
+  .btn--icon,
+  .bar-icon-btn { position: relative; width: var(--tap-visual); height: var(--tap-visual); min-width: 0; min-height: 0; }
+  /* The bar holds a --tap-size row; the menu button is drawn like the bar's icon buttons. */
+  :root { --bar-h: calc(var(--tap-size) + 17px); --toggle-size: var(--tap-visual); }
+  /* Selects in a top bar: drawn at --tap-visual like the icon buttons beside them, with the hit area still
+     --tap-size. A native <select> cannot take a ::after, so the extra 3px per side is a transparent border:
+     the background and the 1px outline (an inset shadow) are drawn inside it. */
+  .section-bar .select {
+    border: calc((var(--tap-size) - var(--tap-visual)) / 2) solid transparent;
+    border-radius: calc(var(--radius) + (var(--tap-size) - var(--tap-visual)) / 2);
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px hsl(var(--border));
+    padding-left: 8px;
+  }
+  /* Segmented control: drawn at --tap-visual overall (1px border + 2px padding around 30px items); each
+     item's hit area reaches up and down to --tap-size. Items sit side by side and are wider than 42px, so
+     only the vertical direction needs extending. */
+  .segmented-item { position: relative; min-height: calc(var(--tap-visual) - 6px); }
+  .segmented-item::after { content: ''; position: absolute; inset: calc((var(--tap-visual) - 6px - var(--tap-size)) / 2) 0; }
+  .section-bar .select:focus { border-color: transparent; box-shadow: inset 0 0 0 1px hsl(var(--foreground)); }
+  .btn--icon::after,
+  .bar-icon-btn::after,
+  .sidebar-toggle::after { content: ''; position: absolute; inset: calc((var(--tap-visual) - var(--tap-size)) / 2); }
+  .sidebar-collapse { position: relative; width: var(--tap-visual); height: var(--tap-visual); margin-top: -10px; }
+  .sidebar-collapse::after { content: ''; position: absolute; inset: calc((var(--tap-visual) - var(--tap-size)) / 2); }
+  /* `inset` is measured from the padding box, so the 1px border has to be added back on bordered buttons. */
+  .btn--icon::after,
+  .bar-icon-btn::after { inset: calc((var(--tap-visual) - var(--tap-size)) / 2 - 1px); }
+  /* Icons follow the box. These buttons grew to the tap size but their icons kept the desktop 13-16px,
+     which left a small glyph floating in a large square. */
+  .btn--icon svg,
+  .bar-icon-btn svg,
+  .sidebar-toggle svg { width: calc(var(--tap-visual) * 0.5); height: calc(var(--tap-visual) * 0.5); }
+  .composer-add-attachment svg,
+  .aui-composer-send svg,
+  .sidebar-logout svg { width: calc(var(--tap-size) * 0.5); height: calc(var(--tap-size) * 0.5); }
+  .aui-action-bar-button svg { width: calc(var(--tap-size) * 0.45); height: calc(var(--tap-size) * 0.45); }
   .btn--row-action { min-width: var(--tap-size); min-height: var(--tap-size); padding: 0 8px; }
   /* Tables keep one line per row and scroll sideways, instead of squeezing every column (which wrapped text
      and made rows ~130px tall once the row actions reached the tap size). */
@@ -568,7 +655,7 @@ body {
    image) that aren't part of the shared .btn primitive. */
 
 /* ─── Shared: form elements ──────────────────────────────────────────────── */
-.section-actions { display: flex; gap: 8px; margin-left: auto; }
+.section-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; padding: 2px 8px; flex-shrink: 0; }
 .panel-label { display: block; font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); }
 .panel-textarea {

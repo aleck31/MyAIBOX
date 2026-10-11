@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useMediaQuery } from '../hooks/useMediaQuery'
+import { useStoredState } from '../hooks/useStoredState'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { logoutApi } from '../api/client'
 import { useChatAgents } from '../hooks/useChatAgents'
@@ -119,6 +121,14 @@ function IconAgents() {
   )
 }
 
+function IconHideSidebar() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+      <path d="M6 2.5v11M10.5 6.5L9 8l1.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
 function IconLogout() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -151,7 +161,17 @@ interface AppLayoutProps {
 export default function AppLayout({ username }: AppLayoutProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  // Phones: the sidebar is a drawer, closed by default. Desktop: always shown unless the user hid it.
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarHidden, setSidebarHidden] = useStoredState<boolean>('sidebar-hidden', false)
+  const isDesktop = useMediaQuery('(min-width: 769px)')
+  const hiddenOnDesktop = isDesktop && sidebarHidden
+  const sidebarShown = isDesktop ? !sidebarHidden : sidebarOpen
+
+  function toggleSidebar() {
+    if (isDesktop) setSidebarHidden(h => !h)
+    else setSidebarOpen(o => !o)
+  }
   const { agents: chatAgents, loading: chatLoading } = useChatAgents()
   const { agents: talkAgents } = useTalkAgents()
 
@@ -186,9 +206,16 @@ export default function AppLayout({ username }: AppLayoutProps) {
   const avatarChar = username.charAt(0).toUpperCase()
 
   return (
-    <div className="shell-root">
-      {/* Mobile hamburger */}
-      <button className="sidebar-toggle" onClick={() => setSidebarOpen(o => !o)} aria-label="Toggle menu">
+    <div className={`shell-root${hiddenOnDesktop ? ' sidebar-hidden' : ''}`}>
+      {/* Menu button: phones always, desktop only while the sidebar is hidden */}
+      <button
+        className="sidebar-toggle"
+        onClick={toggleSidebar}
+        aria-label={isDesktop ? 'Show sidebar' : 'Toggle menu'}
+        aria-expanded={sidebarShown}
+        aria-controls="app-sidebar"
+        title={isDesktop ? 'Show sidebar' : undefined}
+      >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M3 5h14M3 10h14M3 15h14" strokeLinecap="round" />
         </svg>
@@ -198,15 +225,25 @@ export default function AppLayout({ username }: AppLayoutProps) {
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
       {/* ── Sidebar ── */}
-      <aside className={`sidebar${sidebarOpen ? ' open' : ''}`}>
+      <aside id="app-sidebar" className={`sidebar${sidebarOpen ? ' open' : ''}`} inert={hiddenOnDesktop}>
         {/* Brand */}
         <div className="sidebar-brand">
-          <div className="sidebar-brand-name">
-            AI<em>Box</em>
+          <div>
+            <div className="sidebar-brand-name">
+              AI<em>Box</em>
+            </div>
+            <div className="sidebar-brand-sub">
+              GenAI 百宝箱 <span className="sidebar-brand-version">· v{pkg.version}</span>
+            </div>
           </div>
-          <div className="sidebar-brand-sub">
-            GenAI 百宝箱 <span className="sidebar-brand-version">· v{pkg.version}</span>
-          </div>
+          <button
+            className="sidebar-collapse"
+            onClick={toggleSidebar}
+            aria-label="Hide sidebar"
+            title="Hide sidebar"
+          >
+            <IconHideSidebar />
+          </button>
         </div>
 
         {/* Navigation */}
