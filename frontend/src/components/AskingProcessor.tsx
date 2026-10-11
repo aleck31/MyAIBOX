@@ -21,6 +21,8 @@ interface QABlock {
   thinking: string
   answer: string
   streaming: boolean
+  /** Server run id of the answer, so it can be collected again after a reload or a dropped connection. */
+  runId?: string
 }
 
 function loadState() {
@@ -140,6 +142,49 @@ export default function AskingProcessor() {
   }, [transcribe, autoSend])
 
   // ── Ask ──────────────────────────────────────────────────────────────────
+  const patchLast = useCallback((patch: Partial<QABlock>) =>
+    setBlocks(prev => prev.map((b, i) => i === prev.length - 1 ? { ...b, ...patch } : b)), [])
+
+  /**
+   * Stream the last block's answer. `start` is the request that produces it, or null to only collect it again
+   * (after a reload). The server keeps producing the answer when the connection drops, so it is re-attached to
+   * and replayed from the start as needed.
+   */
+  const streamAnswer = useCallback(async (runId: string, start: ((signal: AbortSignal) => Promise<Response>) | null) => {
+    const resume = (signal: AbortSignal) =>
+      authFetch(`/api/asking/resume?run_id=${encodeURIComponent(runId)}`, { credentials: 'include', signal })
+    let thinkBuf = ''
+    let respBuf = ''
+    const restart = () => { thinkBuf = ''; respBuf = ''; patchLast({ thinking: '', answer: '' }) }
+    setLoading(true)
+    try {
+      await readResumableSSE(
+        start ?? (signal => { restart(); return resume(signal) }),
+        resume,
+        {
+          onText: (delta) => { respBuf += delta; patchLast({ answer: respBuf }) },
+          onReasoning: (delta) => { thinkBuf += delta; patchLast({ thinking: thinkBuf }) },
+          onError: (msg, code) => { patchLast({ answer: msg }); if (code === MODEL_UNAVAILABLE) loadConfig() },
+        },
+        restart,
+      )
+    } catch (err) {
+      patchLast({ answer: err instanceof ReplyLostError ? `${err.message} Please ask again.` : 'An error occurred.' })
+      console.error(err)
+    } finally {
+      patchLast({ streaming: false })
+      setLoading(false)
+    }
+  }, [patchLast, loadConfig])
+
+  // A reload while an answer was being produced: the server kept producing it, so collect it.
+  useEffect(() => {
+    const last = blocks[blocks.length - 1]
+    if (!last?.streaming) return
+    if (last.runId) streamAnswer(last.runId, null)
+    else patchLast({ streaming: false })            // asked before answers could be collected again
+  }, [])
+
   const handleProcess = useCallback(async () => {
     const submitText = input.trim()
     if (!submitText || loading) return
@@ -151,8 +196,11 @@ export default function AskingProcessor() {
       { role: 'assistant', content: b.answer },
     ])
 
+    // The server keeps producing the answer if the connection drops; this id lets us collect it again.
+    const runId = crypto.randomUUID()
+
     // Append a fresh block for this question and clear the composer.
-    setBlocks(prev => [...prev, { question: submitText, thinking: '', answer: '', streaming: true }])
+    setBlocks(prev => [...prev, { question: submitText, thinking: '', answer: '', streaming: true, runId }])
     setInput('')
     setPartialTranscript('')
 
@@ -164,35 +212,11 @@ export default function AskingProcessor() {
     files.forEach((f) => formData.append('files', f))
     setFiles([])
 
-    const patchLast = (patch: Partial<QABlock>) =>
-      setBlocks(prev => prev.map((b, i) => i === prev.length - 1 ? { ...b, ...patch } : b))
-
-    // The server keeps producing the answer if the connection drops; this id lets us collect it again.
-    const runId = crypto.randomUUID()
     formData.append('run_id', runId)
 
-    let thinkBuf = ''
-    let respBuf = ''
-    try {
-      await readResumableSSE(
-        (signal) => authFetch('/api/asking/process', { method: 'POST', credentials: 'include', body: formData, signal }),
-        (signal) => authFetch(`/api/asking/resume?run_id=${encodeURIComponent(runId)}`, { credentials: 'include', signal }),
-        {
-          onText: (delta) => { respBuf += delta; patchLast({ answer: respBuf }) },
-          onReasoning: (delta) => { thinkBuf += delta; patchLast({ thinking: thinkBuf }) },
-          onError: (msg, code) => { patchLast({ answer: msg }); if (code === MODEL_UNAVAILABLE) loadConfig() },
-        },
-        // The resumed answer is replayed from the start
-        () => { thinkBuf = ''; respBuf = ''; patchLast({ thinking: '', answer: '' }) },
-      )
-    } catch (err) {
-      patchLast({ answer: err instanceof ReplyLostError ? `${err.message} Please ask again.` : 'An error occurred.' })
-      console.error(err)
-    } finally {
-      patchLast({ streaming: false })
-      setLoading(false)
-    }
-  }, [input, blocks, modelId, customPrompt, files, loading])
+    await streamAnswer(runId, (signal) =>
+      authFetch('/api/asking/process', { method: 'POST', credentials: 'include', body: formData, signal }))
+  }, [input, blocks, modelId, customPrompt, files, loading, streamAnswer])
 
   // Auto-send fires once recording AND finalizing both end (final committed).
   useEffect(() => {

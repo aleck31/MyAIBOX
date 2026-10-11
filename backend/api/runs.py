@@ -17,9 +17,10 @@ from backend.common.logger import logger
 
 RunKey = Tuple[str, str]  # (user sub, agent id): one run per user and agent at a time
 
-# SSE comment that proxies and browsers ignore, sent while a viewer is idle. CloudFront's idle timeout is the
-# binding constraint (default 30s, max 60s); 15s gives a 2x safety margin.
-KEEPALIVE_INTERVAL = 15.0
+# SSE comment that proxies and browsers ignore, sent while a viewer is idle. It keeps proxies from timing the
+# connection out (CloudFront: 30s by default), and it is how the client tells a live connection from a dead one:
+# no bytes for a few intervals means the connection is gone (frontend api/sse.ts, STALL_MS).
+KEEPALIVE_INTERVAL = 5.0
 KEEPALIVE_FRAME = b": ping\n\n"
 
 
@@ -79,10 +80,11 @@ class Run:
 class RunRegistry:
     """The latest run of each (user, agent), kept for a while after it ends so a client can still collect it."""
 
-    def __init__(self, keep_seconds: float = 900.0, max_run_seconds: float = 1800.0):
+    def __init__(self, keep_seconds: float = 900.0, max_run_seconds: float = 1800.0, max_kept: int = 500):
         self._runs: Dict[RunKey, Run] = {}
         self._keep = keep_seconds
         self._max_run = max_run_seconds
+        self._max_kept = max_kept  # finished runs kept at most, oldest dropped first
 
     def start(self, key: RunKey, run_id: str, source: AsyncIterator, error_event: Callable[[str], object]) -> Run:
         """Start `source` as the run of `key`; a run still going for the same key is stopped (newest wins)."""
@@ -132,6 +134,9 @@ class RunRegistry:
     def _purge(self) -> None:
         now = time.monotonic()
         for key in [k for k, r in self._runs.items() if r.finished and now - r.finished_at > self._keep]:
+            del self._runs[key]
+        finished = sorted((r.finished_at, k) for k, r in self._runs.items() if r.finished)
+        for _, key in finished[:max(0, len(finished) - self._max_kept)]:
             del self._runs[key]
 
 

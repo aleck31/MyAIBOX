@@ -82,3 +82,16 @@ def test_a_run_belongs_to_its_user_and_a_runaway_one_is_stopped():
         assert run.finished and run.events[-1].startswith("ERROR:")
 
     asyncio.run(scenario())
+
+
+def test_finished_runs_kept_are_capped_oldest_first():
+    async def scenario():
+        runs = RunRegistry(max_kept=2)
+        for i in range(4):
+            run = runs.start(("u", f"slot-{i}"), f"r{i}", _source(1), _err)
+            await asyncio.wait_for(run._task, 2)
+        runs.start(("u", "slot-x"), "rx", _source(1), _err)     # any new run purges
+        kept = [i for i in range(4) if runs.get(("u", f"slot-{i}"), f"r{i}") is not None]
+        assert kept == [2, 3]
+
+    asyncio.run(scenario())

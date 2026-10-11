@@ -37,3 +37,11 @@ def test_the_answer_can_be_collected_again_by_its_run_id(client):
     again = client.get("/api/asking/resume", params={"run_id": "r-1"})
     assert again.status_code == 200 and _text(again.text) == _text(first) == "Bedrock is a service."
     assert client.get("/api/asking/resume", params={"run_id": "unknown"}).status_code == 404
+
+
+def test_two_answers_at_once_do_not_cancel_each_other(client):
+    """Asking keeps no state, so a second question (another tab) must not stop the first."""
+    client.post("/api/asking/process", data={"text": "a", "run_id": "r-a"})
+    client.post("/api/asking/process", data={"text": "b", "run_id": "r-b"})
+    assert _text(client.get("/api/asking/resume", params={"run_id": "r-a"}).text) == "Bedrock is a service."
+    assert _text(client.get("/api/asking/resume", params={"run_id": "r-b"}).text) == "Bedrock is a service."

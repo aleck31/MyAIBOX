@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import type { HttpAgent } from '@ag-ui/client'
 import { ResumableAgent } from '../api/resumableAgent'
-import { HIDDEN_LONG_ENOUGH_MS, RESUME_ATTEMPTS, resumeDelayMs, sleep, whenVisible } from '../api/sse'
+import { RESUME_ATTEMPTS, resumeDelayMs, sleep, watchForStall, whenVisible } from '../api/sse'
 import type { RunErrorEvent, ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, CustomEvent } from '@ag-ui/core'
 import { useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike, AppendMessage } from '@assistant-ui/react'
@@ -100,7 +100,7 @@ interface UseAGUIRuntimeOptions {
 
 // Module-level cache: survives route changes, cleared on tab close
 const _msgCache = new Map<string, LocalMessage[]>()
-const _agentCache = new Map<string, HttpAgent>()
+const _agentCache = new Map<string, ResumableAgent>()
 
 /** One reply in flight, as the client sees it. */
 interface ActiveRun {
@@ -114,9 +114,23 @@ interface ActiveRun {
   stopped: boolean
   /** A re-attach loop is running. */
   resuming: boolean
-  /** We aborted the connection ourselves on coming back to the page, in order to re-attach. */
+  /** We aborted a stalled connection ourselves, in order to re-attach. */
   recycle: boolean
   subscriber?: Parameters<HttpAgent['runAgent']>[1]
+  /** Stops the stalled-connection watcher. */
+  unwatch?: () => void
+}
+
+// The reply in flight, per thread, so a page reload can re-attach to it
+const _runKey = (threadId: string) => `chat-run:${threadId}`
+function loadActiveRun(threadId: string): { id: string; assistantId: string } | null {
+  try { const raw = sessionStorage.getItem(_runKey(threadId)); return raw ? JSON.parse(raw) : null } catch { return null }
+}
+function saveActiveRun(threadId: string, run: { id: string; assistantId: string } | null) {
+  try {
+    if (run) sessionStorage.setItem(_runKey(threadId), JSON.stringify({ id: run.id, assistantId: run.assistantId }))
+    else sessionStorage.removeItem(_runKey(threadId))
+  } catch { /* quota */ }
 }
 
 /** A failed fetch (offline, connection reset, page frozen) is a TypeError; HTTP and protocol errors are not. */
@@ -142,7 +156,7 @@ function saveStoredMsgs(threadId: string, msgs: LocalMessage[]) {
 export function clearRuntimeCache(threadId: string) {
   _msgCache.delete(threadId)
   _agentCache.delete(threadId)
-  try { sessionStorage.removeItem(_msgsKey(threadId)) } catch { /* ignore */ }
+  try { sessionStorage.removeItem(_msgsKey(threadId)); sessionStorage.removeItem(_runKey(threadId)) } catch { /* ignore */ }
 }
 
 /** Extract text only from content (for HttpAgent which only needs text) */
@@ -241,16 +255,18 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
     })
   }, [threadId])
 
-  const agentRef = useRef(
+  const agentRef = useRef<ResumableAgent>(
     _agentCache.get(threadId) ??
     new ResumableAgent({
       url,
       threadId,
-      initialMessages: initialMessages.map((m, i) => ({
-        id: `hist-${i}`,
-        role: m.role,
-        content: extractText(m.content),
-      })),
+      // After a reload the screen is restored from sessionStorage; the agent starts from the same messages
+      // (minus a reply still in flight, which a re-attach replays) so what is sent matches what is shown.
+      initialMessages: localMessages.length
+        ? localMessages
+            .filter(m => !m.isStreaming && (m.role === 'user' || m.role === 'assistant'))
+            .map(m => ({ id: m.id, role: m.role, content: m.content }))
+        : initialMessages.map((m, i) => ({ id: `hist-${i}`, role: m.role, content: extractText(m.content) })),
     })
   )
 
@@ -263,6 +279,13 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
   localMessagesRef.current = localMessages
 
   const activeRunRef = useRef<ActiveRun | null>(null)
+
+  /** The run is over for this client: stop watching it and forget it for reloads. */
+  const endRun = useCallback((run: ActiveRun) => {
+    run.unwatch?.()
+    run.unwatch = undefined
+    if (activeRunRef.current === run) saveActiveRun(threadId, null)
+  }, [threadId])
 
   const stopStreaming = useCallback((assistantId: string) => {
     setLocalMessages(prev => prev.map(m => (m.id === assistantId ? { ...m, isStreaming: false } : m)))
@@ -302,11 +325,15 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
         try {
           await agent.connectAgent({ runId: run.id, forwardedProps: forwardedPropsRef.current }, run.subscriber)
         } catch (err) {
-          // The reply is gone from the server (restarted, or kept too long): nothing to re-attach to.
-          if (!isConnectionLoss(err as Error)) break
+          const e = err as Error
+          const retry = isConnectionLoss(e) || (run.recycle && isAbort(e.message, e.name))
+          run.recycle = false
+          // Anything else: the reply is gone from the server (restarted, or kept too long).
+          if (!retry) break
         }
       }
       run.resuming = false
+      endRun(run)
       if (!run.finished && !run.stopped) {
         run.finished = true
         showError(run.assistantId, 'the connection was lost and the reply could not be recovered. Send your message again.')
@@ -314,14 +341,16 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
         stopStreaming(run.assistantId)   // finished while re-attached: onRunFinalized stays quiet in that case
       }
     })()
-  }, [setLocalMessages, showError, stopStreaming])
+  }, [setLocalMessages, showError, stopStreaming, endRun])
 
-  const runAgent = useCallback((assistantId: string) => {
+  /** A run as this client follows it; `id` is the server's run id (new for a new message, kept on a reload). */
+  const makeRun = useCallback((assistantId: string, id: string): ActiveRun => {
     const agent = agentRef.current
     // A newer message replaces a reply that is still being produced or recovered (the server does the same).
-    if (activeRunRef.current) activeRunRef.current.stopped = true
+    const previous = activeRunRef.current
+    if (previous) { previous.stopped = true; previous.unwatch?.() }
     const run: ActiveRun = {
-      id: generateId(),
+      id,
       assistantId,
       baseMessages: [...agent.messages],
       finished: false,
@@ -330,6 +359,15 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
       recycle: false,
     }
     activeRunRef.current = run
+    saveActiveRun(threadId, run)
+    // A connection that went silent (a phone froze the page) is dropped and re-attached; one that keeps
+    // receiving, such as a desktop tab in the background, is left alone.
+    run.unwatch = watchForStall(() => agent.lastDataAt, () => {
+      if (run.finished || run.stopped) return
+      if (run.resuming && agent.isRunning === false) return   // between re-attach tries: nothing to drop
+      run.recycle = true
+      agent.abortRun()
+    })
 
     run.subscriber = {
           onTextMessageContentEvent({ event }: { event: TextMessageContentEvent }) {
@@ -386,8 +424,10 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           },
           onRunFinalized() {
             if (run.resuming) return
-            // The stream ended without the server saying how: the connection was cut. Collect the reply.
-            if (!run.finished && !run.stopped && !run.recycle) { startResume(run); return }
+            // The stream ended without the server saying how the reply ended: the connection was cut, or we
+            // dropped a stalled one (an aborted run ends here without onRunFailed). Collect the reply.
+            if (!run.finished && !run.stopped) { startResume(run); return }
+            endRun(run)
             stopStreaming(run.assistantId)
           },
           // The client reports a server-sent RUN_ERROR only here (onRunFailed is for transport failures),
@@ -396,17 +436,19 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
             // Stop (or leaving the page) surfaces here as "signal is aborted": not a failure, keep what streamed.
             if (isAbort(event.message)) { stopStreaming(run.assistantId); return }
             run.finished = true
+            endRun(run)
             showError(run.assistantId, event.message, true)
             if (event.code === MODEL_UNAVAILABLE) onModelUnavailableRef.current?.()
           },
           onRunFailed({ error }: { error: Error }) {
             if (run.resuming) return                      // the re-attach loop handles its own failures
             if (!run.finished && !run.stopped) {
-              // Our own abort on returning to the page, or the connection dying (a phone sent to the
+              // Our own abort of a stalled connection, or the connection dying (a phone sent to the
               // background): the server still has the reply.
               if ((run.recycle && isAbort(error.message, error.name)) || isConnectionLoss(error)) { startResume(run); return }
             }
             run.finished = true
+            endRun(run)
             if (isAbort(error.message, error.name)) stopStreaming(run.assistantId)
             else showError(run.assistantId, error.message)
           },
@@ -415,23 +457,21 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
           },
         }
 
-    agent.runAgent({ runId: run.id, forwardedProps: forwardedPropsRef.current }, run.subscriber).catch(() => {})
-  }, [setLocalMessages, startResume, stopStreaming, showError])
+    return run
+  }, [setLocalMessages, startResume, stopStreaming, showError, endRun, threadId])
 
-  // Coming back to the page after a while (a phone in the background, a screen that was off): the connection is
-  // probably dead even if the page has not noticed yet, so re-attach at once instead of waiting for it to fail.
+  const runAgent = useCallback((assistantId: string) => {
+    const run = makeRun(assistantId, generateId())
+    agentRef.current.runAgent({ runId: run.id, forwardedProps: forwardedPropsRef.current }, run.subscriber).catch(() => {})
+  }, [makeRun])
+
+  // A reload while a reply was being produced: the server kept producing it, so re-attach and replay it.
   useEffect(() => {
-    let hiddenAt = 0
-    const onChange = () => {
-      if (document.hidden) { hiddenAt = Date.now(); return }
-      const run = activeRunRef.current
-      if (!run || run.finished || run.stopped || run.resuming) return
-      if (Date.now() - hiddenAt < HIDDEN_LONG_ENOUGH_MS) return
-      run.recycle = true
-      agentRef.current.abortRun()
-    }
-    document.addEventListener('visibilitychange', onChange)
-    return () => document.removeEventListener('visibilitychange', onChange)
+    const saved = loadActiveRun(threadId)
+    if (!saved) return
+    const reply = localMessagesRef.current.find(m => m.id === saved.assistantId)
+    if (!reply?.isStreaming) { saveActiveRun(threadId, null); return }
+    startResume(makeRun(saved.assistantId, saved.id))
   }, [])
 
   const fileUploadAdapter = useMemo(() => new FileUploadAdapter(), [])
@@ -503,13 +543,14 @@ export function useAGUIRuntime({ url, threadId, initialMessages = [], onCustomEv
     const run = activeRunRef.current
     if (run && !run.finished) {
       run.stopped = true
+      endRun(run)
       // The server keeps a reply going when its connection closes, so Stop has to say so explicitly.
       const query = new URLSearchParams({ agent_id: String(forwardedPropsRef.current?.agent_id ?? ''), run_id: run.id })
       fetch(`${url}/cancel?${query}`, { method: 'POST', credentials: 'include' }).catch(() => {})
     }
     agentRef.current.abortRun()
     setLocalMessages(prev => prev.map(m => (m.isStreaming ? { ...m, isStreaming: false } : m)))
-  }, [url])
+  }, [url, endRun])
 
   const onReload = useCallback(async () => {
     const newAssistantId = generateId()

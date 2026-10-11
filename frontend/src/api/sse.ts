@@ -48,8 +48,35 @@ export async function readSSE(res: Response, callbacks: SSECallbacks) {
 /** How a reply that lost its connection is re-attached: tries, with a growing pause before each (1s, 2s, 4s, 8s...). */
 export const RESUME_ATTEMPTS = 8
 export const resumeDelayMs = (attempt: number) => Math.min(1000 * 2 ** attempt, 8000)
-/** Coming back to the page after less than this, the connection is assumed fine. */
-export const HIDDEN_LONG_ENOUGH_MS = 2000
+/**
+ * A live reply stream carries at least a keep-alive every 5s (backend/api/runs.py). Nothing for this long means
+ * the connection is dead even if the browser has not said so: a phone that froze the page, a network that went
+ * away silently. A desktop tab in the background keeps receiving, so it is left alone.
+ */
+export const STALL_MS = 12000
+/** How often a stalled stream is looked for while the page is visible. */
+const STALL_CHECK_MS = 3000
+
+/** The same response, calling `onData` whenever bytes arrive (keep-alives included). */
+export function trackActivity(res: Response, onData: () => void): Response {
+  if (!res.body) return res
+  const body = res.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) { onData(); controller.enqueue(chunk) },
+  }))
+  return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers })
+}
+
+/**
+ * Calls `onStall` when the stream has been silent for STALL_MS: at once when the page becomes visible again,
+ * and on a timer while it is visible. Returns a function that stops watching.
+ */
+export function watchForStall(lastDataAt: () => number, onStall: () => void): () => void {
+  const stalled = () => !document.hidden && Date.now() - lastDataAt() > STALL_MS
+  const check = () => { if (stalled()) onStall() }
+  const timer = setInterval(check, STALL_CHECK_MS)
+  document.addEventListener('visibilitychange', check)
+  return () => { clearInterval(timer); document.removeEventListener('visibilitychange', check) }
+}
 
 export const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
 
@@ -88,29 +115,26 @@ export async function readResumableSSE(
   for (let attempt = 0; ; attempt++) {
     const controller = new AbortController()
     let recycled = false
-    let hiddenAt = 0
-    // Back from a while in the background: the connection is probably dead even if nothing has failed yet.
-    const onVisibility = () => {
-      if (document.hidden) { hiddenAt = Date.now(); return }
-      if (hiddenAt && Date.now() - hiddenAt >= HIDDEN_LONG_ENOUGH_MS) { recycled = true; controller.abort() }
-    }
-    document.addEventListener('visibilitychange', onVisibility)
+    let lastDataAt = Date.now()
+    // The connection died without an error (page frozen, network gone silently): drop it and re-attach.
+    const stopWatching = watchForStall(() => lastDataAt, () => { recycled = true; controller.abort() })
     try {
       if (attempt > 0) {
         await sleep(resumeDelayMs(attempt - 1))
         await whenVisible()
         onRestart()
       }
+      lastDataAt = Date.now()
       const res = await (attempt === 0 ? start : resume)(controller.signal)
       if (attempt > 0 && res.status === 404) throw new ReplyLostError('The reply is no longer on the server.')
-      await readSSE(res, tracked)
+      await readSSE(trackActivity(res, () => { lastDataAt = Date.now() }), tracked)
       if (finished) return
       // The stream ended without the server saying the reply was over: the connection was cut.
     } catch (err) {
       const lost = err instanceof TypeError || (recycled && (err as Error).name === 'AbortError')
       if (!lost) throw err
     } finally {
-      document.removeEventListener('visibilitychange', onVisibility)
+      stopWatching()
     }
     if (attempt + 1 >= RESUME_ATTEMPTS) throw new ReplyLostError('The connection was lost and the reply could not be recovered.')
   }

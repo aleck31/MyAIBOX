@@ -28,8 +28,10 @@ router = APIRouter(prefix="/asking", tags=["asking"])
 
 _enc = EventEncoder()
 
-# Run registry slot: one Asking answer per user at a time (Chat uses the agent id as its slot)
-_RUN_SLOT = "module:asking"
+def _run_slot(run_id: str) -> str:
+    """Registry slot of one Asking answer. Asking keeps no conversation state, so answers do not replace each
+    other (two tabs can ask at once); Chat uses the agent id, where a newer message does replace the older."""
+    return f"module:asking:{run_id}"
 _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
@@ -175,14 +177,14 @@ async def process_asking(
             logger.error(f"Asking error for {username}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred.")))
 
-    run = runs.start((username, _RUN_SLOT), run_id, event_stream(), _run_error_event)
+    run = runs.start((username, _run_slot(run_id)), run_id, event_stream(), _run_error_event)
     return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 @router.get("/resume")
 async def resume_asking(run_id: str = Query(...), username: str = Depends(get_auth_user)):
     """Attach to an answer that is still running, or finished recently: all its events from the start."""
-    run = runs.get((username, _RUN_SLOT), run_id)
+    run = runs.get((username, _run_slot(run_id)), run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found (it may have expired)")
     return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)
