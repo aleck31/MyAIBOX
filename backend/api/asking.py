@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 import uuid
 from typing import List
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from ag_ui.core import (
     RunStartedEvent, RunFinishedEvent, RunErrorEvent,
@@ -15,6 +15,7 @@ from backend.genai.models.thinking import DEFAULT_INTENT
 from backend.api.auth import get_auth_user
 from backend.api.prompts.asking import SYSTEM_PROMPT
 from backend.api.reply_events import ReplyEvents
+from backend.api.runs import runs
 from backend.common.errors import ModelUnavailableError, run_error_fields
 from backend.common.provider_cache import ProviderCache
 from backend.common.async_stream import aiter_sync
@@ -26,6 +27,14 @@ logger = setup_logger('api.asking')
 router = APIRouter(prefix="/asking", tags=["asking"])
 
 _enc = EventEncoder()
+
+# Run registry slot: one Asking answer per user at a time (Chat uses the agent id as its slot)
+_RUN_SLOT = "module:asking"
+_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _run_error_event(message: str) -> str:
+    return _enc.encode(RunErrorEvent(message=message))
 _provider_cache = ProviderCache()
 
 
@@ -72,11 +81,16 @@ async def process_asking(
     model_id: str = Form(None),
     custom_prompt: str = Form(""),
     files: List[UploadFile] = File(default=[]),
+    run_id: str = Form(None),
     username: str = Depends(get_auth_user),
 ):
-    """AG-UI SSE streaming endpoint for asking with thinking."""
+    """AG-UI SSE streaming endpoint for asking with thinking.
+
+    The answer runs on its own (backend/api/runs.py): a dropped connection does not lose it, and the client
+    can collect it again from /asking/resume with the `run_id` it sent.
+    """
     import json
-    run_id = str(uuid.uuid4())
+    run_id = run_id or str(uuid.uuid4())
     msg_id = str(uuid.uuid4())
     thinking_id = str(uuid.uuid4())
 
@@ -161,8 +175,14 @@ async def process_asking(
             logger.error(f"Asking error for {username}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred.")))
 
-    return StreamingResponse(
-        event_stream(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
+    run = runs.start((username, _RUN_SLOT), run_id, event_stream(), _run_error_event)
+    return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)
+
+
+@router.get("/resume")
+async def resume_asking(run_id: str = Query(...), username: str = Depends(get_auth_user)):
+    """Attach to an answer that is still running, or finished recently: all its events from the start."""
+    run = runs.get((username, _RUN_SLOT), run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found (it may have expired)")
+    return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import type { HttpAgent } from '@ag-ui/client'
 import { ResumableAgent } from '../api/resumableAgent'
+import { HIDDEN_LONG_ENOUGH_MS, RESUME_ATTEMPTS, resumeDelayMs, sleep, whenVisible } from '../api/sse'
 import type { RunErrorEvent, ReasoningMessageContentEvent, TextMessageContentEvent, ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent, CustomEvent } from '@ag-ui/core'
 import { useExternalStoreRuntime } from '@assistant-ui/react'
 import type { ThreadMessageLike, AppendMessage } from '@assistant-ui/react'
@@ -101,12 +102,6 @@ interface UseAGUIRuntimeOptions {
 const _msgCache = new Map<string, LocalMessage[]>()
 const _agentCache = new Map<string, HttpAgent>()
 
-/** How a reply that lost its connection is re-attached: tries, with a growing pause before each (1s, 2s, 4s, 8s, 8s...). */
-const RESUME_ATTEMPTS = 8
-const resumeDelayMs = (attempt: number) => Math.min(1000 * 2 ** attempt, 8000)
-/** Coming back to the page after less than this, the connection is assumed fine. */
-const HIDDEN_LONG_ENOUGH_MS = 2000
-
 /** One reply in flight, as the client sees it. */
 interface ActiveRun {
   id: string
@@ -122,21 +117,6 @@ interface ActiveRun {
   /** We aborted the connection ourselves on coming back to the page, in order to re-attach. */
   recycle: boolean
   subscriber?: Parameters<HttpAgent['runAgent']>[1]
-}
-
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
-
-/** Resolves once the page is visible (at once if it already is). A hidden page has no working network. */
-function whenVisible(): Promise<void> {
-  if (!document.hidden) return Promise.resolve()
-  return new Promise(resolve => {
-    const onChange = () => {
-      if (document.hidden) return
-      document.removeEventListener('visibilitychange', onChange)
-      resolve()
-    }
-    document.addEventListener('visibilitychange', onChange)
-  })
 }
 
 /** A failed fetch (offline, connection reset, page frozen) is a TypeError; HTTP and protocol errors are not. */

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { authFetch, getAskingConfig } from '../api/client'
-import { readSSE } from '../api/sse'
+import { readResumableSSE, ReplyLostError } from '../api/sse'
 import { Button } from './Button'
 import ModelSelector from './ModelSelector'
 import { IconTrash, IconEraser, IconClipboard, IconMic, IconPaperclip, IconClose, IconToggleOn, IconToggleOff, IconBrain, IconPanelRight } from './icons'
@@ -167,21 +167,26 @@ export default function AskingProcessor() {
     const patchLast = (patch: Partial<QABlock>) =>
       setBlocks(prev => prev.map((b, i) => i === prev.length - 1 ? { ...b, ...patch } : b))
 
+    // The server keeps producing the answer if the connection drops; this id lets us collect it again.
+    const runId = crypto.randomUUID()
+    formData.append('run_id', runId)
+
+    let thinkBuf = ''
+    let respBuf = ''
     try {
-      const res = await authFetch('/api/asking/process', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      })
-      let thinkBuf = ''
-      let respBuf = ''
-      await readSSE(res, {
-        onText: (delta) => { respBuf += delta; patchLast({ answer: respBuf }) },
-        onReasoning: (delta) => { thinkBuf += delta; patchLast({ thinking: thinkBuf }) },
-        onError: (msg, code) => { patchLast({ answer: msg }); if (code === MODEL_UNAVAILABLE) loadConfig() },
-      })
+      await readResumableSSE(
+        (signal) => authFetch('/api/asking/process', { method: 'POST', credentials: 'include', body: formData, signal }),
+        (signal) => authFetch(`/api/asking/resume?run_id=${encodeURIComponent(runId)}`, { credentials: 'include', signal }),
+        {
+          onText: (delta) => { respBuf += delta; patchLast({ answer: respBuf }) },
+          onReasoning: (delta) => { thinkBuf += delta; patchLast({ thinking: thinkBuf }) },
+          onError: (msg, code) => { patchLast({ answer: msg }); if (code === MODEL_UNAVAILABLE) loadConfig() },
+        },
+        // The resumed answer is replayed from the start
+        () => { thinkBuf = ''; respBuf = ''; patchLast({ thinking: '', answer: '' }) },
+      )
     } catch (err) {
-      patchLast({ answer: 'An error occurred.' })
+      patchLast({ answer: err instanceof ReplyLostError ? `${err.message} Please ask again.` : 'An error occurred.' })
       console.error(err)
     } finally {
       patchLast({ streaming: false })
