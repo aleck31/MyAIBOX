@@ -3,12 +3,14 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
-## [3.9.0] - 2026-10-10 ... [3.9.4] - 2026-10-10
+## [3.9.0] - 2026-10-10 ... [3.9.5] - 2026-10-11
 
 ### Added
 - **Latest-generation models** (3.9.1): Claude Opus/Sonnet/Haiku 5.5 + Fable 5.1, GPT-6 Astra/6.1 Sol/Luna, Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL 235B, Nova 2.5 Sonic, Gemini 3.8 Flash.
 - **`ADMIN_SUBS`** (3.9.0): MCP changes are admin-only; without it, stdio servers cannot be added.
 - **Upload hardening** (3.9.0): attachments accept only server-issued ids; uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`, default 20).
+- **Hideable sidebar** (3.9.5): a button at the top of the desktop sidebar hides it, the menu button brings it back; the choice is remembered.
+- **Replies survive a dropped connection** (3.9.5): switching app, locking the phone or reloading no longer loses a Chat or Asking reply; the page re-attaches to it.
 
 ### Changed
 - **Models** (3.9.1): only the latest generation of each family is kept; Claude 4.x / Sonnet 5 / Fable 5, GPT-5.x, Grok 4.3, GLM 5, Qwen3 235B, Nova Pro, Nova 2 Sonic and Gemini 2.5/3.5 Flash are retired.
@@ -23,6 +25,7 @@ frontend and lockfiles). The README only highlights the latest release.
 - 3.9.2 A retired model id (e.g. from a page opened before a model upgrade) now reports which model is unavailable and to refresh, instead of a generic error.
 - 3.9.3 Chat composer: Send and Stop share one icon button and a reply with THINKING/tool bars keeps one width; the UI now meets the lab visual baseline (sidebar, chevron and Talk-button text >= 4.5:1 contrast, every control >= 42px on touch).
 - 3.9.4 Chat works on every model again: models that reject stop sequences (DeepSeek, GPT-OSS, Grok 4.7, Kimi K3, Qwen3-VL) and mid-conversation model switches (8 of 16 models) no longer fail, server errors show instead of an empty bubble, and a page whose model was retired reloads its model list and re-picks. Text sends the model picked after typing. Draw: Nova Canvas removed (AWS Legacy, always failed). UI: scrollable top bars fade their right edge, disabled controls keep >= 5:1 contrast; Settings -> MCP drops the always-1 Tools column.
+- 3.9.5 Images and files sent in Chat reach the model again (dropped since 3.9.0; pages from before 3.9.0 got a 422). Chat and Asking no longer abort on Sonnet/Grok with "No active reasoning message" and a following "Agent is already processing a request"; after Stop the next message answers at once instead of redoing the stopped request. When the provider's content filter blocks a reply (Claude after some searches) it is retried once, then explained. UI: new app icon; one top-bar height with the menu button centred; touch controls drawn at 36px with a 42px hit area.
 
 ### Upgrade notes
 `uv sync` and `my-aibox build`; set `ADMIN_SUBS` to keep adding stdio MCP servers; apply the model changes in Settings -> Models (the registry is in DynamoDB); on EKS add `transcribe:StartStreamTranscription` and `bedrock:InvokeModelWithBidirectionalStream` to the pod role.
