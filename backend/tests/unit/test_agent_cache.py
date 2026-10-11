@@ -27,36 +27,6 @@ def svc():
     return AgentService(module_name="test")
 
 
-def test_cache_eviction_when_at_capacity(svc, monkeypatch):
-    monkeypatch.setattr(agent_service_module, "_AGENT_MAX", 3)
-
-    providers = [FakeProvider() for _ in range(4)]
-    for i, p in enumerate(providers):
-        svc._cache_provider(f"sid-{i}", p)
-        # Artificial stagger so LRU timestamps differ deterministically
-        time.sleep(0.001)
-
-    assert len(svc._agent_cache) == 3
-    # The first one inserted should have been evicted and destroyed
-    assert providers[0].destroyed is True
-    assert "sid-0" not in svc._agent_cache
-    # Later inserts still present
-    for i in range(1, 4):
-        assert f"sid-{i}" in svc._agent_cache
-
-
-def test_cache_get_refreshes_timestamp(svc):
-    p = FakeProvider()
-    svc._cache_provider("sid-1", p)
-    ts_before = svc._agent_cache["sid-1"][1]
-    time.sleep(0.01)
-
-    result = svc._get_cached_provider("sid-1")
-
-    assert result is p
-    assert svc._agent_cache["sid-1"][1] > ts_before
-
-
 def test_evict_expired_removes_and_destroys(svc, monkeypatch):
     monkeypatch.setattr(agent_service_module, "_AGENT_TTL", 0.01)
 

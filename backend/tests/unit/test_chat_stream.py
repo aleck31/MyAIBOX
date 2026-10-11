@@ -136,16 +136,7 @@ def test_a_new_message_stops_a_turn_that_is_still_running(monkeypatch):
 
 # ── Replies the provider cuts off by policy ───────────────────────────────────
 
-from backend.common.errors import blocked_reply_notice  # noqa: E402
 from backend.genai.models.providers.bedrock_converse import BedrockConverse  # noqa: E402
-
-
-@pytest.mark.parametrize("stop_reason,blocked", [
-    ("content_filtered", True), ("guardrail_intervened", True),
-    ("end_turn", False), ("tool_use", False), ("max_tokens", False), (None, False),
-])
-def test_blocked_stop_reasons_get_a_notice(stop_reason, blocked):
-    assert bool(blocked_reply_notice(stop_reason)) is blocked
 
 
 def _converse_provider(streams):

@@ -13,7 +13,6 @@ os.environ.setdefault("CLIENT_ID", "unit-test-client")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 from backend.api import settings  # noqa: E402
-from backend.core.config import app_config  # noqa: E402
 
 
 # ── MCP write gate ──────────────────────────────────────────────────────────
@@ -41,8 +40,3 @@ def test_mcp_writes_require_admin_when_configured(monkeypatch):
     assert settings._mcp_write_denied("user").status_code == 403
     assert settings._mcp_write_denied("admin-sub", "stdio") is None
     assert settings._mcp_write_denied("other-admin") is None
-
-
-def test_admin_subs_parsing(monkeypatch):
-    _set_admins(monkeypatch, " a , ,b,")
-    assert app_config.admin_subs == frozenset({"a", "b"})

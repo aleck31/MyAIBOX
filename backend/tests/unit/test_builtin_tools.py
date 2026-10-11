@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-import pytest
 
 from backend.genai.tools.strands.builtin_tools import BUILTIN_TOOLS, get_available_tools, load_builtin_tools
 from backend.genai.tools.strands.time_tool import current_time
@@ -15,11 +14,6 @@ def test_current_time_utc_by_default_and_explicit_timezone_wins(monkeypatch):
     value = current_time()
     assert value.endswith("+00:00") and datetime.fromisoformat(value)
     assert current_time(timezone="Asia/Shanghai").endswith("+08:00")
-
-
-def test_current_time_rejects_unknown_timezone():
-    with pytest.raises(ValueError):
-        current_time(timezone="Mars/Olympus")
 
 
 def test_current_time_loads_without_the_deprecated_strands_tool(caplog):

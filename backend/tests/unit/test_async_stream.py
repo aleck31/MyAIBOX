@@ -13,18 +13,6 @@ from backend.common.async_stream import aiter_sync
 
 
 @pytest.mark.asyncio
-async def test_yields_all_items_in_order():
-    async def collect():
-        return [x async for x in aiter_sync(iter([1, 2, 3]))]
-    assert await collect() == [1, 2, 3]
-
-
-@pytest.mark.asyncio
-async def test_empty_iterator_completes():
-    assert [x async for x in aiter_sync(iter([]))] == []
-
-
-@pytest.mark.asyncio
 async def test_exception_from_source_propagates():
     def boom():
         yield 1

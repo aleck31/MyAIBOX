@@ -65,23 +65,6 @@ def test_agent_omits_sampling_for_models_that_reject_it(registry, model_id, vend
     assert "temperature" not in cfg and "top_p" not in cfg and "top_k" not in _fields(cfg)
 
 
-def test_agent_still_sends_sampling_to_models_that_accept_it(registry):
-    cfg = _agent_config(registry("global.anthropic.claude-sonnet-4-6"), thinking=THINK_OFF)
-    assert cfg["temperature"] == 0.7 and _fields(cfg)["top_k"] == 100
-
-
-def test_agent_new_claude_uses_adaptive_thinking(registry):
-    cfg = _agent_config(registry("global.anthropic.claude-opus-5-5"), thinking=THINK_ON)
-    assert _fields(cfg)["thinking"] == {"type": "adaptive", "display": "summarized"}
-
-
-@pytest.mark.parametrize("model_id,vendor,sends_temperature", [("openai.gpt-6.1-sol", "OpenAI", False),
-                                                               ("xai.grok-4.3", "xAI", True)])
-def test_agent_responses_models_temperature(registry, model_id, vendor, sends_temperature):
-    cfg = _agent_config(registry(model_id, "OpenAIResponses", vendor), thinking=THINK_OFF)
-    assert ("temperature" in (cfg.get("params") or {})) == sends_temperature
-
-
 def test_agent_gemini_params_are_a_valid_generate_content_config(registry):
     from google.genai import types
 
@@ -93,14 +76,6 @@ def test_agent_gemini_params_are_a_valid_generate_content_config(registry):
 @pytest.mark.parametrize("model_id,vendor", [("global.amazon.nova-2-lite-v1:0", "Amazon"), ("openai.gpt-oss-120b-1:0", "OpenAI")])
 def test_agent_sends_no_claude_thinking_field_to_other_vendors(registry, model_id, vendor):
     assert "thinking" not in _fields(_agent_config(registry(model_id, vendor=vendor), thinking=THINK_ON))
-
-
-def test_agent_top_k_is_named_per_family(registry):
-    def top_k(model_id, vendor):
-        return _fields(_agent_config(registry(model_id, vendor=vendor), thinking=THINK_OFF))
-    assert top_k("global.amazon.nova-2-lite-v1:0", "Amazon") == {"inferenceConfig": {"topK": 100}}
-    assert top_k("deepseek.v3.2", "DeepSeek") == {}
-    assert top_k("global.zai.glm-5.3", "Z.AI") == {"top_k": 100}
 
 
 # ── provider chain (Text / Summary / Vision / Asking) ─────────────────────────

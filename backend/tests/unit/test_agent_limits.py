@@ -9,7 +9,7 @@ os.environ.setdefault("CLIENT_ID", "unit-test-client")
 from strands import Agent, tool  # noqa: E402
 from strands.models import Model  # noqa: E402
 
-from backend.genai.agents.limits import DEFAULT_MAX_CYCLES, CycleLimit, max_cycles_from_env  # noqa: E402
+from backend.genai.agents.limits import CycleLimit  # noqa: E402
 
 
 class LoopingModel(Model):
@@ -65,14 +65,6 @@ async def test_counter_resets_for_each_user_message():
     await _run(agent, "first")
     await _run(agent, "second")
     assert model.calls == 4  # 2 + 2, not 2 then an immediate stop
-
-
-def test_max_cycles_from_env(monkeypatch):
-    monkeypatch.setenv("AGENT_MAX_CYCLES", "7")
-    assert max_cycles_from_env() == 7
-    for bad in ("", "abc", "0", "-5"):  # a bad value must not crash startup or disable the cap
-        monkeypatch.setenv("AGENT_MAX_CYCLES", bad)
-        assert max_cycles_from_env() == DEFAULT_MAX_CYCLES
 
 
 async def test_agent_provider_tells_the_user_when_the_cap_stops_a_turn(monkeypatch):

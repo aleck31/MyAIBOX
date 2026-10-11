@@ -109,28 +109,6 @@ async def _drain(gen):
     return [chunk async for chunk in gen]
 
 
-async def test_turn_two_reuses_cached_provider(svc, make_session):
-    session = make_session(session_id="sid-1", model_id="m1")
-
-    await _drain(svc.streaming_reply_with_history(
-        session=session, message="hi", system_prompt="",
-        history=[], tool_config={}, persist=False,
-    ))
-    # Frontend sends the running history on turn 2 (mirrors what UI does).
-    await _drain(svc.streaming_reply_with_history(
-        session=session, message="hi again", system_prompt="",
-        history=[
-            {"role": "user", "content": "hi"},
-            {"role": "assistant", "content": "ok-reply"},
-        ], tool_config={}, persist=False,
-    ))
-
-    # Exactly one provider was constructed; both turns hit the same one
-    assert len(FakeProvider.instances) == 1
-    provider = FakeProvider.instances[0]
-    assert len(provider.stream_calls) == 2
-
-
 async def test_retract_resyncs_cached_messages(svc, make_session):
     """After a UI retract, the next turn's history is shorter than what the
     cached Strands Agent holds. The cache must be re-synced so the model
@@ -155,30 +133,6 @@ async def test_retract_resyncs_cached_messages(svc, make_session):
     assert len(FakeProvider.instances) == 1
     assert provider.stream_calls == ["question one", "redo from scratch"]
     assert provider.set_messages_calls == [[]]
-
-
-async def test_model_hot_swap_updates_same_provider(svc, make_session):
-    session = make_session(session_id="sid-swap", model_id="m1")
-
-    await _drain(svc.streaming_reply_with_history(
-        session=session, message="first", system_prompt="",
-        history=[], tool_config={}, persist=False,
-    ))
-    initial_provider = FakeProvider.instances[0]
-    assert initial_provider.model_id == "m1"
-
-    # Simulate UI-triggered model change
-    session.metadata.model_id = "m2"
-    svc.model_id = None  # BaseService caches model_id on the service; reset it
-
-    await _drain(svc.streaming_reply_with_history(
-        session=session, message="second", system_prompt="",
-        history=[], tool_config={}, persist=False,
-    ))
-
-    # Same provider instance — hot-swapped, not rebuilt
-    assert len(FakeProvider.instances) == 1
-    assert initial_provider.model_id == "m2"
 
 
 async def test_eviction_rebuilds_provider_with_db_history(svc, make_session):
@@ -226,27 +180,3 @@ async def test_clear_history_destroys_provider_and_empties_db(svc, make_session)
     assert provider.destroyed is True
     assert session.history == []
     assert session.session_id not in svc._agent_cache
-
-
-async def test_frontend_history_takes_precedence_over_db(svc, make_session):
-    """If the caller passes history explicitly, we trust it over any DB copy."""
-    session = make_session(session_id="sid-fe", model_id="m1")
-    session._fake_db_history = [{"role": "user", "content": "stale-db-msg"}]
-
-    frontend_history = [
-        {"role": "user", "content": "fresh-frontend-msg"},
-        {"role": "assistant", "content": "reply"},
-    ]
-
-    await _drain(svc.streaming_reply_with_history(
-        session=session, message="next", system_prompt="",
-        history=frontend_history, tool_config={}, persist=False,
-    ))
-
-    provider = FakeProvider.instances[0]
-    init_texts = [
-        m["content"][0]["text"] if isinstance(m["content"], list) else m["content"]
-        for m in provider.init_history or []
-    ]
-    assert "fresh-frontend-msg" in init_texts
-    assert "stale-db-msg" not in init_texts

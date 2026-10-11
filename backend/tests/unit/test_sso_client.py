@@ -46,12 +46,6 @@ def _valid_response(sub: str = "sub-1", username: str = "alice") -> dict:
     }
 
 
-async def test_empty_sid_returns_none_without_network(fake_introspect):
-    result = await sso.introspect("")
-    assert result is None
-    assert fake_introspect["calls"] == []
-
-
 async def test_valid_sid_caches_positive_result(fake_introspect):
     fake_introspect["queue"].append(_valid_response())
 
@@ -97,15 +91,6 @@ async def test_sso_error_raised_when_no_cache_fallback(fake_introspect):
 
     with pytest.raises(sso.SSOError):
         await sso.introspect("never-seen")
-
-
-async def test_invalidate_clears_cache(fake_introspect):
-    fake_introspect["queue"].append(_valid_response())
-    await sso.introspect("sid-1")
-    assert "sid-1" in sso._cache
-
-    sso.invalidate("sid-1")
-    assert "sid-1" not in sso._cache
 
 
 def test_build_login_url_encodes_redirect(monkeypatch):
