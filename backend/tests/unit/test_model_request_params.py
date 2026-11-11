@@ -13,8 +13,6 @@ import pytest
 from botocore.exceptions import ClientError
 
 # Importing the providers touches config; give them dummy values (a real .env still wins).
-os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
-os.environ.setdefault("CLIENT_ID", "unit-test-client")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 from backend.genai.agents import provider as agent_module  # noqa: E402

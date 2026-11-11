@@ -6,10 +6,6 @@ import json
 import os
 
 
-# API modules build the Cognito singleton at import time; give it dummy config so
-# these tests don't depend on a real .env. Must run before the imports below.
-os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
-os.environ.setdefault("CLIENT_ID", "unit-test-client")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 from backend.api import settings  # noqa: E402

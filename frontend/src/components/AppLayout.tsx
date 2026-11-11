@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
-import { logoutApi } from '../api/client'
+import { logout } from '../api/client'
 import { useChatAgents } from '../hooks/useChatAgents'
 import { useTalkAgents } from '../hooks/useTalkAgents'
 import type { ChatAgent, TalkAgent } from '../api/client'
@@ -175,9 +175,8 @@ export default function AppLayout({ username }: AppLayoutProps) {
   const { agents: chatAgents, loading: chatLoading } = useChatAgents()
   const { agents: talkAgents } = useTalkAgents()
 
-  async function handleLogout() {
-    await logoutApi()
-    navigate('/login')
+  function handleLogout() {
+    void logout()
   }
 
   function isActive(mod: NavModule) {

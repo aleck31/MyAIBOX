@@ -2,7 +2,7 @@
 
 Layout:
 - tests/unit/ — no external deps. Use fakes / mocks. Fast. CI-safe.
-- tests/integration/ — real AWS / LLM / Wikipedia / Cognito calls.
+- tests/integration/ — real AWS / LLM / web calls.
   Run only with `pytest -m integration` (opt-in).
 """
 from __future__ import annotations
@@ -42,34 +42,11 @@ def make_session():
     return _make
 
 
-@pytest.fixture(scope="session")
-def integration_enabled() -> bool:
-    """True if integration tests should actually run (opt-in via marker)."""
-    # Integration marker selection is handled by pytest -m. This fixture is
-    # available for tests that need to check env-derived credentials.
-    return True
-
-
-@pytest.fixture(scope="session")
-def cognito_test_credentials() -> tuple[str, str]:
-    """Read Cognito test credentials from env. Skip test if missing.
-
-    Required env vars:
-        AIBOX_TEST_USERNAME, AIBOX_TEST_PASSWORD
-    """
-    username = os.getenv("AIBOX_TEST_USERNAME") or ""
-    password = os.getenv("AIBOX_TEST_PASSWORD") or ""
-    if not username or not password:
-        pytest.skip("AIBOX_TEST_USERNAME / AIBOX_TEST_PASSWORD not set")
-    return username, password
-
-
 def pytest_ignore_collect(collection_path, config):
     """Don't even import integration tests unless they were asked for.
 
-    Integration modules import real services at module level (e.g. the Cognito
-    singleton), so deselecting by marker is too late — collection itself fails
-    on machines without AWS/Cognito config. Opt in with `-m integration` or by
+    Integration modules import real services at module level, so deselecting by
+    marker is too late — collection itself fails on machines without AWS config. Opt in with `-m integration` or by
     passing an integration path explicitly.
     """
     if "integration" not in collection_path.parts:

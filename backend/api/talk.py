@@ -28,7 +28,7 @@ from backend.api.prompts.talk import OVERRIDABLE_FIELDS, build_prompt, TALK_LEVE
 from backend.genai.models.model_manager import model_manager
 from backend.genai.agents.live_provider import LiveAgentProvider
 from backend.api.auth import get_auth_user
-from backend.api.transcribe import _authenticate_ws  # reuse SSO WS auth
+from backend.api.transcribe import _authenticate_ws, watch_session  # reuse SSO WS auth
 
 logger = setup_logger('api.talk')
 
@@ -276,6 +276,7 @@ async def talk_ws(ws: WebSocket, agent_id: str):
                 pass
 
     pump_task = asyncio.create_task(pump_events())
+    session_task = asyncio.create_task(watch_session(ws))   # a call can last longer than the session
 
     try:
         while True:
@@ -294,7 +295,8 @@ async def talk_ws(ws: WebSocket, agent_id: str):
         logger.error(f"[talk] WS loop error for {sub}: {e}", exc_info=True)
 
     pump_task.cancel()
-    await asyncio.gather(pump_task, return_exceptions=True)
+    session_task.cancel()
+    await asyncio.gather(pump_task, session_task, return_exceptions=True)
     # Hang up = pause (keep the cached BidiAgent + its messages for resume within TTL);
     # full teardown happens on idle eviction. cloud_sync OFF: nothing persisted, by design.
     await provider.pause()

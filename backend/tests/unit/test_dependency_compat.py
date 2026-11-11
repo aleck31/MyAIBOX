@@ -11,9 +11,6 @@ import os
 import pytest
 
 # Dummy config so importing the app doesn't need a real .env (a real one still wins).
-os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
-os.environ.setdefault("CLIENT_ID", "unit-test-client")
-os.environ.setdefault("SECRET_KEY", "unit-test-secret-key-0123456789abcdef0123456789")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 

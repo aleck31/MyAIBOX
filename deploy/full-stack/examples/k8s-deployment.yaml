@@ -88,14 +88,12 @@ data:
   SERVER_HOST: "0.0.0.0"
   SERVER_PORT: "8080"
   DEBUG: "False"
-  SSL_ENABLED: "False"
   # CORS_ORIGINS: unset = same-origin only (the SPA is served by this app). "*" is rejected at
   # startup because the app uses credentialed cookies; list explicit origins if you need CORS.
   # CORS_ORIGINS: "https://aibox.example.com"
-  # Myners SSO instead of Cognito password login (see .env.example):
-  # SSO_ENABLED: "true"
-  # SSO_AUTH_ORIGIN: "https://auth.myners.net"
-  # SSO_COOKIE_NAME: "myners_sid"
+  # Myners SSO, the only login (see .env.example)
+  SSO_AUTH_ORIGIN: "https://auth.myners.net"
+  SSO_COOKIE_NAME: "myners_sid"
   CORS_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
   CORS_HEADERS: "*"
   BEDROCK_REGION: "us-west-2"
@@ -109,13 +107,7 @@ metadata:
 type: Opaque
 stringData:
   # Plain text here; Kubernetes encodes it. Don't commit real values.
-  USER_POOL_ID: ap-southeast-1_WBHlZF1Zf
-  CLIENT_ID: 14j2pfhvqivg3sltslcc9dpo0f
-  # REQUIRED: the app refuses to start with an unset/known-default key. Generate with:
-  #   python -c 'import secrets; print(secrets.token_urlsafe(48))'
-  SECRET_KEY: REPLACE_WITH_RANDOM_48_BYTE_TOKEN
-  TOKEN_EXPIRATION: "36000"
   GEMINI_SECRET_ID: dev_gemini_api
-  # Cognito `sub`s allowed to change MCP servers. Leave empty and adding stdio MCP
+  # User `sub`s allowed to change MCP servers. Leave empty and adding stdio MCP
   # servers (host commands) is refused; any value makes ALL MCP changes admin-only.
   ADMIN_SUBS: ""

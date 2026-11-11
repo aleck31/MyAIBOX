@@ -5,13 +5,12 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 from backend.common.spa import SPAStaticFiles
 from backend.common.logger import logger
 from backend.core.config import app_config
 from backend.core.service.agent_service import shutdown_all as shutdown_agents
 from backend.genai.models.model_manager import model_manager
-from backend.api.auth import router as auth_api_router
+from backend.api.auth import AuthRequired, handle_auth_required, router as auth_api_router
 from backend.api.chat import router as chat_router
 from backend.api.text import router as text_router
 from backend.api.summary import router as summary_router
@@ -26,7 +25,6 @@ from backend.api.upload import router as upload_router
 
 # Get configurations from app_config
 server_config = app_config.server_config
-security_config = app_config.security_config
 cors_config = app_config.cors_config
 
 @asynccontextmanager
@@ -50,16 +48,8 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(lifespan=lifespan)
 
-# Add session middleware
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=security_config['secret_key'],
-    session_cookie="session",
-    max_age=None,  # Let Cognito handle token expiration
-    same_site="lax",  # Prevents CSRF while allowing normal navigation
-    https_only=security_config['ssl_enabled'],  # Enable for production with HTTPS
-    path="/",  # Make cookie available for all paths
-)
+# Not logged in: 401 JSON with the login URL for API calls, 302 to the SSO login for pages
+app.add_exception_handler(AuthRequired, handle_auth_required)
 
 # Add CORS middleware
 app.add_middleware(

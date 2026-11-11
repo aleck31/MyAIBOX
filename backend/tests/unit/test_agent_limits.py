@@ -1,10 +1,7 @@
 """Agent loop guard rails: a model stuck re-calling a tool must be stopped, not run for minutes."""
 from __future__ import annotations
 
-import os
 
-os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
-os.environ.setdefault("CLIENT_ID", "unit-test-client")
 
 from strands import Agent, tool  # noqa: E402
 from strands.models import Model  # noqa: E402

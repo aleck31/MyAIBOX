@@ -23,14 +23,6 @@ class ENVConfig:
         return os.getenv('AWS_REGION', 'ap-southeast-1')
 
     @property
-    def cognito_config(self) -> dict:
-        """Get Cognito configuration"""
-        return {
-            'user_pool_id': os.getenv('USER_POOL_ID'),
-            'client_id': os.getenv('CLIENT_ID')
-        }
-
-    @property
     def database_config(self) -> dict:
         """Get database configuration"""
         return {
@@ -90,21 +82,11 @@ class ENVConfig:
 
     @property
     def sso_config(self) -> Dict[str, Any]:
-        """Get SSO configuration.
-
-        When enabled, the app reads the SSO session cookie and validates it
-        against `<SSO_AUTH_ORIGIN>/introspect`. When disabled, the app keeps
-        using Cognito USER_PASSWORD_AUTH via common/auth.py.
-        """
-        enabled = os.getenv('SSO_ENABLED', 'false').lower() == 'true'
-        auth_origin = os.getenv('SSO_AUTH_ORIGIN', '').rstrip('/')
-        cookie_name = os.getenv('SSO_COOKIE_NAME', '')
-        if enabled and (not auth_origin or not cookie_name):
-            raise RuntimeError(
-                "SSO_ENABLED=true requires SSO_AUTH_ORIGIN and SSO_COOKIE_NAME to be set"
-            )
+        """Myners SSO, the only way to log in: the app validates the `myners_sid` cookie against
+        `<SSO_AUTH_ORIGIN>/introspect` and never sees a password or a token."""
+        auth_origin = os.getenv('SSO_AUTH_ORIGIN', 'https://auth.myners.net').rstrip('/')
+        cookie_name = os.getenv('SSO_COOKIE_NAME', 'myners_sid')
         return {
-            'enabled': enabled,
             'auth_origin': auth_origin,
             'cookie_name': cookie_name,
             'cache_ttl': int(os.getenv('SSO_CACHE_TTL', '30')),
@@ -132,7 +114,7 @@ class AppConfig:
         # Unset = same-origin only (the SPA is served by this app, so no CORS is needed).
         origins = [o.strip() for o in os.getenv('CORS_ORIGINS', '').split(',') if o.strip()]
         # Browsers reject `Access-Control-Allow-Origin: *` together with credentials,
-        # and SessionMiddleware always sends a cookie. Force an explicit origin list.
+        # and every request carries the SSO cookie. Force an explicit origin list.
         if '*' in origins:
             raise RuntimeError(
                 "CORS_ORIGINS='*' is not allowed with credentialed requests. "
@@ -146,34 +128,12 @@ class AppConfig:
 
     @property
     def admin_subs(self) -> frozenset:
-        """Cognito `sub`s allowed to change server-wide executable settings (e.g. stdio MCP).
+        """User `sub`s allowed to change server-wide executable settings (e.g. stdio MCP).
 
         Empty means no admin is configured; callers must then fail closed for
         dangerous operations.
         """
         return frozenset(s.strip() for s in os.getenv('ADMIN_SUBS', '').split(',') if s.strip())
-
-    @property
-    def security_config(self) -> Dict[str, Any]:
-        """Get security configuration"""
-        secret_key = os.getenv('SECRET_KEY')
-        # Session cookies are signed with this key; a known/default value lets anyone forge sessions.
-        _known_defaults = {
-            'default-secret-key',
-            'replace-me-with-a-random-48-byte-token',
-            'aibox-production-secret-key-2024',
-            'aibox-production-secret-key-2025',
-        }
-        if not secret_key or secret_key in _known_defaults:
-            raise RuntimeError(
-                "SECRET_KEY is unset or uses a known default. "
-                "Generate a strong value, e.g. `python -c 'import secrets; print(secrets.token_urlsafe(48))'`."
-            )
-        return {
-            'secret_key': secret_key,
-            'token_expiration': int(os.getenv('TOKEN_EXPIRATION', '7200')),
-            'ssl_enabled': os.getenv('SSL_ENABLED', 'False').lower() == 'true'
-        }
 
 
 # Create singleton instances

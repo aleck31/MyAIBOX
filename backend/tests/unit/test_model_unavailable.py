@@ -9,8 +9,6 @@ import os
 
 import pytest
 
-os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
-os.environ.setdefault("CLIENT_ID", "unit-test-client")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 from fastapi import FastAPI  # noqa: E402

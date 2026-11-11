@@ -4,7 +4,7 @@ import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
 import AppLayout from './components/AppLayout'
 import { ConfirmProvider } from './components/ConfirmDialog'
-import { SSO_ENABLED, redirectToLogin } from './auth'
+import { redirectToLogin } from './auth'
 
 function lazyLoad(loader: () => Promise<{ default: React.ComponentType }>) {
   return lazy(() => loader().catch(() => {
@@ -30,7 +30,7 @@ function AuthGuard({ children }: { children: (username: string) => React.ReactNo
   const { username, loading } = useAuth()
 
   useEffect(() => {
-    if (!loading && !username && SSO_ENABLED) {
+    if (!loading && !username) {
       redirectToLogin()
     }
   }, [loading, username])
@@ -47,8 +47,8 @@ function AuthGuard({ children }: { children: (username: string) => React.ReactNo
   }
 
   if (!username) {
-    // SSO: redirect handled by effect above; render nothing meanwhile.
-    return SSO_ENABLED ? null : <Navigate to="/login" replace />
+    // The effect above sends the browser to the SSO login; render nothing meanwhile.
+    return null
   }
 
   return <>{children(username)}</>

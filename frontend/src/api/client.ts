@@ -1,4 +1,4 @@
-import { redirectToLogin } from '../auth'
+import { buildLogoutUrl, redirectToLogin } from '../auth'
 
 /**
  * Global fetch wrapper with auth guard.
@@ -28,23 +28,10 @@ export async function getMe(): Promise<{ sub: string; username: string; email: s
   return res.json()
 }
 
-export async function loginApi(username: string, password: string) {
-  const formData = new FormData()
-  formData.append('username', username)
-  formData.append('password', password)
-
-  const res = await fetch('/api/auth/login', {
-    method: 'POST',
-    body: formData,
-    credentials: 'include',
-    // No Content-Type header — let browser set multipart/form-data boundary
-  })
-  return res.json()
-}
-
-export async function logoutApi() {
-  const res = await apiFetch('/api/auth/logout', { method: 'POST' })
-  return res.ok
+/** Drop this app's cached session, then log out on the auth service (all *.myners.net apps). */
+export async function logout(): Promise<void> {
+  try { await apiFetch('/api/auth/logout', { method: 'POST' }) } catch { /* the auth-service logout still runs */ }
+  window.location.href = buildLogoutUrl()
 }
 
 // ─── Chat (unified agent/persona) ────────────────────────────────────────────

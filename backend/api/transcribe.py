@@ -59,17 +59,8 @@ async def _new_client() -> AsyncTranscribeStreamingClient:
 
 
 async def _authenticate_ws(ws: WebSocket) -> Optional[str]:
-    """Validate the SSO cookie on the WebSocket handshake, return the user sub.
-
-    SSO only — Cognito would need session middleware threaded through the
-    WebSocket, which FastAPI doesn't do automatically.
-    """
-    if not env_config.sso_config['enabled']:
-        await ws.close(code=1008, reason="voice input requires SSO mode")
-        return None
-
-    cookie_name = env_config.sso_config['cookie_name']
-    sid = ws.cookies.get(cookie_name)
+    """Validate the SSO cookie on the WebSocket handshake, return the user sub (None after closing the socket)."""
+    sid = ws.cookies.get(env_config.sso_config['cookie_name'])
     if not sid:
         await ws.close(code=1008, reason="no SSO cookie")
         return None
@@ -83,6 +74,28 @@ async def _authenticate_ws(ws: WebSocket) -> Optional[str]:
         await ws.close(code=1008, reason="session expired")
         return None
     return user.sub
+
+
+# A long-lived socket outlives the check made at the handshake; the guide asks for a fresh one every few minutes.
+SESSION_RECHECK_SECONDS = 300
+
+
+async def watch_session(ws: WebSocket, interval: float = SESSION_RECHECK_SECONDS) -> None:
+    """Close the socket once its SSO session is no longer valid (logout elsewhere, expiry). Run as a task.
+
+    An auth service that is briefly unreachable does not end the call: introspect serves its stale grace.
+    """
+    sid = ws.cookies.get(env_config.sso_config['cookie_name'])
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            user = await sso_introspect(sid)
+        except SSOError:
+            continue
+        if not user:
+            logger.info("[ws] SSO session ended during a live socket; closing it")
+            await ws.close(code=1008, reason="session expired")
+            return
 
 
 async def _pump_results(output_stream, ws: WebSocket) -> None:
@@ -138,6 +151,7 @@ async def transcribe_ws(ws: WebSocket):
         return
 
     pump_task = asyncio.create_task(_pump_results(output_stream, ws))
+    session_task = asyncio.create_task(watch_session(ws))
 
     # "__end__" = graceful stop (flush + wait for final); disconnect = client
     # gone (nothing to flush to).
@@ -179,7 +193,8 @@ async def transcribe_ws(ws: WebSocket):
         except Exception:
             pump_task.cancel()
 
-    await asyncio.gather(pump_task, return_exceptions=True)
+    session_task.cancel()
+    await asyncio.gather(pump_task, session_task, return_exceptions=True)
     try:
         await ws.close()
     except Exception:

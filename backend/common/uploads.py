@@ -7,7 +7,7 @@ and anything they send back (bare id, ``/api/upload/<id>`` URL, or the
 that id and re-validated before touching the filesystem.
 
 Each upload also gets a ``<file_id>.owner`` sidecar holding the uploader's
-Cognito `sub`; `resolve_upload` refuses other users. Files uploaded before
+SSO `sub`; `resolve_upload` refuses other users. Files uploaded before
 sidecars existed have none and stay readable by any logged-in user.
 """
 from __future__ import annotations

@@ -83,7 +83,7 @@ def _resolve_agent(sub: str, agent_id: str) -> Agent:
 
 
 def _workspace_user(request: Request, sub: str) -> str:
-    """Prefer the human-readable Cognito username for filesystem paths; fall back to sub."""
+    """Prefer the human-readable SSO username for filesystem paths; fall back to sub."""
     user = getattr(request.state, "user", None) or {}
     return user.get("username") or sub
 

@@ -4,11 +4,8 @@ Regression: GPT-6.1 Sol kept searching until the round cap and the loop just end
 """
 from __future__ import annotations
 
-import os
 import types
 
-os.environ.setdefault("USER_POOL_ID", "unit-test-pool")
-os.environ.setdefault("CLIENT_ID", "unit-test-client")
 
 from backend.genai.models.providers import openai_responses as orr  # noqa: E402
 

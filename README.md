@@ -6,7 +6,7 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 
 ## Overview
 
-The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with secure authentication via Amazon Cognito and session management backed by DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
+The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with sign-in through Myners SSO and conversation storage in DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
 🎉 **What's New in v3.9**
 - **Models**: only the latest generation of each family — Claude 5.5 (Opus/Sonnet/Haiku) + Fable 5.1, GPT-6 (Astra/6.1 Sol/Luna), Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL, Nova 2.5 Sonic, Gemini 3.8 Flash; older generations are retired
@@ -80,7 +80,7 @@ my-aibox/
 | **Legacy Tools** | Per-agent toggle | `get_weather`, `search_wikipedia` |
 | **Skills** | Per-agent toggle (from `~/.agents/skills/`) | Anthropic-style skills loaded via Strands `AgentSkills` plugin |
 
-MCP server types: HTTP, stdio, SSE. stdio servers run commands on the host, so adding one requires your Cognito `sub` in `ADMIN_SUBS` (when `ADMIN_SUBS` is set, all MCP changes are admin-only).
+MCP server types: HTTP, stdio, SSE. stdio servers run commands on the host, so adding one requires your user `sub` (see `/api/auth/me`) in `ADMIN_SUBS` (when `ADMIN_SUBS` is set, all MCP changes are admin-only).
 
 ## Setup
 
@@ -94,7 +94,7 @@ uv sync
 ```bash
 aws configure
 cp .env.example .env
-# Edit .env: AWS region, Cognito, DynamoDB, API keys
+# Edit .env: AWS region, SSO, DynamoDB, API keys
 ```
 
 3. Build frontend:

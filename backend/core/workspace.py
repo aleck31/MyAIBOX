@@ -39,7 +39,7 @@ ROOT = os.path.join("storage", "workspace")
 _MODULE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
 
 # Module-internal names (username, agent_id) are ASCII — they come from
-# Cognito or code constants, so we keep the tighter regex for those.
+# the SSO identity or code constants, so we keep the tighter regex for those.
 _SAFE_MODULE = _MODULE_NAME
 
 
@@ -79,7 +79,7 @@ def path_for(username: str, module: str) -> str:
 
     Both components are validated to catch programmer errors early;
     anything user-supplied should already be authenticated by the
-    caller (username comes from Cognito, module is an app constant).
+    caller (username comes from SSO, module is an app constant).
     """
     if not _SAFE_MODULE.match(username):
         raise WorkspaceError(f"invalid username: {username!r}")

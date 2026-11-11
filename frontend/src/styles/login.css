@@ -73,79 +73,9 @@
   margin-bottom: 28px;
 }
 
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.login-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.login-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
-}
-
-.login-input {
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
-  padding: 9px 12px;
-  color: hsl(var(--foreground));
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
 /* Mobile: 16px prevents iOS auto-zoom on focus */
 @media (max-width: 768px) {
-  .login-input { font-size: 16px; }
   .login-submit { min-height: var(--tap-size); }
-}
-
-.login-input::placeholder { color: hsl(var(--muted-foreground) / 0.45); }
-
-.login-password-wrapper {
-  position: relative;
-}
-.login-password-wrapper .login-input {
-  width: 100%;
-  padding-right: 38px;
-}
-.login-password-toggle {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: hsl(var(--muted-foreground));
-  padding: 2px;
-  display: flex;
-}
-.login-password-toggle:hover { color: hsl(var(--foreground)); }
-
-.login-input:focus {
-  border-color: hsl(var(--foreground));
-  box-shadow: 0 0 0 3px hsl(var(--foreground) / 0.07);
-}
-
-.login-error {
-  font-size: 12px;
-  color: hsl(var(--destructive));
-  background: hsl(var(--destructive) / 0.07);
-  border: 1px solid hsl(var(--destructive) / 0.2);
-  border-radius: var(--radius);
-  padding: 8px 12px;
 }
 
 .login-submit {
@@ -167,31 +97,3 @@
 .login-submit:hover:not(:disabled) { opacity: 0.82; }
 .login-submit:active:not(:disabled) { transform: scale(0.99); }
 .login-submit:disabled { background: hsl(var(--muted)); color: hsl(var(--disabled-foreground)); cursor: not-allowed; }
-
-.login-options {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-}
-
-.login-remember {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-}
-
-.login-remember input[type="checkbox"] {
-  accent-color: hsl(var(--ring));
-  cursor: pointer;
-}
-
-.login-forgot {
-  color: hsl(var(--ring));
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.login-forgot:hover { text-decoration: underline; }

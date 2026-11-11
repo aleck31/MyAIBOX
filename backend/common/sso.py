@@ -28,6 +28,7 @@ class SSOUser:
     email: str
     exp: int
     username: str = ""
+    agent_ids: tuple = ()
 
 
 class SSOError(Exception):
@@ -36,6 +37,7 @@ class SSOError(Exception):
 
 
 _sso_conf = env_config.sso_config
+NEGATIVE_TTL = 10
 
 # sid -> (user | None, cached_at, is_stale_allowed_until)
 #   user = None means a cached negative result (still inside cache_ttl)
@@ -58,7 +60,9 @@ async def introspect(sid: str) -> Optional[SSOUser]:
 
     now = _now()
     cached = _cache.get(sid)
-    if cached is not None and now - cached[1] < _sso_conf['cache_ttl']:
+    # Positive results are reused for cache_ttl; negative ones for at most NEGATIVE_TTL (the guide: <= 10s), so a
+    # sid that was just logged in elsewhere is not refused for long.
+    if cached is not None and now - cached[1] < (_sso_conf['cache_ttl'] if cached[0] is not None else NEGATIVE_TTL):
         return cached[0]
 
     try:
@@ -77,6 +81,7 @@ async def introspect(sid: str) -> Optional[SSOUser]:
             email=result['email'],
             exp=int(result['exp']),
             username=result.get('username', ''),
+            agent_ids=tuple(result.get('agent_ids') or ()),
         )
         _cache[sid] = (user, now, now + _sso_conf['cache_ttl'] + _sso_conf['stale_grace_ttl'])
         return user
@@ -105,7 +110,3 @@ def invalidate(sid: str) -> None:
 def build_login_url(return_to: str) -> str:
     from urllib.parse import quote
     return f"{_sso_conf['auth_origin']}/login?redirect={quote(return_to, safe='')}"
-
-
-def build_logout_url() -> str:
-    return f"{_sso_conf['auth_origin']}/logout"
