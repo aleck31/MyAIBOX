@@ -4,7 +4,7 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  padding: 4px 16px;
   background: hsl(var(--background));
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
@@ -28,7 +28,7 @@
 @media (max-width: 768px) {
   .section-bar {
     gap: 6px;
-    padding: 6px 10px;
+    padding: 4px 10px;
   }
 }
 

@@ -124,7 +124,7 @@
 
   /* Top bar of every page: one height everywhere (it used to vary 44-52px between pages), including its
      1px bottom border. The fixed menu button is centred on it from these numbers. Touch overrides both. */
-  --bar-h: 53px;
+  --bar-h: 46px;
   --toggle-size: 32px;
   --sidebar-w: 196px;
 }
@@ -514,6 +514,9 @@ body {
   .sidebar-toggle {
     display: flex;
   }
+  /* The open drawer covers the menu button's corner and has its own close button: hide the menu button there,
+     or it sits on top of the app title. */
+  .shell-root.drawer-open .sidebar-toggle { display: none; }
 
   .sidebar-overlay {
     display: block;
@@ -530,7 +533,7 @@ body {
 
   /* Module options bar: left padding leaves room for the menu button */
   .section-bar {
-    padding: 8px 12px 8px calc(var(--tap-size) + 12px);
+    padding: 4px 12px 4px calc(var(--tap-size) + 12px);
   }
 }
 
@@ -583,16 +586,13 @@ body {
 /* Touch devices — guarantee tap target. Desktop (mouse) layout is unchanged. Icon buttons keep their
    glyph size; only the hit area grows. */
 @media (pointer: coarse) {
-  .btn,
   .select,
   .input:not([type='checkbox']):not([type='radio']),
-  .nav-item,
   .settings-module-header,
   .asking-autosend-toggle,
   .asking-prompt-summary { min-height: var(--tap-size); }
   .composer-add-attachment,
   .aui-composer-send,
-  .aui-action-bar-button,
   .sidebar-logout { min-width: var(--tap-size); min-height: var(--tap-size); }
   /* Bordered icon buttons are drawn smaller than the tap size, which looked oversized; an ::after reaches the
      remaining 3px on every side, so the tappable area is still --tap-size. Neighbours are >= 6px apart, so the
@@ -600,7 +600,7 @@ body {
   .btn--icon,
   .bar-icon-btn { position: relative; width: var(--tap-visual); height: var(--tap-visual); min-width: 0; min-height: 0; }
   /* The bar holds a --tap-size row; the menu button is drawn like the bar's icon buttons. */
-  :root { --bar-h: calc(var(--tap-size) + 17px); --toggle-size: var(--tap-visual); }
+  :root { --bar-h: calc(var(--tap-size) + 9px); --toggle-size: var(--tap-visual); }
   /* Selects in a top bar: drawn at --tap-visual like the icon buttons beside them, with the hit area still
      --tap-size. A native <select> cannot take a ::after, so the extra 3px per side is a transparent border:
      the background and the 1px outline (an inset shadow) are drawn inside it. */
@@ -620,6 +620,22 @@ body {
   .btn--icon::after,
   .bar-icon-btn::after,
   .sidebar-toggle::after { content: ''; position: absolute; inset: calc((var(--tap-visual) - var(--tap-size)) / 2); }
+  /* Text buttons are drawn at --tap-visual too; the hit area reaches --tap-size vertically (they are wider than
+     that already, and sit side by side, so only the height needs it). */
+  .btn:not(.btn--icon):not(.btn--row-action) { position: relative; min-height: var(--tap-visual); }
+  .btn:not(.btn--icon):not(.btn--row-action)::after { content: ''; position: absolute; inset: calc((var(--tap-visual) - var(--tap-size)) / 2 - 1px) 0; }
+  /* Sidebar items are stacked, so the extra hit height is a transparent border above and below: the item is
+     --tap-size tall (items tile without overlapping) and only the inner --tap-visual is painted. The active marker
+     becomes an inset shadow, as a left border would run the full 42px. */
+  .nav-item {
+    min-height: var(--tap-size);
+    border-top: calc((var(--tap-size) - var(--tap-visual)) / 2) solid transparent;
+    border-bottom: calc((var(--tap-size) - var(--tap-visual)) / 2) solid transparent;
+    border-left: 0;
+    padding-left: 12px;
+    background-clip: padding-box;
+  }
+  .nav-item.active { box-shadow: inset 2px 0 0 hsl(var(--ring)); }
   .sidebar-collapse { position: relative; width: var(--tap-visual); height: var(--tap-visual); margin-top: -10px; }
   .sidebar-collapse::after { content: ''; position: absolute; inset: calc((var(--tap-visual) - var(--tap-size)) / 2); }
   /* `inset` is measured from the padding box, so the 1px border has to be added back on bordered buttons. */
@@ -633,7 +649,6 @@ body {
   .composer-add-attachment svg,
   .aui-composer-send svg,
   .sidebar-logout svg { width: calc(var(--tap-size) * 0.5); height: calc(var(--tap-size) * 0.5); }
-  .aui-action-bar-button svg { width: calc(var(--tap-size) * 0.45); height: calc(var(--tap-size) * 0.45); }
   .btn--row-action { min-width: var(--tap-size); min-height: var(--tap-size); padding: 0 8px; }
   /* Tables keep one line per row and scroll sideways, instead of squeezing every column (which wrapped text
      and made rows ~130px tall once the row actions reached the tap size). */

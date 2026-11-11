@@ -206,7 +206,7 @@ export default function AppLayout({ username }: AppLayoutProps) {
   const avatarChar = username.charAt(0).toUpperCase()
 
   return (
-    <div className={`shell-root${hiddenOnDesktop ? ' sidebar-hidden' : ''}`}>
+    <div className={`shell-root${hiddenOnDesktop ? ' sidebar-hidden' : ''}${!isDesktop && sidebarOpen ? ' drawer-open' : ''}`}>
       {/* Menu button: phones always, desktop only while the sidebar is hidden */}
       <button
         className="sidebar-toggle"
