@@ -142,7 +142,11 @@ class OpenAIResponsesProvider(LLMAPIProvider):
                 if 'grok' in self.model_id.lower():
                     req["parallel_tool_calls"] = False
 
-            for _round in range(_MAX_TOOL_ROUNDS):
+            for _round in range(_MAX_TOOL_ROUNDS + 1):
+                if _round == _MAX_TOOL_ROUNDS:
+                    # Out of tool rounds: one more request with tools disabled, so the model answers from what it
+                    # has gathered. Ending the loop here left the user with no answer and no message.
+                    req["tool_choice"] = "none"
                 calls: List[Dict] = []  # {name, call_id, arguments}
                 output_items = []       # full output of this round (incl. reasoning items)
                 thinking_shown = False
@@ -167,8 +171,8 @@ class OpenAIResponsesProvider(LLMAPIProvider):
                         output_items = [o.model_dump() for o in ev.response.output]
                         calls = [o for o in output_items if o.get('type') == 'function_call']
 
-                if not calls:  # no tool use → final answer already streamed
-                    yield {'metadata': {'stop_reason': 'stop'}}
+                if not calls or _round == _MAX_TOOL_ROUNDS:  # final answer already streamed
+                    yield {'metadata': {'stop_reason': 'stop' if not calls else 'max_tool_rounds'}}
                     return
 
                 # Reasoning models need the prior output items (reasoning + function_call)
@@ -183,7 +187,6 @@ class OpenAIResponsesProvider(LLMAPIProvider):
                         output = json.dumps({"error": str(e)})
                     req["input"].append({"type": "function_call_output", "call_id": c['call_id'], "output": output})
 
-            yield {'metadata': {'stop_reason': 'max_tool_rounds'}}
         except Exception as e:
             self._handle_openai_error(e)
 
