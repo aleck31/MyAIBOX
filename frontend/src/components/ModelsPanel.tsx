@@ -54,7 +54,7 @@ export default function ModelsPanel() {
     const payload = {
       name: editing.name, model_id: editing.model_id, api_provider: editing.api_provider,
       vendor: editing.vendor, category: editing.category, description: editing.description,
-      region: editing.region, base_url: editing.base_url, ...editing.capabilities,
+      region: editing.region, base_url: editing.base_url, enabled: editing.enabled, ...editing.capabilities,
     }
     if (isNew) await addModel(payload); else await updateModel(payload)
     setSaving(false); setEditing(null); load()

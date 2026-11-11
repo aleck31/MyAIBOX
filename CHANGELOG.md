@@ -3,6 +3,11 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
+## Unreleased
+
+### Fixed
+- Editing a disabled model in Settings → Models no longer enables it.
+
 ## [3.9.0] - 2026-10-10 ... [3.9.6] - 2026-10-29
 
 ### Added
