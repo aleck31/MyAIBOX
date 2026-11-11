@@ -24,6 +24,9 @@ MAX_FILE_SIZE = 5 * 1024 * 1024
 # Maximum allowed imaage dimension for Bedrock API (8000 pixels)
 MAX_IMG_DIMENSION_= 8000
 
+MAX_TOOL_ROUNDS = 10  # tool calls per answer before the model is asked to answer with what it has
+
+
 class BedrockConverse(LLMAPIProvider):
     """Amazon Bedrock LLM API provider implemented with Converse API, featuring comprehensive tool support."""
     
@@ -745,6 +748,7 @@ class BedrockConverse(LLMAPIProvider):
             from io import StringIO
             
             blocked_retries = 1  # a reply blocked with no text is retried once: the filter is not deterministic
+            tool_rounds = 0      # capped: with a failing tool (search) a model kept retrying for minutes
             while True:  # Continue until no more tool uses
                 has_tool_use = False
                 stop_reason = None  # why this response ended (carried by a chunk that has no content)
@@ -857,6 +861,17 @@ class BedrockConverse(LLMAPIProvider):
                                 tool_use, str(e), is_error=True
                             )
 
+                        tool_rounds += 1
+                        if tool_rounds > MAX_TOOL_ROUNDS:
+                            # It was told to stop and called a tool anyway: end here rather than loop on.
+                            yield {'content': {'text': "\n\n(Stopped after too many tool calls without an answer. "
+                                               "Please try again, or narrow the question.)"}, 'thinking': '', 'metadata': {}}
+                            return
+                        if tool_rounds == MAX_TOOL_ROUNDS:
+                            # Converse has no tool_choice "none" (and tools must stay declared once the history
+                            # has toolUse blocks), so the last round asks for the answer in words.
+                            message_with_result['content'].append({'text': 'Tool budget used up: answer now from '
+                                                                   'the information gathered, without calling tools.'})
                         # Add tool execute result to conversation
                         llm_messages.append(message_with_result)
                         # logger.debug(f"[BRConverseProvider] Added User message w/tool result: {message_with_result}")

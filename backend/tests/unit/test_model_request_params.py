@@ -7,6 +7,7 @@ Claude's `thinking` field.
 from __future__ import annotations
 
 import os
+import types
 
 import pytest
 from botocore.exceptions import ClientError
@@ -141,3 +142,27 @@ def test_retired_bedrock_model_gets_an_actionable_message(provider_cls):
         provider_cls._handle_bedrock_error(object.__new__(provider_cls), err)
     assert "choose another model" in raised.value.message.lower()
     assert "try again" not in raised.value.message.lower()
+
+
+def test_converse_tool_loop_is_capped(monkeypatch):
+    """With search failing, Claude kept calling it (18 calls, minutes). Past the cap it is told to answer, then stopped."""
+    from backend.genai.models.providers import bedrock_converse as bc
+    monkeypatch.setattr(bc, "MAX_TOOL_ROUNDS", 2)
+
+    async def fake_execute(name, **kw):
+        return {"error": "search failed"}
+    monkeypatch.setattr(bc.legacy_tool_registry, "execute_tool", fake_execute)
+    provider = object.__new__(BedrockConverse)
+    provider.llm_params = types.SimpleNamespace(thinking=None)
+    provider._convert_messages = lambda messages: []
+    sent = []
+
+    def always_a_tool(messages, **_):
+        sent.append([m for m in messages])
+        yield {"role": "assistant", "tool_use": {"toolUseId": f"t{len(sent)}", "name": "search_internet", "input": {"query": "x"}}}
+    provider._converse_stream_sync = always_a_tool
+
+    text = "".join((c.get("content") or {}).get("text", "") for c in provider.generate_stream(messages=[], system_prompt=""))
+    assert len(sent) == 3                                    # 2 rounds, the "answer now" round, then it stops
+    assert any("answer now" in b.get("text", "") for b in sent[2][-1]["content"])
+    assert "Stopped after too many tool calls" in text
