@@ -18,6 +18,7 @@ frontend and lockfiles). The README only highlights the latest release.
 ### Fixed
 - Editing a disabled model in Settings → Models no longer enables it.
 - Image generation (Draw and the Chat tool): when the image model's content filter rejects a prompt, the error says so instead of `'images'`.
+- Vision renders its analysis as Markdown instead of raw text.
 
 ## [3.9.0] - 2026-10-10 ... [3.9.6] - 2026-10-29
 

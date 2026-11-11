@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { authFetch, getVisionConfig } from '../api/client'
 import { readSSE } from '../api/sse'
 import { Button } from './Button'
@@ -160,8 +162,10 @@ export default function VisionProcessor() {
               </button>
             )}
           </div>
-          <div className="vision-output-content">
-            {output || 'Analysis results will appear here...'}
+          <div className="vision-output-content aui-md">
+            {output
+              ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
+              : 'Analysis results will appear here...'}
           </div>
         </div>
       </div>

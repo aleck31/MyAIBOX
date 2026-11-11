@@ -5,7 +5,6 @@
   flex: 1;
   padding: 12px 0;
   line-height: 1.6;
-  white-space: pre-wrap;
   overflow-y: auto;
   color: hsl(var(--foreground));
 }
