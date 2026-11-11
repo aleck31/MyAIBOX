@@ -50,7 +50,7 @@ class TextRequest(BaseModel):
 
 
 @router.get("/config")
-async def get_config(username: str = Depends(get_auth_user)):
+async def get_config(sub: str = Depends(get_auth_user)):
     """Return available operations, languages, styles, and models."""
     from backend.genai.models.model_manager import model_manager
     from backend.core.module_config import module_config
@@ -72,7 +72,7 @@ async def get_config(username: str = Depends(get_auth_user)):
 @router.post("/process")
 async def process_text(
     body: TextRequest,
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """AG-UI SSE streaming endpoint for text processing."""
     run_id = str(uuid.uuid4())
@@ -101,7 +101,7 @@ async def process_text(
     async def event_stream():
         try:
             service = get_gen_service()
-            thread_id = f"text-{username}"
+            thread_id = f"text-{sub}"
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
             yield _enc.encode(TextMessageStartEvent(message_id=message_id, role="assistant"))
@@ -118,7 +118,7 @@ async def process_text(
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:
-            logger.error(f"Text process error for {username}: {e}", exc_info=True)
+            logger.error(f"Text process error for {sub}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred while processing your text.")))
 
     return StreamingResponse(

@@ -64,7 +64,7 @@ def _get_provider(model_id: str):
 
 
 @router.get("/config")
-async def get_config(username: str = Depends(get_auth_user)):
+async def get_config(sub: str = Depends(get_auth_user)):
     """Return available models (reasoning-capable) + the module default."""
     models = model_manager.get_models(filter=module_config.get_model_filter('asking'))
     return {
@@ -84,7 +84,7 @@ async def process_asking(
     custom_prompt: str = Form(""),
     files: List[UploadFile] = File(default=[]),
     run_id: str = Form(None),
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """AG-UI SSE streaming endpoint for asking with thinking.
 
@@ -111,7 +111,7 @@ async def process_asking(
     file_paths = []
     for f in files:
         if f.filename:
-            path, _ = await save_upload(f, username)
+            path, _ = await save_upload(f, sub)
             file_paths.append(path)
 
     # Build content
@@ -130,7 +130,7 @@ async def process_asking(
     async def event_stream():
         try:
             provider = _get_provider(mid)
-            thread_id = f"asking-{username}"
+            thread_id = f"asking-{sub}"
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
 
@@ -174,17 +174,17 @@ async def process_asking(
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:
-            logger.error(f"Asking error for {username}: {e}", exc_info=True)
+            logger.error(f"Asking error for {sub}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred.")))
 
-    run = runs.start((username, _run_slot(run_id)), run_id, event_stream(), _run_error_event)
+    run = runs.start((sub, _run_slot(run_id)), run_id, event_stream(), _run_error_event)
     return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)
 
 
 @router.get("/resume")
-async def resume_asking(run_id: str = Query(...), username: str = Depends(get_auth_user)):
+async def resume_asking(run_id: str = Query(...), sub: str = Depends(get_auth_user)):
     """Attach to an answer that is still running, or finished recently: all its events from the start."""
-    run = runs.get((username, _run_slot(run_id)), run_id)
+    run = runs.get((sub, _run_slot(run_id)), run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Run not found (it may have expired)")
     return StreamingResponse(run.follow(0), media_type="text/event-stream", headers=_SSE_HEADERS)

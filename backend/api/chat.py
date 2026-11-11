@@ -82,12 +82,6 @@ def _resolve_agent(sub: str, agent_id: str) -> Agent:
         raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
 
 
-def _workspace_user(request: Request, sub: str) -> str:
-    """Prefer the human-readable SSO username for filesystem paths; fall back to sub."""
-    user = getattr(request.state, "user", None) or {}
-    return user.get("username") or sub
-
-
 def _uses_agent_service(agent: Agent) -> bool:
     """Any tool / skill enabled → go through Strands agent loop."""
     return bool(
@@ -468,9 +462,8 @@ async def list_workspace(
     sub: str = Depends(get_auth_user),
 ):
     _resolve_agent(sub, agent_id)  # 404 guard
-    user = _workspace_user(request, sub)
     try:
-        files = workspace.list_files(user, agent_id)
+        files = workspace.list_files(sub, agent_id)
         return {
             "files": [
                 {"name": f.name, "size": f.size, "mtime": f.mtime}
@@ -478,7 +471,7 @@ async def list_workspace(
             ],
         }
     except Exception as e:
-        logger.error(f"Failed to list workspace {agent_id} for {user}: {e}", exc_info=True)
+        logger.error(f"Failed to list workspace {agent_id} for {sub}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to list workspace")
 
 
@@ -490,9 +483,8 @@ async def get_workspace_file(
     sub: str = Depends(get_auth_user),
 ):
     _resolve_agent(sub, agent_id)
-    user = _workspace_user(request, sub)
     try:
-        ws_dir = workspace.path_for(user, agent_id)
+        ws_dir = workspace.path_for(sub, agent_id)
         path = workspace.safe_join(ws_dir, filename)
     except workspace.WorkspaceError:
         raise HTTPException(status_code=400, detail="Invalid filename")
@@ -514,9 +506,8 @@ async def delete_workspace_file(
     request: Request = None,  # type: ignore[assignment]
 ):
     _resolve_agent(sub, agent_id)
-    user = _workspace_user(request, sub)
     try:
-        removed = workspace.delete_file(user, agent_id, filename)
+        removed = workspace.delete_file(sub, agent_id, filename)
     except workspace.WorkspaceError:
         raise HTTPException(status_code=400, detail="Invalid filename")
     if not removed:
@@ -565,13 +556,10 @@ async def chat_stream(
         if m.id != last_user_msg.id and m.role in ("user", "assistant")
     ]
 
-    workspace_user = _workspace_user(request, sub)
-
     if _uses_agent_service(agent):
         return await _stream_agent(
             agent=agent,
             sub=sub,
-            workspace_user=workspace_user,
             msg_text=msg_text,
             files=files,
             history=history,
@@ -639,7 +627,6 @@ async def _stream_agent(
     *,
     agent: Agent,
     sub: str,
-    workspace_user: str,
     msg_text: str,
     files: List[str],
     history: List[Dict],
@@ -669,7 +656,7 @@ async def _stream_agent(
             # async generator may resume the finally block in a different
             # Context than the one that produced the Token.
             if agent.workspace_enabled:
-                workspace_dir = workspace.ensure(workspace_user, agent.id)
+                workspace_dir = workspace.ensure(sub, agent.id)
                 prompt_template = agent.prompt
                 if "{workspace_dir}" not in prompt_template:
                     prompt_template = prompt_template + "\n\n" + WORKSPACE_INSTRUCTIONS

@@ -105,7 +105,7 @@ class TalkAgentPatchBody(BaseModel):
 
 
 @router.get("/config")
-async def get_config(username: str = Depends(get_auth_user)):
+async def get_config(sub: str = Depends(get_auth_user)):
     """Realtime models + module default + voice options (for the section bar)."""
     models = model_manager.get_models(filter=module_config.get_model_filter('talk'))
     return {

@@ -40,7 +40,7 @@ class SummaryRequest(BaseModel):
 
 
 @router.get("/config")
-async def get_config(username: str = Depends(get_auth_user)):
+async def get_config(sub: str = Depends(get_auth_user)):
     """Return available models and languages."""
     from backend.core.module_config import module_config
     models = model_manager.get_models(filter=module_config.get_model_filter('summary'))
@@ -57,7 +57,7 @@ async def get_config(username: str = Depends(get_auth_user)):
 @router.post("/process")
 async def process_summary(
     body: SummaryRequest,
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """AG-UI SSE streaming endpoint for text summarization."""
     run_id = str(uuid.uuid4())
@@ -76,7 +76,7 @@ async def process_summary(
     async def event_stream():
         try:
             service = get_gen_service()
-            thread_id = f"summary-{username}"
+            thread_id = f"summary-{sub}"
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
             yield _enc.encode(TextMessageStartEvent(message_id=message_id, role="assistant"))
@@ -91,7 +91,7 @@ async def process_summary(
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:
-            logger.error(f"Summary error for {username}: {e}", exc_info=True)
+            logger.error(f"Summary error for {sub}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred while summarizing.")))
 
     return StreamingResponse(

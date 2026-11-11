@@ -35,8 +35,8 @@ def _get_store() -> SessionStore:
 # ─── Account / Sessions ──────────────────────────────────────────────────────
 
 @router.get("/sessions")
-async def list_sessions(username: str = Depends(get_auth_user)):
-    sessions = await _get_store().list_sessions(username)
+async def list_sessions(sub: str = Depends(get_auth_user)):
+    sessions = await _get_store().list_sessions(sub)
     return [
         {
             "module": s.metadata.module_name,
@@ -50,7 +50,7 @@ async def list_sessions(username: str = Depends(get_auth_user)):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, username: str = Depends(get_auth_user)):
+async def delete_session(session_id: str, sub: str = Depends(get_auth_user)):
     await _get_store().delete_session_by_id(session_id)
     return {"ok": True}
 
@@ -60,7 +60,7 @@ class ClearHistoryRequest(BaseModel):
 
 
 @router.post("/sessions/clear-history")
-async def clear_session_history(body: ClearHistoryRequest, username: str = Depends(get_auth_user)):
+async def clear_session_history(body: ClearHistoryRequest, sub: str = Depends(get_auth_user)):
     store = _get_store()
     session = await store.get_session_by_id(body.session_id)
     session.history = []
@@ -71,7 +71,7 @@ async def clear_session_history(body: ClearHistoryRequest, username: str = Depen
 # ─── Module Configuration ────────────────────────────────────────────────────
 
 @router.get("/modules")
-async def get_modules(username: str = Depends(get_auth_user)):
+async def get_modules(sub: str = Depends(get_auth_user)):
     """Return all module configs + available models and tools."""
     def _choice(m):
         # `reasoning` lets the UI show the Thinking controls only for capable models.
@@ -117,7 +117,7 @@ class ModuleUpdateRequest(BaseModel):
 
 
 @router.post("/modules/update")
-async def update_module(body: ModuleUpdateRequest, username: str = Depends(get_auth_user)):
+async def update_module(body: ModuleUpdateRequest, sub: str = Depends(get_auth_user)):
     try:
         params = json.loads(body.parameters)
     except json.JSONDecodeError as e:
@@ -138,7 +138,7 @@ async def update_module(body: ModuleUpdateRequest, username: str = Depends(get_a
 # ─── Model Management ────────────────────────────────────────────────────────
 
 @router.get("/models")
-async def list_models(refresh: bool = False, username: str = Depends(get_auth_user)):
+async def list_models(refresh: bool = False, sub: str = Depends(get_auth_user)):
     # Models are cached in-process; DDB changes outside the app won't show up until the cache is flushed.
     if refresh:
         model_manager.flush_cache()
@@ -181,7 +181,7 @@ class ModelRequest(BaseModel):
 
 
 @router.post("/models/add")
-async def add_model(body: ModelRequest, username: str = Depends(get_auth_user)):
+async def add_model(body: ModelRequest, sub: str = Depends(get_auth_user)):
     from backend.genai.models import LLMModel, LLM_CAPABILITIES
     try:
         caps = LLM_CAPABILITIES(
@@ -201,7 +201,7 @@ async def add_model(body: ModelRequest, username: str = Depends(get_auth_user)):
 
 
 @router.post("/models/update")
-async def update_model(body: ModelRequest, username: str = Depends(get_auth_user)):
+async def update_model(body: ModelRequest, sub: str = Depends(get_auth_user)):
     from backend.genai.models import LLMModel, LLM_CAPABILITIES
     try:
         caps = LLM_CAPABILITIES(
@@ -221,7 +221,7 @@ async def update_model(body: ModelRequest, username: str = Depends(get_auth_user
 
 
 @router.delete("/models/{model_id:path}")
-async def delete_model(model_id: str, username: str = Depends(get_auth_user)):
+async def delete_model(model_id: str, sub: str = Depends(get_auth_user)):
     try:
         model_manager.delete_model_by_id(model_id)
         return {"ok": True}
@@ -234,7 +234,7 @@ class ToggleModelRequest(BaseModel):
 
 
 @router.post("/models/toggle/{model_id:path}")
-async def toggle_model(model_id: str, body: ToggleModelRequest, username: str = Depends(get_auth_user)):
+async def toggle_model(model_id: str, body: ToggleModelRequest, sub: str = Depends(get_auth_user)):
     try:
         model_manager.toggle_model_by_id(model_id, body.enabled)
         return {"ok": True}
@@ -245,7 +245,7 @@ async def toggle_model(model_id: str, body: ToggleModelRequest, username: str = 
 # ─── MCP Server Management ───────────────────────────────────────────────────
 
 @router.get("/mcp-servers")
-async def list_mcp_servers(username: str = Depends(get_auth_user)):
+async def list_mcp_servers(sub: str = Depends(get_auth_user)):
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     servers = mcp_server_manager.get_mcp_servers()
     result = []
@@ -294,8 +294,8 @@ class McpServerRequest(BaseModel):
 
 
 @router.post("/mcp-servers/add")
-async def add_mcp_server(body: McpServerRequest, username: str = Depends(get_auth_user)):
-    if denied := _mcp_write_denied(username, body.type):
+async def add_mcp_server(body: McpServerRequest, sub: str = Depends(get_auth_user)):
+    if denied := _mcp_write_denied(sub, body.type):
         return denied
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
@@ -312,8 +312,8 @@ async def add_mcp_server(body: McpServerRequest, username: str = Depends(get_aut
 
 
 @router.delete("/mcp-servers/{server_name}")
-async def delete_mcp_server(server_name: str, username: str = Depends(get_auth_user)):
-    if denied := _mcp_write_denied(username):
+async def delete_mcp_server(server_name: str, sub: str = Depends(get_auth_user)):
+    if denied := _mcp_write_denied(sub):
         return denied
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:
@@ -329,8 +329,8 @@ class McpToggleRequest(BaseModel):
 
 
 @router.post("/mcp-servers/toggle")
-async def toggle_mcp_server(body: McpToggleRequest, username: str = Depends(get_auth_user)):
-    if denied := _mcp_write_denied(username):
+async def toggle_mcp_server(body: McpToggleRequest, sub: str = Depends(get_auth_user)):
+    if denied := _mcp_write_denied(sub):
         return denied
     from backend.genai.tools.mcp.mcp_server_manager import mcp_server_manager
     try:

@@ -72,7 +72,7 @@ class OptimizeRequest(BaseModel):
 
 
 @router.get("/config")
-async def get_config(username: str = Depends(get_auth_user)):
+async def get_config(sub: str = Depends(get_auth_user)):
     """Return available image models, styles, and ratios."""
     from backend.core.module_config import module_config
     models = model_manager.get_models(filter=module_config.get_model_filter('draw')) or []
@@ -95,7 +95,7 @@ async def get_config(username: str = Depends(get_auth_user)):
 @router.post("/optimize")
 async def optimize_prompt(
     body: OptimizeRequest,
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """Optimize prompt using LLM."""
     if not body.prompt.strip():
@@ -138,14 +138,14 @@ async def optimize_prompt(
             return {"prompt": text, "negative_prompt": default_negative}
 
     except Exception as e:
-        logger.error(f"Optimize error for {username}: {e}", exc_info=True)
+        logger.error(f"Optimize error for {sub}: {e}", exc_info=True)
         return {"prompt": body.prompt, "negative_prompt": ", ".join(NEGATIVE_PROMPTS)}
 
 
 @router.post("/generate")
 async def generate_image(
     body: DrawRequest,
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """Generate image and return file URL."""
     try:
@@ -168,11 +168,11 @@ async def generate_image(
         path = os.path.join(GENERATED_DIR, file_id)
         image.save(path, format="PNG")
 
-        logger.info(f"Draw OK for {username}: {file_id} seed={used_seed}")
+        logger.info(f"Draw OK for {sub}: {file_id} seed={used_seed}")
         return {"ok": True, "url": f"/api/draw/image/{file_id}", "seed": used_seed}
 
     except Exception as e:
-        logger.error(f"Draw error for {username}: {e}", exc_info=True)
+        logger.error(f"Draw error for {sub}: {e}", exc_info=True)
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
@@ -185,7 +185,7 @@ async def edit_image(
     ratio: str = Form("1:1"),
     resolution: str = Form("1K"),
     temperature: float = Form(0.6),
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """Edit image with text instruction."""
     try:
@@ -228,16 +228,16 @@ async def edit_image(
         path = os.path.join(GENERATED_DIR, file_id)
         result.save(path, format="PNG")
 
-        logger.info(f"Edit OK for {username}: {file_id}")
+        logger.info(f"Edit OK for {sub}: {file_id}")
         return {"ok": True, "url": f"/api/draw/image/{file_id}", "source_url": source_url}
 
     except Exception as e:
-        logger.error(f"Edit error for {username}: {e}", exc_info=True)
+        logger.error(f"Edit error for {sub}: {e}", exc_info=True)
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 @router.get("/image/{file_id}")
-async def get_image(file_id: str, username: str = Depends(get_auth_user)):
+async def get_image(file_id: str, sub: str = Depends(get_auth_user)):
     """Serve generated image."""
     path = os.path.join(GENERATED_DIR, file_id)
     if not os.path.exists(path):

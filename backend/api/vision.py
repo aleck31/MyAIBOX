@@ -45,7 +45,7 @@ def _get_provider(model_id: str):
 
 
 @router.get("/config")
-async def get_config(username: str = Depends(get_auth_user)):
+async def get_config(sub: str = Depends(get_auth_user)):
     """Return available vision models."""
     models = model_manager.get_models(filter=module_config.get_model_filter('vision'))
     return {
@@ -63,7 +63,7 @@ async def analyze_vision(
     model_id: str = Form(None),
     files: List[UploadFile] = File(default=[]),
     existing_files: str = Form(""),
-    username: str = Depends(get_auth_user),
+    sub: str = Depends(get_auth_user),
 ):
     """AG-UI SSE streaming endpoint for vision analysis."""
     run_id = str(uuid.uuid4())
@@ -74,14 +74,14 @@ async def analyze_vision(
     file_urls = []
     for f in files:
         if f.filename:
-            path, file_id = await save_upload(f, username)
+            path, file_id = await save_upload(f, sub)
             file_paths.append(path)
             file_urls.append(f"/api/upload/{file_id}")
 
     # Reuse previously uploaded files
     if not file_paths and existing_files:
         for file_id in existing_files.split(","):
-            path = resolve_upload(file_id, username)  # accepts URL or raw id; rejects anything else
+            path = resolve_upload(file_id, sub)  # accepts URL or raw id; rejects anything else
             if path:
                 file_paths.append(path)
                 file_urls.append(f"/api/upload/{os.path.basename(path)}")
@@ -100,7 +100,7 @@ async def analyze_vision(
     async def event_stream():
         try:
             provider = _get_provider(mid)
-            thread_id = f"vision-{username}"
+            thread_id = f"vision-{sub}"
 
             yield _enc.encode(RunStartedEvent(thread_id=thread_id, run_id=run_id))
             if file_urls:
@@ -123,7 +123,7 @@ async def analyze_vision(
             yield _enc.encode(RunFinishedEvent(thread_id=thread_id, run_id=run_id))
 
         except Exception as e:
-            logger.error(f"Vision error for {username}: {e}", exc_info=True)
+            logger.error(f"Vision error for {sub}: {e}", exc_info=True)
             yield _enc.encode(RunErrorEvent(**run_error_fields(e, "An error occurred during analysis.")))
 
     return StreamingResponse(

@@ -12,11 +12,11 @@ router = APIRouter(prefix="/upload", tags=["upload"])
 @router.post("")
 async def upload_file(
     file: UploadFile = File(...),
-    username: str = Depends(get_auth_user)
+    sub: str = Depends(get_auth_user)
 ):
     """Upload a file and return its temporary path for use in chat."""
     try:
-        path, file_id = await save_upload(file, username)
+        path, file_id = await save_upload(file, sub)
     except HTTPException as e:
         return {"ok": False, "error": e.detail}
     return {"ok": True, "path": path, "name": file.filename, "file_id": file_id}
@@ -24,9 +24,9 @@ async def upload_file(
 
 @router.get("/file/{file_id}")
 @router.get("/{file_id}")
-async def serve_file(file_id: str, username: str = Depends(get_auth_user)):
+async def serve_file(file_id: str, sub: str = Depends(get_auth_user)):
     """Serve an uploaded file by its ID (both URL shapes are used by the frontend)."""
-    path = resolve_upload(file_id, username)
+    path = resolve_upload(file_id, sub)
     if not path:
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path)

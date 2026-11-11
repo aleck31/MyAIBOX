@@ -48,7 +48,7 @@ async def _events_for(chunks, monkeypatch):
     monkeypatch.setattr(chat.skill_registry, "get_many", lambda _ids: [])
     agent = types.SimpleNamespace(id="a", workspace_enabled=False, prompt="p", enabled_skills=[], parameters={})
     response = await chat._stream_agent(
-        agent=agent, sub="u", workspace_user="u", msg_text="hi", files=[], history=[],
+        agent=agent, sub="u", msg_text="hi", files=[], history=[],
         body=types.SimpleNamespace(thread_id="t"), run_id="r", message_id="m", thinking_id="th",
     )
     events = []

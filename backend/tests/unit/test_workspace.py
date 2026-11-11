@@ -93,3 +93,16 @@ def test_users_are_isolated(tmp_root):
     open(os.path.join(p_bob, "bob.md"), "w").write("bob")
     assert workspace.list_files("alice", "assistant") == []
     assert len(workspace.list_files("bob", "assistant")) == 1
+
+
+def test_chat_workspace_is_keyed_by_sub_not_by_the_display_name(tmp_root, monkeypatch):
+    """The display name (preferred_username) can change and is not unique; the workspace must follow the sub."""
+    import asyncio
+    import types
+    from backend.api import chat
+    seen = []
+    monkeypatch.setattr(chat, "_resolve_agent", lambda sub, agent_id: types.SimpleNamespace(id=agent_id))
+    monkeypatch.setattr(chat.workspace, "list_files", lambda user, module: seen.append(user) or [])
+    request = types.SimpleNamespace(state=types.SimpleNamespace(user={"sub": "sub-1", "username": "aleck"}))
+    asyncio.run(chat.list_workspace(request=request, agent_id="assistant", sub="sub-1"))
+    assert seen == ["sub-1"]

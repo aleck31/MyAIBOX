@@ -12,7 +12,8 @@ The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with
 - **Models**: only the latest generation of each family — Claude 5.5 (Opus/Sonnet/Haiku) + Fable 5.1, GPT-6 (Astra/6.1 Sol/Luna), Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL, Nova 2.5 Sonic, Gemini 3.8 Flash; older generations are retired
 - **Security**: MCP changes are admin-gated (`ADMIN_SUBS`); uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`)
 - **Fixes**: models that reject `temperature`/`top_p`/`top_k` no longer fail when thinking is off; Chat works on Gemini, Nova and GPT-OSS again
-- **Upgrading**: run `uv sync` and `my-aibox build`; apply the model changes in Settings → Models. See [CHANGELOG.md](CHANGELOG.md).
+- **Sign-in**: Myners SSO only; logout ends the SSO session
+- **Upgrading**: run `uv sync` and `my-aibox build`; apply the model changes in Settings → Models; 3.9.6 needs `EXA_API_KEY` and moves workspaces to `storage/workspace/<sub>`. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
 

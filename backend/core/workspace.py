@@ -2,7 +2,7 @@
 
 Layout::
 
-    storage/workspace/<username>/<module>/
+    storage/workspace/<sub>/<module>/   (sub = the user's stable SSO id, not the display name, which can change)
       report.md
       chart.png
       ...
@@ -38,7 +38,7 @@ ROOT = os.path.join("storage", "workspace")
 # separators, traversal, hidden files, and anything unprintable.
 _MODULE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
 
-# Module-internal names (username, agent_id) are ASCII — they come from
+# Module-internal names (the user's sub, agent_id) are ASCII — they come from
 # the SSO identity or code constants, so we keep the tighter regex for those.
 _SAFE_MODULE = _MODULE_NAME
 
@@ -74,23 +74,23 @@ class WorkspaceError(ValueError):
     """Raised when a caller-supplied path would escape the workspace."""
 
 
-def path_for(username: str, module: str) -> str:
+def path_for(sub: str, module: str) -> str:
     """Return the absolute workspace directory for (user, module).
 
     Both components are validated to catch programmer errors early;
     anything user-supplied should already be authenticated by the
-    caller (username comes from SSO, module is an app constant).
+    caller (sub comes from SSO, module is an app constant).
     """
-    if not _SAFE_MODULE.match(username):
-        raise WorkspaceError(f"invalid username: {username!r}")
+    if not _SAFE_MODULE.match(sub):
+        raise WorkspaceError(f"invalid sub: {sub!r}")
     if not _SAFE_MODULE.match(module):
         raise WorkspaceError(f"invalid module: {module!r}")
-    return os.path.abspath(os.path.join(ROOT, username, module))
+    return os.path.abspath(os.path.join(ROOT, sub, module))
 
 
-def ensure(username: str, module: str) -> str:
+def ensure(sub: str, module: str) -> str:
     """Create the workspace directory if missing; return its absolute path."""
-    p = path_for(username, module)
+    p = path_for(sub, module)
     os.makedirs(p, exist_ok=True)
     return p
 
@@ -112,8 +112,8 @@ def safe_join(workspace_dir: str, filename: str) -> str:
     return target
 
 
-def list_files(username: str, module: str) -> List[WorkspaceFile]:
-    p = path_for(username, module)
+def list_files(sub: str, module: str) -> List[WorkspaceFile]:
+    p = path_for(sub, module)
     if not os.path.isdir(p):
         return []
     out: List[WorkspaceFile] = []
@@ -129,9 +129,9 @@ def list_files(username: str, module: str) -> List[WorkspaceFile]:
     return out
 
 
-def delete_file(username: str, module: str, filename: str) -> bool:
+def delete_file(sub: str, module: str, filename: str) -> bool:
     """Delete a file. Returns False if the file didn't exist."""
-    p = path_for(username, module)
+    p = path_for(sub, module)
     target = safe_join(p, filename)
     if not os.path.isfile(target):
         return False
