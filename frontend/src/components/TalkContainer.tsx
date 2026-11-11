@@ -7,6 +7,8 @@ import { getTalkConfig, clearTalkSession } from '../api/client'
 import { IconMic, IconClose, IconTrash } from './icons'
 import type { TalkAgent } from '../api/client'
 import SectionBar from './SectionBar'
+import ScrollToBottomButton from './ScrollToBottomButton'
+import { useStickToBottom } from '../hooks/useStickToBottom'
 
 interface Turn { role: 'user' | 'assistant'; text: string; final: boolean }
 interface Voice { id: string; name: string }
@@ -37,6 +39,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
   // Level (learner group) — per-agent preference; only selectable on a fresh call.
   const [level, setLevel] = useStoredState(`talk-level:${agent.id}`, 'adult')
   const threadRef = useRef<HTMLDivElement>(null)
+  const stick = useStickToBottom()
 
   useEffect(() => {
     getTalkConfig().then(cfg => {
@@ -62,8 +65,8 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
       else next.push({ role, text, final })
       return next
     })
-    queueMicrotask(() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight }))
-  }, [])
+    queueMicrotask(stick.follow)
+  }, [stick.follow])
 
   const talk = useTalk(agent.id, { onTranscript, onError: setError, onClose: () => setError(null) })
 
@@ -91,7 +94,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
           </div>
         </SectionBar>
 
-        <div className="talk-thread" ref={threadRef}>
+        <div className="talk-thread" ref={node => { threadRef.current = node; stick.ref(node) }}>
           {turns.length === 0 ? (
             <div className="talk-thread-empty">{agent.description}</div>
           ) : (
@@ -102,6 +105,7 @@ export default function TalkContainer({ agent }: { agent: TalkAgent }) {
             ))
           )}
           {error && <div className="talk-error">{error}</div>}
+          <ScrollToBottomButton visible={!stick.atBottom} onClick={() => stick.scrollToBottom()} />
         </div>
 
         <div className="talk-controls">

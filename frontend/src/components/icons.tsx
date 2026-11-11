@@ -20,6 +20,7 @@ export {
   Wand2 as IconWand,
   Eraser as IconEraser,
   Plus as IconPlus,
+  ArrowDown as IconArrowDown,
   Paperclip as IconPaperclip,
   Sparkles as IconSparkles,
   Camera as IconCamera,

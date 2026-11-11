@@ -9,6 +9,8 @@ import { IconTrash, IconEraser, IconClipboard, IconMic, IconPaperclip, IconClose
 import { useTranscribe } from '../hooks/useTranscribe'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useStoredState } from '../hooks/useStoredState'
+import { useStickToBottom } from '../hooks/useStickToBottom'
+import ScrollToBottomButton from './ScrollToBottomButton'
 import { ensureValidModel, MODEL_UNAVAILABLE } from '../utils/model'
 import type { AskingConfig } from '../types/asking'
 import SectionBar from './SectionBar'
@@ -55,6 +57,7 @@ export default function AskingProcessor() {
   const [railOpen, setRailOpen] = useStoredState<boolean>('asking-rail-open', true)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
+  const stick = useStickToBottom()
   const blockRefs = useRef<Array<HTMLElement | null>>([])
 
   // On narrow screens the rail floats as an overlay instead of taking a column.
@@ -71,10 +74,8 @@ export default function AskingProcessor() {
   }), [])
   useEffect(() => { loadConfig() }, [loadConfig])
 
-  // Keep the latest answer in view as it streams.
-  useEffect(() => {
-    threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight })
-  }, [blocks])
+  // Keep the latest answer in view as it streams, unless the user has scrolled up to read.
+  useEffect(() => { stick.follow() }, [blocks, stick.follow])
 
   // Click a question in the rail index → scroll its block into view.
   const scrollToBlock = useCallback((i: number) => {
@@ -199,8 +200,9 @@ export default function AskingProcessor() {
     // The server keeps producing the answer if the connection drops; this id lets us collect it again.
     const runId = crypto.randomUUID()
 
-    // Append a fresh block for this question and clear the composer.
+    // Append a fresh block for this question and clear the composer; jump to it even if scrolled up.
     setBlocks(prev => [...prev, { question: submitText, thinking: '', answer: '', streaming: true, runId }])
+    requestAnimationFrame(() => stick.scrollToBottom(false))
     setInput('')
     setPartialTranscript('')
 
@@ -216,7 +218,7 @@ export default function AskingProcessor() {
 
     await streamAnswer(runId, (signal) =>
       authFetch('/api/asking/process', { method: 'POST', credentials: 'include', body: formData, signal }))
-  }, [input, blocks, modelId, customPrompt, files, loading, streamAnswer])
+  }, [input, blocks, modelId, customPrompt, files, loading, streamAnswer, stick])
 
   // Auto-send fires once recording AND finalizing both end (final committed).
   useEffect(() => {
@@ -312,7 +314,7 @@ export default function AskingProcessor() {
         </SectionBar>
 
         {/* Stacked Q/A blocks — document style, not chat bubbles */}
-        <div className="asking-thread" ref={threadRef}>
+        <div className="asking-thread" ref={node => { threadRef.current = node; stick.ref(node) }}>
             {blocks.length === 0 ? (
               <div className="asking-thread-empty">Ask anything — follow up to go deeper.</div>
             ) : (
@@ -360,6 +362,7 @@ export default function AskingProcessor() {
                 </article>
               ))
             )}
+            <ScrollToBottomButton visible={!stick.atBottom} onClick={() => stick.scrollToBottom()} />
           </div>
 
           {/* Composer — entry point for every (follow-up) question */}

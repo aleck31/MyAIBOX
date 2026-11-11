@@ -129,3 +129,51 @@
 /* Bar buttons keep their label on one line: the bar has a fixed height on narrow screens and scrolls
    sideways instead (a wrapped "Add Server" made the button 45px tall and overflowed the bar). */
 .section-bar .btn { white-space: nowrap; flex-shrink: 0; }
+
+/* ── Jump to the latest message (Chat, Asking, Talk) ── */
+/* A zero-height sticky anchor at the end of the transcript keeps the button on the visible bottom edge. */
+.scroll-to-bottom-anchor {
+  position: sticky;
+  bottom: 0;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.scroll-to-bottom-anchor .scroll-to-bottom { position: absolute; bottom: 12px; }
+.scroll-to-bottom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: 999px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  box-shadow: 0 2px 8px hsl(var(--foreground) / 0.12);
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+}
+.scroll-to-bottom.is-visible,
+.aui-thread-scroll-to-bottom.scroll-to-bottom:not(:disabled) {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.scroll-to-bottom:hover { background: hsl(var(--muted)); }
+.scroll-to-bottom:focus-visible { outline: 2px solid hsl(var(--primary)); outline-offset: 2px; }
+/* assistant-ui positions its own button above the composer; keep that, only take the look */
+.aui-thread-scroll-to-bottom.scroll-to-bottom { padding: 0; top: -48px; }
+@media (pointer: coarse) {
+  .scroll-to-bottom::after { content: ''; position: absolute; inset: -3px; border-radius: 999px; }   /* 42px hit area */
+}
+@media (prefers-reduced-motion: reduce) {
+  .scroll-to-bottom { transition: none; }
+}

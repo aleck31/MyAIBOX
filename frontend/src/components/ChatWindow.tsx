@@ -14,7 +14,7 @@ import remarkGfm from 'remark-gfm'
 import { useAGUIRuntime } from '../hooks/useAGUIRuntime'
 import { WeatherToolUI } from './tools/WeatherCard'
 import AgentAvatar, { UserAvatar } from './AgentAvatar'
-import { IconClose, IconPaperclip, IconBrain } from './icons'
+import { IconArrowDown, IconClose, IconPaperclip, IconBrain } from './icons'
 import type { ChatAgent } from '../api/client'
 
 export interface ChatWindowHandle {
@@ -205,7 +205,9 @@ function Thread() {
         />
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer">
-          <ThreadPrimitive.ScrollToBottom className="aui-thread-scroll-to-bottom" />
+          <ThreadPrimitive.ScrollToBottom className="aui-thread-scroll-to-bottom scroll-to-bottom" aria-label="Scroll to the latest message" title="Scroll to the latest message">
+            <IconArrowDown size={18} aria-hidden="true" />
+          </ThreadPrimitive.ScrollToBottom>
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
 
