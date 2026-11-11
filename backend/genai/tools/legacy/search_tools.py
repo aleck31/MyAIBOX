@@ -1,4 +1,6 @@
+import os
 import time
+import httpx
 import wikipedia
 from ddgs import DDGS
 from cachetools import TTLCache
@@ -143,62 +145,56 @@ def search_wikipedia(query: str, num_results: int = 3, language: str = "en"):
             "error": f"Failed to search Wikipedia: {str(e)}"
         }
 
+EXA_SEARCH_URL = "https://api.exa.ai/search"
+
+
+def _has_cjk(text: str) -> bool:
+    return any("\u4e00" <= c <= "\u9fff" for c in text)
+
+
+def _search_exa(query: str, num_results: int, api_key: str) -> list:
+    """Exa web search, with a short highlight per result as the description."""
+    resp = httpx.post(EXA_SEARCH_URL, headers={"x-api-key": api_key}, timeout=20,
+                      json={"query": query, "numResults": num_results, "contents": {"highlights": {"numSentences": 3}}})
+    resp.raise_for_status()
+    return [{"title": r.get("title") or "", "url": r.get("url") or "",
+             "description": " ".join(r.get("highlights") or [])[:600]} for r in resp.json().get("results", [])]
+
+
+def _search_ddgs(query: str, num_results: int) -> list:
+    """Free fallback. Region "wt-wt" makes ddgs query wt.wikipedia.org, which does not exist (DNS error), so the
+    region follows the query's script instead."""
+    region = "cn-zh" if _has_cjk(query) else "us-en"
+    with DDGS(timeout=15) as ddgs:
+        found = list(ddgs.text(query, max_results=num_results, region=region))
+    return [{"title": r.get("title", ""), "url": r.get("href", ""), "description": r.get("body", "")} for r in found]
+
+
 def search_internet(query: str, num_results: int = 6, language: str = "en"):
-    """Search the internet via DuckDuckGo and return relevant search results
-    
-    Args:
-        query: The search query
-        num_results: Number of results to return (default: 6, max: 10)
-        language: Search language (default: "en")
-        
-    Returns:
-        dict: Contains search results with titles and URLs
+    """Search the web and return relevant results (title, url, description).
+
+    Uses Exa when EXA_API_KEY is set. The free DuckDuckGo scraper is only a fallback: from this server it finds
+    nothing for most queries ("No results found", Chinese queries especially), and the model then kept retrying
+    with new wording for minutes.
     """
-    # Check cache first
     cache_key = f"{query}:{language}"
     if cache_key in google_cache:
         cached_result = google_cache[cache_key]
         cached_result["cached"] = True
         return cached_result
-    
-    # Limit number of results
+
     num_results = min(num_results, MAX_SEARCH_RESULTS)
-    
+    api_key = os.getenv("EXA_API_KEY", "").strip()
     try:
-        # Perform the search using DuckDuckGo
-        with DDGS() as ddgs:
-            search_results = list(ddgs.text(
-                query, 
-                max_results=num_results,
-                region=f"wt-{language}" if language != "en" else "wt-wt"
-            ))
-        
-        # Format results
-        formatted_results = []
-        for result in search_results:
-            formatted_results.append({
-                "title": result.get('title', ''),
-                "url": result.get('href', ''),
-                "description": result.get('body', '')
-            })
-        
-        # Create response
-        result = {
-            "query": query,
-            "results": formatted_results,
-            "timestamp": time.time()
-        }
-        
-        # Cache the result
-        google_cache[cache_key] = result
-        return result
-            
+        results = _search_exa(query, num_results, api_key) if api_key else _search_ddgs(query, num_results)
     except Exception as e:
-        logger.error(f"DuckDuckGo search error: {e}")
-        return {
-            "query": query,
-            "error": f"Failed to search DuckDuckGo: {str(e)}"
-        }
+        logger.error(f"Web search error ({'exa' if api_key else 'ddgs'}): {e}")
+        return {"query": query, "error": f"Search failed: {e}"}
+
+    result = {"query": query, "results": results, "timestamp": time.time()}
+    if results:
+        google_cache[cache_key] = result
+    return result
 
 # Tool specification in Bedrock format
 list_of_tools_specs = [
@@ -233,14 +229,14 @@ list_of_tools_specs = [
     {
         "toolSpec": {
             "name": "search_internet",
-            "description": "Search the internet via Google and retrieve search results for a query. Use this when asked to find information on the web, look up current events, or research topics that may not be covered in Wikipedia. This tool provides access to Google search results with titles and URLs.",
+            "description": "Search the web and retrieve results (title, URL, short excerpt) for a query. Use this to find current information: products, prices, specifications, news, or topics not covered in Wikipedia. Open a result with get_text_from_url when the excerpt is not enough.",
             "inputSchema": {
                 "json": {
                     "type": "object",
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "The search query for Google"
+                            "description": "The search query"
                         },
                         "num_results": {
                             "type": "integer",
