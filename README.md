@@ -6,14 +6,13 @@ MyAIBOX (AI百宝箱) is a comprehensive Gen-AI application suite built with Fas
 
 ## Overview
 
-The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with sign-in through Myners SSO and conversation storage in DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
+The application integrates multiple GenAI models (Bedrock, Anthropic, OpenAI, Gemini, directly or through a gateway such as agentgateway), with sign-in through Myners SSO and conversation storage in DynamoDB. It features a modular architecture with a React frontend communicating via AG-UI Protocol (SSE streaming).
 
-🎉 **What's New in v3.9**
-- **Models**: only the latest generation of each family — Claude 5.5 (Opus/Sonnet/Haiku) + Fable 5.1, GPT-6 (Astra/6.1 Sol/Luna), Grok 4.7, GLM 5.3, Kimi K3, Qwen3-VL, Nova 2.5 Sonic, Gemini 3.8 Flash; older generations are retired
-- **Security**: MCP changes are admin-gated (`ADMIN_SUBS`); uploads are owner-scoped and size-limited (`MAX_UPLOAD_MB`)
-- **Fixes**: models that reject `temperature`/`top_p`/`top_k` no longer fail when thinking is off; Chat works on Gemini, Nova and GPT-OSS again
-- **Sign-in**: Myners SSO only; logout ends the SSO session
-- **Upgrading**: run `uv sync` and `my-aibox build`; apply the model changes in Settings → Models; 3.9.6 needs `EXA_API_KEY` and moves workspaces to `storage/workspace/<sub>`. See [CHANGELOG.md](CHANGELOG.md).
+🎉 **What's New in v3.10**
+- **LLM providers**: Settings → Providers holds each endpoint and its credentials (AWS, or an API key / Secrets Manager secret); a model names its provider and its API, so a gateway such as agentgateway is one provider entry
+- **APIs**: Bedrock Converse / InvokeModel / Bidirectional Stream, Anthropic Messages, OpenAI Responses / Chat Completions, Gemini; Bedrock Converse models can use the flex tier
+- **Models**: Claude, GPT-6, Grok 4.7, GLM 5.3, Kimi K3.1, Nova 2 Lite and Stability go through agentgateway; Kimi K3 → K3.1
+- **Upgrading**: run `uv sync` and `my-aibox build`; models need `provider` and `api`; the `BEDROCK_*`, `GEMINI_SECRET_ID` and `OPENAI_SECRET_ID` variables are gone. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
 
@@ -24,24 +23,29 @@ The application integrates multiple GenAI models (Bedrock, Gemini, OpenAI), with
 * **Asking** 🧠 — Research-style deep Q&A: voice or text input, follow-up threads, per-question reasoning
 * **Vision** 👀 — Image analysis, document understanding (PDF), multi-model support
 * **Draw** 🎨 — AI image generation and editing with prompt optimization, style/ratio/seed options
-* **Settings** ⚙️ — Account management, module configuration, model registry, MCP server management
+* **Settings** ⚙ — Sessions, agents, module configuration, LLM providers, model registry, MCP server management
 
 Supported input formats: jpg/jpeg, png, gif, webp, pdf, csv, doc/docx, xls/xlsx, txt, md, mp4, webm, mov
 
 ## Screenshots
 
-### Multimodal Chatbot
-![my-aibox](/docs/screenshots/webchat.png "Multimodal Chatbot")
+### Chat: agents with tools (image generation, weather)
+![Chat](/docs/screenshots/webchat.png "Chat")
 
-### Vision Recognition
-![my-aibox](/docs/screenshots/vision.png "Vision Recognition")
+### Asking: research answers with web search
+![Asking](/docs/screenshots/asking.png "Asking")
 
-### Generate and Edit
-![my-aibox](/docs/screenshots/draw.png "Generate and Edit image")
+### Vision: image and document analysis
+![Vision](/docs/screenshots/vision.png "Vision")
 
+### Draw: image generation and editing
+![Draw](/docs/screenshots/draw.png "Draw")
 
-### Settings
-![my-aibox](/docs/screenshots/settings.png "Web UI")
+### Settings: LLM providers
+![Providers](/docs/screenshots/providers.png "Settings - Providers")
+
+### Settings: models (provider, API, service tier)
+![Models](/docs/screenshots/models.png "Settings - Models")
 
 ## Project Structure
 

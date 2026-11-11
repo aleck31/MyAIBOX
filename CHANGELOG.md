@@ -3,7 +3,7 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
-## Unreleased
+## [3.10.0] - 2026-11-11
 
 ### Added
 - **LLM providers** (Settings → Providers): a provider holds an API base URL (empty for the official endpoint), its credentials (AWS SigV4, or an API key inline or by Secrets Manager secret name), a region and the APIs it serves; only `ADMIN_SUBS` can change them and an inline key is never sent back to the browser. A model names its provider and its API: Bedrock Converse, Bedrock InvokeModel, Bedrock Bidirectional Stream, Anthropic Messages, OpenAI Responses, OpenAI Chat Completions or Gemini. Bedrock Converse models also take a service tier (flex).
@@ -19,6 +19,9 @@ frontend and lockfiles). The README only highlights the latest release.
 - Editing a disabled model in Settings → Models no longer enables it.
 - Image generation (Draw and the Chat tool): when the image model's content filter rejects a prompt, the error says so instead of `'images'`.
 - Vision renders its analysis as Markdown instead of raw text.
+
+### Upgrade notes
+`uv sync` and `my-aibox build`. The registry gains a provider record (seeded on first start) and every model needs `provider` and `api` fields in place of `api_provider` / `region` / `base_url`. Remove `BEDROCK_REGION`, `BEDROCK_SECRET_ID`, `GEMINI_SECRET_ID` and `OPENAI_SECRET_ID` from `.env`; set `ADMIN_SUBS` to edit providers.
 
 ## [3.9.0] - 2026-10-10 ... [3.9.6] - 2026-10-29
 
