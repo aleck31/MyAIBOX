@@ -35,6 +35,7 @@ def generate_image(
         # Import dependencies dynamically to avoid circular imports
         from backend.genai.models.model_manager import model_manager
         from backend.genai.models import GenImageParameters
+        from backend.genai.models.providers.bedrock_invoke import first_image_b64
         models = model_manager.get_models(filter={'category': 'image'})
         if not models:
             raise ValueError("No image generation models available")
@@ -97,8 +98,7 @@ def generate_image(
         logger.debug(f"[generate_image] Generation completed - Seeds: {response.get('seeds')}")
 
         # Convert base64 to image (following draw_service pattern)
-        img_base64 = response["images"][0]
-        image = Image.open(io.BytesIO(base64.b64decode(img_base64)))
+        image = Image.open(io.BytesIO(base64.b64decode(first_image_b64(response))))
 
         # Destination: caller's workspace if an agent context is set (Chat
         # module), otherwise fall back to the shared global path used by the

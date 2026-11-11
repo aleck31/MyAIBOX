@@ -243,3 +243,12 @@ def test_converse_tool_loop_is_capped(monkeypatch):
     assert len(sent) == 3                                    # 2 rounds, the "answer now" round, then it stops
     assert any("answer now" in b.get("text", "") for b in sent[2][-1]["content"])
     assert "Stopped after too many tool calls" in text
+
+
+def test_image_filtered_by_the_model_says_so():
+    """Stability answers 200 with no image when its filter rejects the prompt; that read as KeyError 'images'."""
+    from backend.genai.models.providers.bedrock_invoke import first_image_b64
+
+    assert first_image_b64({"images": ["b64"]}) == "b64"
+    with pytest.raises(ValueError, match="content filter"):
+        first_image_b64({"finish_reasons": ["Filter reason: prompt"]})

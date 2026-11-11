@@ -8,6 +8,7 @@ from backend.common.errors import ModelUnavailableError
 from backend.core.session import Session
 from backend.core.module_config import module_config
 from backend.genai.models.providers import LLMProviderError
+from backend.genai.models.providers.bedrock_invoke import first_image_b64
 from backend.genai.models import API_BEDROCK_INVOKE, API_GEMINI
 from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
@@ -129,13 +130,7 @@ class DrawService(BaseService):
             raise ValueError("No response received from model")
 
         logger.debug(f"[DrawService] Seeds: {response.get('seeds')} Finish: {response.get('finish_reasons')}")
-        if "images" in response:
-            img_base64 = response["images"][0]
-        elif "image" in response:
-            img_base64 = response["image"]
-        else:
-            raise ValueError(f"Unexpected response format: {list(response.keys())}")
-        return Image.open(io.BytesIO(base64.b64decode(img_base64)))
+        return Image.open(io.BytesIO(base64.b64decode(first_image_b64(response))))
 
     @staticmethod
     def _extract_image(response) -> Image.Image:
@@ -234,13 +229,7 @@ class DrawService(BaseService):
         if not response:
             raise ValueError("No response received from model")
 
-        if "images" in response:
-            img_base64 = response["images"][0]
-        elif "image" in response:
-            img_base64 = response["image"]
-        else:
-            raise ValueError(f"Unexpected response format: {list(response.keys())}")
-        return Image.open(io.BytesIO(base64.b64decode(img_base64)))
+        return Image.open(io.BytesIO(base64.b64decode(first_image_b64(response))))
 
     async def _edit_via_gemini(self, model_id, image_data, prompt, aspect_ratio, resolution='1K', temperature=0.6):
         """Edit image via Gemini — send image + text prompt"""

@@ -190,3 +190,16 @@ def create_creative_provider(api: str, model_id: str, image_params: GenImagePara
     if api != API_BEDROCK_INVOKE:
         raise ValueError(f"Creative content generation needs {API_BEDROCK_INVOKE}, got: {api}")
     return BedrockInvoke(model_id, image_params, [])
+
+
+def first_image_b64(response: Dict) -> str:
+    """The first generated image; a clear error when the model's content filter returned none."""
+    if response.get("images"):
+        return response["images"][0]
+    if response.get("image"):
+        return response["image"]
+    reasons = response.get("finish_reasons") or []
+    if any("filter" in str(r).lower() for r in reasons):
+        raise ValueError(f"The image model's content filter rejected the request ({'; '.join(map(str, reasons))}). "
+                         "Rephrase the prompt and try again.")
+    raise ValueError(f"The image model returned no image (fields: {list(response)}, finish: {reasons})")
