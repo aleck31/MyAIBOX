@@ -3,6 +3,7 @@ export const API_LABELS: Record<string, string> = {
   'bedrock-converse': 'Bedrock Converse',
   'bedrock-invoke': 'Bedrock InvokeModel',
   'bedrock-bidi-stream': 'Bedrock Bidirectional Stream',
+  'anthropic-messages': 'Anthropic Messages',
   'openai-responses': 'OpenAI Responses',
   'openai-chat-completions': 'OpenAI Chat Completions',
   'gemini': 'Gemini',

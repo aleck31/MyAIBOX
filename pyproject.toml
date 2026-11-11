@@ -11,7 +11,7 @@ dependencies = [
     "google-genai>=2.29.0",
     "openai>=3.28",
     # Strands Agents
-    "strands-agents>=1.59",
+    "strands-agents[anthropic]>=1.59",
     "strands-agents-tools>=0.8.9",
     "mcp>=2.1",
     # Utilities

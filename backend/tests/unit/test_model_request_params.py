@@ -17,7 +17,7 @@ os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
 from backend.genai.agents.provider import AgentProvider  # noqa: E402
 from backend.genai.models import (  # noqa: E402
-    API_BEDROCK_CONVERSE, API_GEMINI, API_OPENAI_RESPONSES, AUTH_API_KEY, AUTH_AWS,
+    API_ANTHROPIC_MESSAGES, API_BEDROCK_CONVERSE, API_GEMINI, API_OPENAI_RESPONSES, AUTH_API_KEY, AUTH_AWS,
     LLM_CAPABILITIES, LLMModel, LLMParameters, LLMProvider, VALID_APIS, clients,
 )
 from backend.genai.models.model_manager import model_manager  # noqa: E402
@@ -121,6 +121,7 @@ def test_model_calls_go_to_the_provider_endpoint_with_its_key(registry):
     """agw rejects x-api-key and SigV4: every API must send the provider key as a Bearer token to its URL."""
     gw = provider_manager.get_provider("gw")
     assert clients.openai_client_args(gw) == {"api_key": "unit-key", "base_url": "https://gw.example/v1"}
+    assert clients.anthropic_client_args(gw) == {"base_url": "https://gw.example", "auth_token": "unit-key"}
     client = BedrockConverse(registry("global.anthropic.claude-sonnet-5-5", "gw"), LLMParameters()).client
     assert client.meta.endpoint_url == "https://gw.example"
     request = types.SimpleNamespace(headers={})
@@ -175,6 +176,14 @@ def test_provider_writes_are_admin_only(monkeypatch):
     monkeypatch.setattr(api, "is_admin", lambda sub: sub == "admin")
     assert api._provider_write_denied("someone").status_code == 403
     assert api._provider_write_denied("admin") is None
+
+
+def test_anthropic_messages_thinking_request(registry):
+    """Adaptive-only Claude: thinking + effort, no sampling params, room for the answer."""
+    mid = registry("claude-sonnet-5-5", "gw", api=API_ANTHROPIC_MESSAGES)
+    cfg = _agent_config(mid, thinking=THINK_ON)
+    assert cfg["params"]["thinking"]["type"] == "adaptive" and "temperature" not in cfg["params"]
+    assert cfg["max_tokens"] >= 32000
 
 
 # ── Chat: stop sequences and mid-conversation model switches ──────────────────

@@ -112,7 +112,8 @@ class LLMAPIProvider(ABC):
 def create_model_provider(api: str, model_id: str, llm_params: LLMParameters, tools: Optional[List[str]] = None) -> LLMAPIProvider:
     """Text-generation provider for a model's API (`LLMModel.api`); its provider supplies endpoint and credentials."""
     from backend.genai.models import (API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_GEMINI, API_OPENAI_CHAT,
-                                      API_OPENAI_RESPONSES)
+                                      API_OPENAI_RESPONSES, API_ANTHROPIC_MESSAGES)
+    from backend.genai.models.providers.anthropic_messages import AnthropicMessagesProvider
     from backend.genai.models.providers.bedrock_converse import BedrockConverse
     from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
     from backend.genai.models.providers.google_gemini import GeminiProvider
@@ -122,6 +123,7 @@ def create_model_provider(api: str, model_id: str, llm_params: LLMParameters, to
     providers = {
         API_BEDROCK_CONVERSE: BedrockConverse,
         API_BEDROCK_INVOKE: BedrockInvoke,
+        API_ANTHROPIC_MESSAGES: AnthropicMessagesProvider,
         API_GEMINI: GeminiProvider,
         API_OPENAI_CHAT: OpenAIProvider,
         API_OPENAI_RESPONSES: OpenAIResponsesProvider,

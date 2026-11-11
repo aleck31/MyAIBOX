@@ -9,14 +9,16 @@ Policy: keep only the latest generation of each model family.
 """
 from . import (
     LLMModel, LLMProvider, LLM_CAPABILITIES, AUTH_AWS, AUTH_API_KEY,
-    API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI, API_OPENAI_RESPONSES, API_OPENAI_CHAT, API_GEMINI,
+    API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI, API_OPENAI_RESPONSES, API_OPENAI_CHAT,
+    API_ANTHROPIC_MESSAGES, API_GEMINI,
 )
 
 
 DEFAULT_PROVIDERS = [
     LLMProvider(name='agw', auth=AUTH_API_KEY, base_url='https://agw.aws.creast.win', region='us-west-2',
                 secret_name='agw-key-apps',
-                apis=[API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_OPENAI_RESPONSES, API_OPENAI_CHAT]),
+                apis=[API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_OPENAI_RESPONSES, API_OPENAI_CHAT,
+                      API_ANTHROPIC_MESSAGES]),
     LLMProvider(name='bedrock-us-west-2', auth=AUTH_AWS, region='us-west-2',
                 apis=[API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE]),
     LLMProvider(name='bedrock-us-east-1', auth=AUTH_AWS, region='us-east-1',

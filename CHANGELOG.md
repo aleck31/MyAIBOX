@@ -6,7 +6,8 @@ frontend and lockfiles). The README only highlights the latest release.
 ## Unreleased
 
 ### Added
-- **LLM providers** (Settings → Providers): a provider holds an API base URL (empty for the official endpoint), its credentials (AWS SigV4, or an API key inline or by Secrets Manager secret name), a region and the APIs it serves; only `ADMIN_SUBS` can change them and an inline key is never sent back to the browser. A model names its provider and its API: Bedrock Converse, Bedrock InvokeModel, Bedrock Bidirectional Stream, OpenAI Responses, OpenAI Chat Completions or Gemini. Bedrock Converse models also take a service tier (flex).
+- **LLM providers** (Settings → Providers): a provider holds an API base URL (empty for the official endpoint), its credentials (AWS SigV4, or an API key inline or by Secrets Manager secret name), a region and the APIs it serves; only `ADMIN_SUBS` can change them and an inline key is never sent back to the browser. A model names its provider and its API: Bedrock Converse, Bedrock InvokeModel, Bedrock Bidirectional Stream, Anthropic Messages, OpenAI Responses, OpenAI Chat Completions or Gemini. Bedrock Converse models also take a service tier (flex).
+- **Anthropic Messages API**: Claude can be called on `/v1/messages`, in Chat, Asking, Text, Summary and Vision.
 - **agentgateway (agw)**: Claude, GPT-6, Grok 4.7, GLM 5.3, Kimi K3.1, Nova 2 Lite and the Stability image models go through agw; GLM and Kimi on flex.
 
 ### Changed

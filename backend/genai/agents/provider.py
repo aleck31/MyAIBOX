@@ -7,12 +7,13 @@ from backend.common.errors import blocked_reply_notice
 from backend.common.logger import logger
 from strands import Agent
 from strands.models import BedrockModel
+from strands.models.anthropic import AnthropicModel
 from strands.models.openai import OpenAIModel
 from strands.models.openai_responses import OpenAIResponsesModel
 from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
 from backend.genai.models import (
-    clients, API_BEDROCK_CONVERSE, API_GEMINI, API_OPENAI_CHAT, API_OPENAI_RESPONSES,
+    clients, API_ANTHROPIC_MESSAGES, API_BEDROCK_CONVERSE, API_GEMINI, API_OPENAI_CHAT, API_OPENAI_RESPONSES,
 )
 from backend.genai.agents.limits import CycleLimit, max_cycles_from_env
 from backend.genai.models.thinking import (
@@ -97,6 +98,30 @@ class AgentProvider:
             if additional_fields:
                 kwargs["additional_request_fields"] = additional_fields
             return BedrockModel(**kwargs)
+
+        if model.api == API_ANTHROPIC_MESSAGES:
+            max_tokens = self.parameters.get("max_tokens") or 4096
+            params: Dict = {}
+            thinking_fields = {}
+            if model.capabilities.reasoning and model.vendor == 'Anthropic':
+                intent = self.parameters.get("thinking") or DEFAULT_INTENT
+                thinking_fields = build_thinking_fields(mid, intent, max_tokens)
+            if thinking_fields:
+                params.update(thinking_fields)
+                budget = thinking_fields["thinking"].get("budget_tokens")
+                max_tokens = max(max_tokens, budget * 2) if budget else max(max_tokens, 32000)
+            elif not rejects_sampling_params(mid):
+                # Claude 4.5+ accepts temperature or top_p, not both.
+                if self.parameters.get("temperature") is not None:
+                    params["temperature"] = self.parameters["temperature"]
+                elif self.parameters.get("top_p") is not None:
+                    params["top_p"] = self.parameters["top_p"]
+                if self.parameters.get("top_k") is not None:
+                    params["top_k"] = self.parameters["top_k"]
+            if self.parameters.get("stop_sequences") and not rejects_stop_sequences(mid):
+                params["stop_sequences"] = self.parameters["stop_sequences"]
+            return AnthropicModel(client_args=clients.anthropic_client_args(provider), model_id=mid,
+                                  max_tokens=max_tokens, params=params or None)
 
         if model.api == API_OPENAI_CHAT:
             params = {k: self.parameters[k] for k in ("max_tokens", "temperature", "top_p")

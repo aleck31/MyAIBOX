@@ -121,6 +121,14 @@ def openai_client_args(provider: LLMProvider) -> Dict:
     return args
 
 
+def anthropic_client_args(provider: LLMProvider) -> Dict:
+    """Anthropic SDK arguments: x-api-key for Anthropic itself, a Bearer token for a gateway."""
+    base = provider.base_url.rstrip('/')
+    if not base or urlparse(base).hostname == 'api.anthropic.com':
+        return {"api_key": api_key(provider), **({"base_url": base} if base else {})}
+    return {"base_url": base, "auth_token": api_key(provider)}
+
+
 def gemini_client_args(provider: LLMProvider) -> Dict:
     from google.genai import types
     args: Dict = {"api_key": api_key(provider)}

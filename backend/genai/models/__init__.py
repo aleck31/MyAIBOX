@@ -19,9 +19,10 @@ API_BEDROCK_INVOKE = 'bedrock-invoke'
 API_BEDROCK_BIDI = 'bedrock-bidi-stream'  # InvokeModelWithBidirectionalStream (Nova Sonic)
 API_OPENAI_RESPONSES = 'openai-responses'
 API_OPENAI_CHAT = 'openai-chat-completions'
+API_ANTHROPIC_MESSAGES = 'anthropic-messages'
 API_GEMINI = 'gemini'
 VALID_APIS = (API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI, API_OPENAI_RESPONSES,
-              API_OPENAI_CHAT, API_GEMINI)
+              API_OPENAI_CHAT, API_ANTHROPIC_MESSAGES, API_GEMINI)
 BEDROCK_APIS = (API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI)
 
 AUTH_AWS = 'aws'          # SigV4 with the host's AWS credentials
