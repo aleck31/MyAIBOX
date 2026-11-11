@@ -4,7 +4,7 @@
 
 Wraps Strands' experimental BidiAgent (bidirectional, full-duplex) the same way
 AgentProvider wraps strands.Agent. The underlying realtime model (Nova Sonic now,
-Gemini Live / OpenAI Realtime later) is swappable via api_provider; everything
+Gemini Live / OpenAI Realtime later) is swappable via the model's API; everything
 above this layer (api/voice WS, frontend) is model-agnostic.
 
 It is a full agent (tool loop / barge-in / event routing built in), not a bare
@@ -17,9 +17,8 @@ from strands.bidi import BidiAgent
 from strands.bidi.models import BedrockNovaSonicModel
 from strands.bidi.types import AudioDelta
 
-from backend.common.errors import ModelUnavailableError
 from backend.common.logger import logger
-from backend.genai.models.model_manager import model_manager
+from backend.genai.models import API_BEDROCK_BIDI, clients
 from backend.genai.tools.provider import tool_provider
 
 # Nova Sonic input is 16 kHz mono PCM (the BedrockNovaSonicModel default); the browser mic matches.
@@ -48,19 +47,11 @@ class LiveAgentProvider:
         self._started = False
 
     def _get_live_model(self):
-        """Build the bidirectional model for this model_id (region from the registry)."""
-        model = model_manager.get_model_by_id(self.model_id)
-        if not model:
-            raise ModelUnavailableError(self.model_id)
-        provider = model.api_provider.upper()
-        if provider == 'BEDROCKSONIC':
-            region = model.region or 'us-east-1'  # Nova Sonic: us-east-1 only
-            return BedrockNovaSonicModel(
-                model_id=self.model_id,
-                voice=self.voice_id,
-                region=region,
-            )
-        raise ValueError(f"Unsupported realtime provider: {model.api_provider}")
+        """Build the bidirectional model for this model_id (region from its provider)."""
+        model, provider = clients.resolve(self.model_id)
+        if model.api == API_BEDROCK_BIDI:
+            return BedrockNovaSonicModel(model_id=self.model_id, voice=self.voice_id, region=provider.region)
+        raise ValueError(f"Talk does not support the {model.api} API (model {self.model_id})")
 
     def _load_tools(self) -> list:
         """Load tools via the shared tool_provider (same registry as AgentProvider)."""

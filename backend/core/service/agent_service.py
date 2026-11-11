@@ -151,7 +151,7 @@ class AgentService(BaseService):
             if not await provider.supersede_running_turn():
                 raise RuntimeError("The previous reply is still finishing. Please try again in a moment.")
             if provider.mcp_healthy():
-                if provider.model_id != model_id:
+                if provider.model_id != model_id or provider.model_outdated:
                     provider.update_model(model_id)
                 # Sync history if frontend trimmed it (e.g. after retract);
                 # otherwise the cached Strands Agent keeps the pre-retract messages

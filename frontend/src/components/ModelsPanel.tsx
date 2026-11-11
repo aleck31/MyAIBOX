@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getModels, addModel, updateModel, deleteModel, toggleModel } from '../api/client'
+import { getModels, addModel, updateModel, deleteModel, toggleModel, getProviders } from '../api/client'
+import { apiLabel, type ProviderInfo } from '../utils/llmApi'
 import { Button } from './Button'
 import { Modal, ModalActions } from './Modal'
 import { useConfirm } from './ConfirmDialog'
@@ -7,24 +8,26 @@ import { IconRefresh, IconEdit, IconTrash, IconPlus, IconToggleOn, IconToggleOff
 import SectionBar from './SectionBar'
 
 
-const API_PROVIDERS = ['Bedrock', 'BedrockInvoke', 'BedrockSonic', 'Gemini', 'OpenAI', 'OpenAIResponses']
 const CATEGORIES = ['text', 'vision', 'image', 'video', 'embedding', 'realtime']
 const MODALITIES = ['text', 'document', 'image', 'video', 'audio']
+// Bedrock service tiers exist only on Converse.
+const TIER_API = 'bedrock-converse'
 
 interface ModelInfo {
-  name: string; model_id: string; api_provider: string; vendor: string
-  category: string; description: string; region: string; base_url: string; enabled: boolean
+  name: string; model_id: string; provider: string; api: string; vendor: string
+  category: string; description: string; enabled: boolean; service_tier: string
   capabilities: { input_modality: string[]; output_modality: string[]; streaming: boolean; tool_use: boolean; reasoning: boolean; context_window: number }
 }
 
 const emptyForm = (): ModelInfo => ({
-  name: '', model_id: '', api_provider: 'Bedrock', vendor: '', category: 'text', description: '', region: '', base_url: '', enabled: true,
+  name: '', model_id: '', provider: '', api: '', vendor: '', category: 'text', description: '', enabled: true, service_tier: '',
   capabilities: { input_modality: ['text'], output_modality: ['text'], streaming: true, tool_use: false, reasoning: false, context_window: 131072 },
 })
 
 export default function ModelsPanel() {
   const confirm = useConfirm()
   const [models, setModels] = useState<ModelInfo[]>([])
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [editing, setEditing] = useState<ModelInfo | null>(null)
   const [isNew, setIsNew] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -34,11 +37,13 @@ export default function ModelsPanel() {
     if (refresh) setRefreshing(true)
     try {
       // Hold the spinner for at least 400ms so fast responses still register visually.
-      const [data] = await Promise.all([
+      const [data, prov] = await Promise.all([
         getModels({ refresh }),
+        getProviders(),
         refresh ? new Promise(r => setTimeout(r, 400)) : Promise.resolve(),
       ])
       setModels(data)
+      setProviders(prov.providers ?? [])
     } finally {
       if (refresh) setRefreshing(false)
     }
@@ -46,18 +51,28 @@ export default function ModelsPanel() {
   useEffect(() => { load() }, [load])
 
   const openAdd = () => { setEditing(emptyForm()); setIsNew(true) }
-  const openEdit = (m: ModelInfo) => { setEditing({ ...m, base_url: m.base_url ?? '', capabilities: { ...m.capabilities } }); setIsNew(false) }
+  const openEdit = (m: ModelInfo) => { setEditing({ ...m, capabilities: { ...m.capabilities } }); setIsNew(false) }
+  const apisOf = (name: string) => providers.find(p => p.name === name)?.apis ?? []
+  // Changing provider keeps the API when the new provider serves it, else takes its first one.
+  const setProvider = (name: string) => setEditing(e => {
+    if (!e) return e
+    const apis = apisOf(name)
+    const api = apis.includes(e.api) ? e.api : (apis[0] ?? '')
+    return { ...e, provider: name, api, service_tier: api === TIER_API ? e.service_tier : '' }
+  })
 
   const handleSave = async () => {
     if (!editing) return
     setSaving(true)
     const payload = {
-      name: editing.name, model_id: editing.model_id, api_provider: editing.api_provider,
+      name: editing.name, model_id: editing.model_id, provider: editing.provider, api: editing.api,
       vendor: editing.vendor, category: editing.category, description: editing.description,
-      region: editing.region, base_url: editing.base_url, enabled: editing.enabled, ...editing.capabilities,
+      service_tier: editing.service_tier, enabled: editing.enabled, ...editing.capabilities,
     }
-    if (isNew) await addModel(payload); else await updateModel(payload)
-    setSaving(false); setEditing(null); load()
+    const res = isNew ? await addModel(payload) : await updateModel(payload)
+    setSaving(false)
+    if (res?.ok === false) { window.alert(res.error || 'Failed to save model'); return }
+    setEditing(null); load()
   }
 
   const handleDelete = async (id: string) => {
@@ -88,7 +103,7 @@ export default function ModelsPanel() {
       <div className="settings-content">
         <table className="settings-table">
           <thead>
-            <tr><th>Name</th><th>Model ID</th><th>Provider</th><th>Category</th><th>Streaming</th><th>Tool Use</th><th>Reasoning</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Model ID</th><th>Provider</th><th>API</th><th>Category</th><th>Streaming</th><th>Tool Use</th><th>Reasoning</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {models.map((m) => {
@@ -97,7 +112,8 @@ export default function ModelsPanel() {
               <tr key={m.model_id} style={{ opacity: enabled ? 1 : 0.5 }}>
                 <td>{m.name}</td>
                 <td className="settings-session-id">{m.model_id}</td>
-                <td>{m.api_provider}</td>
+                <td>{m.provider}</td>
+                <td>{apiLabel(m.api)}{m.service_tier ? ` (${m.service_tier})` : ''}</td>
                 <td>{m.category}</td>
                 <td>{m.capabilities.streaming ? '✓' : ''}</td>
                 <td>{m.capabilities.tool_use ? '✓' : ''}</td>
@@ -138,12 +154,24 @@ export default function ModelsPanel() {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <div style={{ flex: 1 }}>
-                  <label className="panel-label">API Provider</label>
-                  <select className="select" style={{ width: '100%' }} value={editing.api_provider}
-                    onChange={e => setEditing({ ...editing, api_provider: e.target.value, base_url: e.target.value === 'OpenAIResponses' ? editing.base_url : '' })}>
-                    {API_PROVIDERS.map(p => <option key={p}>{p}</option>)}
+                  <label className="panel-label">Provider</label>
+                  <select className="select" style={{ width: '100%' }} value={editing.provider}
+                    onChange={e => setProvider(e.target.value)}>
+                    {!editing.provider && <option value="">Choose…</option>}
+                    {providers.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
                   </select>
                 </div>
+                <div style={{ flex: 1 }}>
+                  <label className="panel-label">API</label>
+                  <select className="select" style={{ width: '100%' }} value={editing.api}
+                    onChange={e => setEditing({ ...editing, api: e.target.value, service_tier: e.target.value === TIER_API ? editing.service_tier : '' })}>
+                    {!editing.api && <option value="">Choose…</option>}
+                    {apisOf(editing.provider).map(a => <option key={a} value={a}>{apiLabel(a)}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <div style={{ flex: 1 }}>
                   <label className="panel-label">Category</label>
                   <select className="select" style={{ width: '100%' }} value={editing.category}
@@ -152,20 +180,18 @@ export default function ModelsPanel() {
                   </select>
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label className="panel-label">Region</label>
-                  <input className="input" style={{ width: '100%' }} value={editing.region}
-                    onChange={e => setEditing({ ...editing, region: e.target.value })} placeholder="Override default" />
+                  {editing.api === TIER_API && (
+                    <>
+                      <label className="panel-label">Service Tier</label>
+                      <select className="select" style={{ width: '100%' }} value={editing.service_tier}
+                        onChange={e => setEditing({ ...editing, service_tier: e.target.value })}>
+                        <option value="">standard</option>
+                        <option value="flex">flex</option>
+                      </select>
+                    </>
+                  )}
                 </div>
               </div>
-
-              {editing.api_provider === 'OpenAIResponses' && (
-                <>
-                  <label className="panel-label" style={{ marginTop: 8 }}>Base URL</label>
-                  <input className="input" style={{ width: '100%' }} value={editing.base_url ?? ''}
-                    onChange={e => setEditing({ ...editing, base_url: e.target.value })}
-                    placeholder="https://bedrock-mantle.us-east-2.api.aws/openai/v1" />
-                </>
-              )}
 
               <label className="panel-label" style={{ marginTop: 8 }}>Context Window (K tokens)</label>
               <input className="input" type="number" style={{ width: 160 }}

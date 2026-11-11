@@ -8,6 +8,7 @@ from backend.common.errors import ModelUnavailableError
 from backend.core.session import Session
 from backend.core.module_config import module_config
 from backend.genai.models.providers import LLMProviderError
+from backend.genai.models import API_BEDROCK_INVOKE, API_GEMINI
 from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
 
@@ -28,19 +29,11 @@ class DrawService(BaseService):
         """
         super().__init__(module_name=module_name, cache_ttl=cache_ttl)
 
-    def _validate_model(self, model_id: str, api_provider: str) -> None:
-        """Validate model supports image generation
-        
-        Args:
-            model_id: Model ID to validate
-            api_provider: API provider name
-            
-        Raises:
-            ValueError: If model is not supported for image generation
-        """
-        supported = ('BedrockInvoke', 'Gemini')
-        if api_provider not in supported:
-            raise ValueError(f"Image generation not supported for provider {api_provider}. Supported: {supported}")
+    def _validate_model(self, model_id: str, api: str) -> None:
+        """Raise unless the model's API can generate images."""
+        supported = (API_BEDROCK_INVOKE, API_GEMINI)
+        if api not in supported:
+            raise ValueError(f"Image generation not supported for the {api} API (model {model_id}). Supported: {supported}")
 
     # Nova Canvas aspect_ratio -> (width, height)
     ASPECT_SIZES = {
@@ -292,9 +285,9 @@ class DrawService(BaseService):
         if not model:
             raise ModelUnavailableError(model_id)
 
-        self._validate_model(model_id, model.api_provider)
+        self._validate_model(model_id, model.api)
 
-        if model.api_provider == 'Gemini':
+        if model.api == API_GEMINI:
             return await self._edit_via_gemini(model_id, image_data, prompt, aspect_ratio, resolution, temperature)
         else:
             provider = self._get_creative_provider(model_id)
@@ -321,10 +314,9 @@ class DrawService(BaseService):
             if not model:
                 raise ModelUnavailableError(model_id)
 
-            api_provider = model.api_provider
-            self._validate_model(model_id, api_provider)
+            self._validate_model(model_id, model.api)
 
-            if api_provider == 'Gemini':
+            if model.api == API_GEMINI:
                 return await self._generate_via_gemini(model_id, prompt, negative_prompt, aspect_ratio, resolution, temperature)
             else:
                 provider = self._get_creative_provider(model_id)
@@ -350,10 +342,9 @@ class DrawService(BaseService):
             if not model:
                 raise ModelUnavailableError(model_id)
 
-            api_provider = model.api_provider
-            self._validate_model(model_id, api_provider)
+            self._validate_model(model_id, model.api)
 
-            if api_provider == 'Gemini':
+            if model.api == API_GEMINI:
                 return await self._generate_via_gemini(model_id, prompt, negative_prompt, aspect_ratio)
             else:
                 provider = self._get_creative_provider(model_id)

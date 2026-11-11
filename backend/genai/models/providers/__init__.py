@@ -109,41 +109,26 @@ class LLMAPIProvider(ABC):
         pass
 
 
-def create_model_provider(provider_name: str, model_id: str, llm_params: LLMParameters, tools: Optional[List[str]] = None) -> LLMAPIProvider:
-    """Factory function to create text generation provider instance
-
-    Args:
-        provider_name: Name of provider (e.g. 'Bedrock', 'Gemini', 'OpenAI')
-        model_id: Model identifier
-        llm_params: LLM inference parameters for text generation
-        tools: Optional list of tool module names to enable
-
-    Returns:
-        LLMAPIProvider: Provider instance with tools configured
-
-    Raises:
-        ValueError: If provider_type is not supported
-    """
+def create_model_provider(api: str, model_id: str, llm_params: LLMParameters, tools: Optional[List[str]] = None) -> LLMAPIProvider:
+    """Text-generation provider for a model's API (`LLMModel.api`); its provider supplies endpoint and credentials."""
+    from backend.genai.models import (API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_GEMINI, API_OPENAI_CHAT,
+                                      API_OPENAI_RESPONSES)
     from backend.genai.models.providers.bedrock_converse import BedrockConverse
     from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
     from backend.genai.models.providers.google_gemini import GeminiProvider
     from backend.genai.models.providers.openai import OpenAIProvider
     from backend.genai.models.providers.openai_responses import OpenAIResponsesProvider
 
-    # Map provider types to their implementations
     providers = {
-        'BEDROCK': BedrockConverse,
-        'BEDROCKINVOKE': BedrockInvoke,
-        # 'ANTHROPIC': AnthropicProvider,
-        'GEMINI': GeminiProvider,
-        'OPENAI': OpenAIProvider,
-        'OPENAIRESPONSES': OpenAIResponsesProvider,
+        API_BEDROCK_CONVERSE: BedrockConverse,
+        API_BEDROCK_INVOKE: BedrockInvoke,
+        API_GEMINI: GeminiProvider,
+        API_OPENAI_CHAT: OpenAIProvider,
+        API_OPENAI_RESPONSES: OpenAIResponsesProvider,
     }
-
-    # Get provider class
-    provider_class = providers.get(provider_name.upper())
+    provider_class = providers.get(api)
     if not provider_class:
-        raise ValueError(f"Unsupported API provider: {provider_name}")
+        raise ValueError(f"Unsupported API for text generation: {api}")
 
     # Create provider instance with tools
     # Tools will be initialized by the specific provider

@@ -1,5 +1,6 @@
 # Copyright iX.
 # SPDX-License-Identifier: MIT-0
+import re
 from typing import Dict, List, Optional, Union, Any
 from dataclasses import dataclass, asdict, field
 from backend.common.logger import setup_logger
@@ -11,6 +12,59 @@ logger = setup_logger('models')
 # category = what the model is FOR; reasoning/tool_use/etc. are capabilities, not categories.
 VAILD_CATEGORY = ['text', 'vision', 'image', 'video', 'embedding', 'realtime']
 VALID_MODALITY = ['text', 'document', 'image', 'video', 'audio']
+
+# The API a model is called with; the provider says where and with which credentials.
+API_BEDROCK_CONVERSE = 'bedrock-converse'
+API_BEDROCK_INVOKE = 'bedrock-invoke'
+API_BEDROCK_BIDI = 'bedrock-bidi-stream'  # InvokeModelWithBidirectionalStream (Nova Sonic)
+API_OPENAI_RESPONSES = 'openai-responses'
+API_OPENAI_CHAT = 'openai-chat-completions'
+API_GEMINI = 'gemini'
+VALID_APIS = (API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI, API_OPENAI_RESPONSES,
+              API_OPENAI_CHAT, API_GEMINI)
+BEDROCK_APIS = (API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI)
+
+AUTH_AWS = 'aws'          # SigV4 with the host's AWS credentials
+AUTH_API_KEY = 'api_key'  # a key sent as a Bearer token (x-goog-api-key for Gemini)
+VALID_AUTH = (AUTH_AWS, AUTH_API_KEY)
+
+
+@dataclass
+class LLMProvider:
+    """Where models are called and how: endpoint, credentials and the APIs it serves."""
+    name: str
+    auth: str
+    apis: List[str] = field(default_factory=list)
+    base_url: str = ""     # empty = the API's official endpoint
+    region: str = ""       # AWS region (Bedrock APIs)
+    api_key: str = ""      # inline key; prefer secret_name
+    secret_name: str = ""  # Secrets Manager secret: {"api_key": "..."} or the bare key
+
+    def __post_init__(self):
+        if not re.fullmatch(r'[A-Za-z0-9._-]{1,64}', self.name or ''):
+            raise ValueError("Provider name must be 1-64 letters, digits, '.', '_' or '-'")
+        if self.auth not in VALID_AUTH:
+            raise ValueError(f"Invalid auth. Must be one of: {VALID_AUTH}")
+        if not self.apis or any(a not in VALID_APIS for a in self.apis):
+            raise ValueError(f"Provider APIs must be a non-empty subset of: {VALID_APIS}")
+        if self.auth == AUTH_AWS:
+            if any(a not in BEDROCK_APIS for a in self.apis):
+                raise ValueError("AWS credentials only work with Bedrock APIs")
+            if not self.region:
+                raise ValueError("Region is required for AWS credentials")
+        elif API_BEDROCK_BIDI in self.apis:
+            raise ValueError(f"{API_BEDROCK_BIDI} needs AWS credentials")
+        elif not (self.api_key or self.secret_name):
+            raise ValueError("An API key or a secret name is required")
+        if self.api_key and self.secret_name:
+            raise ValueError("Set either an API key or a secret name, not both")
+
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'LLMProvider':
+        return cls(**{k: data[k] for k in cls.__dataclass_fields__ if k in data})
 
 
 @dataclass
@@ -29,13 +83,13 @@ class LLMModel:
     """Represents an LLM model configuration with capabilities"""
     name: str
     model_id: str
-    api_provider: str
-    category: str   #Legacy to compatibility with existing models
+    provider: str   # LLMProvider.name
+    api: str        # one of VALID_APIS, served by the provider
+    category: str
     vendor: str = ""      # Optional
     description: str = "" # Optional
-    region: str = ""      # Optional: override default region for this model
-    base_url: str = ""    # Optional: custom API endpoint (e.g. Bedrock Mantle OpenAI-compatible URL)
     enabled: bool = True  # Disabled models are hidden from dropdowns but kept in storage
+    service_tier: str = ""  # Bedrock Converse service tier, e.g. "flex"; empty = standard
     capabilities: LLM_CAPABILITIES = field(default_factory=LLM_CAPABILITIES)
 
     def __post_init__(self):
@@ -44,10 +98,12 @@ class LLMModel:
             raise ValueError("Model name is required")
         if not self.model_id:
             raise ValueError("Model ID is required")
-        if not self.api_provider:
-            raise ValueError("API provider is required")
-        if not isinstance(self.api_provider, str):
-            raise ValueError("API provider must be a string")
+        if not self.provider:
+            raise ValueError("Provider is required")
+        if self.api not in VALID_APIS:
+            raise ValueError(f"Invalid API. Must be one of: {VALID_APIS}")
+        if self.service_tier and self.api != API_BEDROCK_CONVERSE:
+            raise ValueError(f"Service tier only applies to {API_BEDROCK_CONVERSE}")
         if self.category not in VAILD_CATEGORY:
             raise ValueError(f"Invalid model category. Must be one of: {VAILD_CATEGORY}")
 
@@ -96,13 +152,13 @@ class LLMModel:
         return cls(
             name=data['name'],
             model_id=data['model_id'],
-            api_provider=data['api_provider'],
+            provider=data['provider'],
+            api=data['api'],
             category=data.get('category', 'text'),
             vendor=data.get('vendor', ''),
             description=data.get('description', ''),
-            region=data.get('region', ''),
-            base_url=data.get('base_url', ''),
             enabled=data.get('enabled', True),
+            service_tier=data.get('service_tier', ''),
             capabilities=capabilities
         )
 

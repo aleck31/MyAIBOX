@@ -226,7 +226,7 @@ async def list_agent_models(sub: str = Depends(get_auth_user)):
     from backend.core.module_config import module_config
     models = model_manager.get_models(filter=module_config.get_model_filter('chat')) or []
     return {"models": [
-        {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}",
+        {"model_id": m.model_id, "name": f"{m.name}, {m.provider}",
          "reasoning": bool(m.capabilities.reasoning)}
         for m in models
     ]}

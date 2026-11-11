@@ -46,7 +46,7 @@ async def get_config(sub: str = Depends(get_auth_user)):
     models = model_manager.get_models(filter=module_config.get_model_filter('summary'))
     return {
         "models": [
-            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            {"model_id": m.model_id, "name": f"{m.name}, {m.provider}"}
             for m in (models or [])
         ],
         "languages": LANGS,

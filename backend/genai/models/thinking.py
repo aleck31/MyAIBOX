@@ -35,8 +35,8 @@ ADAPTIVE_ONLY = (
 NO_SAMPLING_PARAMS = ADAPTIVE_ONLY + (
     'xai.grok-4.7',
     'moonshotai.kimi-k3',
-    'openai.gpt-5',     # GPT-5.x on Bedrock Mantle
-    'openai.gpt-6',     # GPT-6 / 6.1
+    'gpt-5',            # GPT-5.x (openai.* on Mantle, gpt-* on agw's runtime route)
+    'gpt-6',            # GPT-6 / 6.1
 )
 
 EFFORT_LEVELS = ('low', 'medium', 'high', 'xhigh', 'max')

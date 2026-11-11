@@ -26,6 +26,8 @@ class ModelManager:
             logger.debug(f"Initialized ModelManager with table: {self.table_name}")
             # Cache for models
             self._models_cache = None
+            # Called after any change so clients built for the old settings are rebuilt.
+            self._listeners = []
             # Initialize default models if none exist
             self.init_default_models()
         except Exception as e:
@@ -133,17 +135,22 @@ class ModelManager:
             logger.error(f"Error loading models from database: {str(e)}")
             return []
 
+    def on_change(self, listener) -> None:
+        self._listeners.append(listener)
+
     def flush_cache(self):
         """Force flush models cache"""
         logger.debug("Flushing models cache")
         self._models_cache = None
+        for listener in self._listeners:
+            listener()
 
     def get_models(self, filter: Optional[Dict] = None, include_disabled: bool = False) -> List[LLMModel]:
         """Get configured models from cache/database with optional filtering
 
         Args:
             filter: Optional dictionary of model properties to filter by.
-                    Supported properties and capabilities: name, model_id, api_provider, vendor, input_modality, streaming etc.
+                    Supported properties and capabilities: name, model_id, provider, api, vendor, input_modality, streaming etc.
                     Example: {'input_modality': ['vision']} returns only vision models
             include_disabled: If True, return disabled models too. Default False so dropdowns
                     automatically hide models the user has toggled off; settings page passes True.

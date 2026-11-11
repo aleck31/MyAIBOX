@@ -148,7 +148,7 @@ class BaseService:
             if model := model_manager.get_model_by_id(model_id):
                 if model.category == 'image':
                     raise ValueError(f"Model {model_id} is an image model, use _get_creative_provider instead")
-                logger.debug(f"[BaseService] Found text model: {model.name} ({model.api_provider})")
+                logger.debug(f"[BaseService] Found text model: {model.name} ({model.provider}, {model.api})")
             else:
                 raise ModelUnavailableError(model_id)
 
@@ -180,7 +180,7 @@ class BaseService:
 
             # Create text model provider
             provider = create_model_provider(
-                model.api_provider,
+                model.api,
                 model_id,
                 llm_params,
                 enabled_tools
@@ -220,7 +220,7 @@ class BaseService:
             if model := model_manager.get_model_by_id(model_id):
                 if model.category != 'image':
                     raise ValueError(f"Model {model_id} is not a creative model, use _get_text_provider instead")
-                logger.debug(f"[BaseService] Found creative model: {model.name} ({model.api_provider})")
+                logger.debug(f"[BaseService] Found creative model: {model.name} ({model.provider}, {model.api})")
             else:
                 raise ModelUnavailableError(model_id)
 
@@ -241,12 +241,7 @@ class BaseService:
                 gen_params = GenImageParameters(**params)
 
             # Create creative provider
-            provider = create_creative_provider(
-                model.api_provider,
-                model_id,
-                gen_params,
-                region=model.region or None
-            )
+            provider = create_creative_provider(model.api, model_id, gen_params)
 
             # Cache provider if using default params
             if not gen_params:

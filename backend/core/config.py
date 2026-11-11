@@ -2,7 +2,7 @@
 Configuration management using python-dotenv for environment variables
 """
 import os
-from typing import Any, Dict, Union, List, Optional
+from typing import Any, Dict, Union, List
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -32,22 +32,6 @@ class ENVConfig:
         }
 
     @property
-    def bedrock_config(self) -> Dict[str, Optional[str]]:
-        """Get AWS Bedrock configuration"""
-        return {
-            'region_name': os.getenv('BEDROCK_REGION', 'us-west-2'),  # Changed from region_id to aws_region
-            'assume_role': os.getenv('BEDROCK_ASSUME_ROLE', ''),
-            # Bedrock API key for the Mantle OpenAI-compatible endpoint (OpenAIResponses provider).
-            'secret_id': os.getenv('BEDROCK_SECRET_ID'),
-        }
-
-    @property
-    def mantle_base_url(self) -> str:
-        """Default Bedrock Mantle (OpenAI-compatible) endpoint, follows BEDROCK_REGION.
-        A model overrides this via its own base_url only when it lives in another region (e.g. GPT-5)."""
-        return f"https://bedrock-mantle.{self.bedrock_config['region_name']}.api.aws/openai/v1"
-
-    @property
     def sandbox_config(self) -> Dict[str, Union[str, int, List[str]]]:
         """Get EC2 Sandbox Env configuration"""
         # Get allowed runtimes as a list from space-separated string
@@ -62,22 +46,6 @@ class ENVConfig:
             'max_memory_mb': int(os.getenv('MAX_MEMORY_MB', '1024')),
             'cleanup_after_hours': int(os.getenv('CLEANUP_AFTER_HOURS', '48')),
             'allowed_runtimes': allowed_runtimes
-        }
-
-    @property
-    def gemini_config(self) -> Dict[str, Optional[str]]:
-        """Get Gemini API configuration"""
-        return {
-            # Stored in AWS Secrets Manager
-            'secret_id': os.getenv('GEMINI_SECRET_ID')
-        }
-
-    @property
-    def openai_config(self) -> Dict[str, Optional[str]]:
-        """Get OpenAI API configuration"""
-        return {
-            # Stored in AWS Secrets Manager
-            'secret_id': os.getenv('OPENAI_SECRET_ID'),
         }
 
     @property

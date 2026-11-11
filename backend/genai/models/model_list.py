@@ -1,20 +1,36 @@
 """
 Default LLM model list.
 
-This is only the SEED for an empty registry (`ModelManager.init_default_models`). The live registry is
+These are only the SEED for an empty registry (`ModelManager.init_default_models`, `ProviderManager`). The live registry is
 stored in DynamoDB and edited from Settings -> Models, so changing this list does not change a running
 deployment; keep it in step with the registry when models are added or retired.
 
 Policy: keep only the latest generation of each model family.
 """
-from . import LLMModel, LLM_CAPABILITIES
+from . import (
+    LLMModel, LLMProvider, LLM_CAPABILITIES, AUTH_AWS, AUTH_API_KEY,
+    API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI, API_OPENAI_RESPONSES, API_OPENAI_CHAT, API_GEMINI,
+)
+
+
+DEFAULT_PROVIDERS = [
+    LLMProvider(name='agw', auth=AUTH_API_KEY, base_url='https://agw.aws.creast.win', region='us-west-2',
+                secret_name='agw-key-apps',
+                apis=[API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_OPENAI_RESPONSES, API_OPENAI_CHAT]),
+    LLMProvider(name='bedrock-us-west-2', auth=AUTH_AWS, region='us-west-2',
+                apis=[API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE]),
+    LLMProvider(name='bedrock-us-east-1', auth=AUTH_AWS, region='us-east-1',
+                apis=[API_BEDROCK_CONVERSE, API_BEDROCK_INVOKE, API_BEDROCK_BIDI]),
+    LLMProvider(name='google', auth=AUTH_API_KEY, secret_name='dev_gemini_api', apis=[API_GEMINI]),
+]
 
 
 DEFAULT_MODELS = [
     LLMModel(
         name='Claude Fable 5.1',
         model_id='global.anthropic.claude-fable-5-1',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='Anthropic',
         description="Anthropic's frontier Fable-class model for ambitious coding, long-horizon agents and dense document/chart vision. Always-on adaptive thinking; higher refusal rate on cybersecurity and life-science prompts. Routes globally across all supported AWS Regions.",
@@ -30,7 +46,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Claude Haiku 5.5',
         model_id='global.anthropic.claude-haiku-5-5',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='Anthropic',
         description='Fastest and most cost-effective Claude, with 1M context and image input. Adaptive thinking. Routes globally across all supported AWS Regions.',
@@ -46,7 +63,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Claude Opus 5.5',
         model_id='global.anthropic.claude-opus-5-5',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='Anthropic',
         description="Anthropic's most capable Opus model for coding, knowledge work and long-running agents. Always-on adaptive thinking. Routes globally across all supported AWS Regions.",
@@ -62,7 +80,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Claude Sonnet 5.5',
         model_id='global.anthropic.claude-sonnet-5-5',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='Anthropic',
         description="Anthropic's balanced mid-tier model: stronger than Sonnet 5 on coding and knowledge work at lower cost. Adaptive thinking. Routes globally across all supported AWS Regions.",
@@ -77,13 +96,12 @@ DEFAULT_MODELS = [
     ),
     LLMModel(
         name='GPT-6 Astra',
-        model_id='openai.gpt-6-astra',
-        api_provider='OpenAIResponses',
+        model_id='gpt-6-astra',
+        provider='agw',
+        api=API_OPENAI_RESPONSES,
         category='vision',
         vendor='OpenAI',
-        description="OpenAI's most capable model for complex reasoning, coding, computer use and research. Responses API via Bedrock Mantle.",
-        region='us-east-1',
-        base_url='https://bedrock-mantle.us-east-1.api.aws/openai/v1',
+        description="OpenAI's most capable model for complex reasoning, coding, computer use and research. Responses API.",
         capabilities=LLM_CAPABILITIES(
             input_modality=['text', 'image'],
             output_modality=['text'],
@@ -95,13 +113,12 @@ DEFAULT_MODELS = [
     ),
     LLMModel(
         name='GPT-6 Luna',
-        model_id='openai.gpt-6-luna',
-        api_provider='OpenAIResponses',
+        model_id='gpt-6-luna',
+        provider='agw',
+        api=API_OPENAI_RESPONSES,
         category='vision',
         vendor='OpenAI',
-        description="OpenAI's low-cost model for repeatable work at scale: summarising, extraction and focused Q&A. Responses API via Bedrock Mantle.",
-        region='us-east-1',
-        base_url='https://bedrock-mantle.us-east-1.api.aws/openai/v1',
+        description="OpenAI's low-cost model for repeatable work at scale: summarising, extraction and focused Q&A. Responses API.",
         capabilities=LLM_CAPABILITIES(
             input_modality=['text', 'image'],
             output_modality=['text'],
@@ -113,13 +130,12 @@ DEFAULT_MODELS = [
     ),
     LLMModel(
         name='GPT-6.1 Sol',
-        model_id='openai.gpt-6.1-sol',
-        api_provider='OpenAIResponses',
+        model_id='gpt-6.1-sol',
+        provider='agw',
+        api=API_OPENAI_RESPONSES,
         category='vision',
         vendor='OpenAI',
-        description="OpenAI's flagship for everyday development work: features, debugging, code review and multi-step tool use. Responses API via Bedrock Mantle.",
-        region='us-east-1',
-        base_url='https://bedrock-mantle.us-east-1.api.aws/openai/v1',
+        description="OpenAI's flagship for everyday development work: features, debugging, code review and multi-step tool use. Responses API.",
         capabilities=LLM_CAPABILITIES(
             input_modality=['text', 'image'],
             output_modality=['text'],
@@ -132,7 +148,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='GPT-OSS-120b',
         model_id='openai.gpt-oss-120b-1:0',
-        api_provider='Bedrock',
+        provider='bedrock-us-west-2',
+        api=API_BEDROCK_CONVERSE,
         category='text',
         vendor='OpenAI',
         description="OpenAI's open-source 120B parameter model. Strong performance in coding, scientific analysis, and mathematical reasoning.",
@@ -148,7 +165,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Grok 4.7',
         model_id='global.xai.grok-4.7',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='xAI',
         description="xAI's frontier model for coding, agentic tasks and long-running agents. Always-on reasoning. Bedrock Converse via a cross-Region inference profile.",
@@ -164,7 +182,9 @@ DEFAULT_MODELS = [
     LLMModel(
         name='GLM 5.3',
         model_id='global.zai.glm-5.3',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
+        service_tier='flex',  # lab account has no standard-tier quota
         category='text',
         vendor='Z.AI',
         description="Z.AI's flagship open-weight MoE model (744B total / ~40B active) for agentic coding and long-horizon engineering tasks. 1M context, text only.",
@@ -178,9 +198,11 @@ DEFAULT_MODELS = [
         ),
     ),
     LLMModel(
-        name='Kimi K3',
-        model_id='global.moonshotai.kimi-k3',
-        api_provider='Bedrock',
+        name='Kimi K3.1',
+        model_id='global.moonshotai.kimi-k3.1',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
+        service_tier='flex',  # lab account has no standard-tier quota
         category='vision',
         vendor='Moonshot AI',
         description="Moonshot AI's flagship open-weight model with text and image input and 1M context. Reasons heavily by default.",
@@ -196,7 +218,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='DeepSeek V3.2',
         model_id='deepseek.v3.2',
-        api_provider='Bedrock',
+        provider='bedrock-us-west-2',
+        api=API_BEDROCK_CONVERSE,
         category='text',
         vendor='DeepSeek',
         description="DeepSeek's latest flagship MoE model. Strong at reasoning, coding, math, and multilingual tasks.",
@@ -212,7 +235,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Qwen3-VL 235B',
         model_id='qwen.qwen3-vl-235b-a22b',
-        api_provider='Bedrock',
+        provider='bedrock-us-west-2',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='Qwen',
         description="Alibaba's open-weight vision-language MoE model (235B total / 22B active) for image and text understanding.",
@@ -228,7 +252,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Nova 2 Lite',
         model_id='global.amazon.nova-2-lite-v1:0',
-        api_provider='Bedrock',
+        provider='agw',
+        api=API_BEDROCK_CONVERSE,
         category='vision',
         vendor='Amazon',
         description="Amazon's latest lightweight multimodal model. Understands text, images, and video at low cost. Routes globally across all supported AWS Regions.",
@@ -244,11 +269,11 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Nova 2.5 Sonic',
         model_id='amazon.nova-2-5-sonic',
-        api_provider='BedrockSonic',
+        provider='bedrock-us-east-1',
+        api=API_BEDROCK_BIDI,
         category='realtime',
         vendor='Amazon',
         description="Amazon's real-time speech-to-speech model for natural voice conversation, with speech and text input. Powers Talk.",
-        region='us-east-1',
         capabilities=LLM_CAPABILITIES(
             input_modality=['audio', 'text'],
             output_modality=['audio', 'text'],
@@ -261,7 +286,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Nova Reel',
         model_id='amazon.nova-reel-v1:0',
-        api_provider='BedrockInvoke',
+        provider='bedrock-us-east-1',
+        api=API_BEDROCK_INVOKE,
         category='video',
         vendor='Amazon',
         description="Amazon's video generation model. Generates short HD videos up to 9 seconds from text prompts or images.",
@@ -277,11 +303,11 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Stable Diffusion 3.5 Large',
         model_id='stability.sd3-5-large-v1:0',
-        api_provider='BedrockInvoke',
+        provider='agw',
+        api=API_BEDROCK_INVOKE,
         category='image',
         vendor='Stability AI',
         description="Stability AI's most capable image generation model. Supports text-to-image and image-to-image generation with high quality and prompt adherence.",
-        region='us-west-2',
         capabilities=LLM_CAPABILITIES(
             input_modality=['text', 'image'],
             output_modality=['image'],
@@ -294,11 +320,11 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Stable Image Ultra',
         model_id='stability.stable-image-ultra-v1:1',
-        api_provider='BedrockInvoke',
+        provider='agw',
+        api=API_BEDROCK_INVOKE,
         category='image',
         vendor='Stability AI',
         description="Stability AI's highest quality text-to-image model. Produces photorealistic images with exceptional detail and composition.",
-        region='us-west-2',
         capabilities=LLM_CAPABILITIES(
             input_modality=['text'],
             output_modality=['image'],
@@ -311,7 +337,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Gemini 2.5 Pro',
         model_id='gemini-2.5-pro',
-        api_provider='Gemini',
+        provider='google',
+        api=API_GEMINI,
         category='vision',
         vendor='Google',
         description="Google's flagship model with 2M context window. Strong at reasoning, coding, and multimodal tasks.",
@@ -327,7 +354,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Gemini 3.8 Flash',
         model_id='gemini-3.8-flash',
-        api_provider='Gemini',
+        provider='google',
+        api=API_GEMINI,
         category='vision',
         vendor='Google',
         description="Google's latest Flash model: fast multimodal understanding of text, images, video, audio and documents.",
@@ -343,7 +371,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Nano Banana 2',
         model_id='gemini-3.1-flash-image-preview',
-        api_provider='Gemini',
+        provider='google',
+        api=API_GEMINI,
         category='image',
         vendor='Google',
         description='Gemini-based image generation model. Generates and edits images from text and image inputs.',
@@ -360,7 +389,8 @@ DEFAULT_MODELS = [
     LLMModel(
         name='Nano Banana Pro',
         model_id='gemini-3-pro-image-preview',
-        api_provider='Gemini',
+        provider='google',
+        api=API_GEMINI,
         category='image',
         vendor='Google',
         description='Pro-tier Gemini image generation model. Higher quality image generation and editing.',

@@ -3,8 +3,7 @@ import json
 import asyncio
 from typing import Dict, List, Optional, Iterator, Any, Union
 from botocore.exceptions import ClientError, ParamValidationError
-from backend.core.config import env_config
-from backend.utils.aws import get_aws_client
+from backend.genai.models import clients
 from backend.utils.file import FileProcessor
 from backend.genai.models.model_manager import model_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
@@ -85,14 +84,8 @@ class BedrockConverse(LLMAPIProvider):
 
     def _initialize_client(self) -> None:
         try:
-            # Get region from env_config
-            region = env_config.bedrock_config['region_name']
-            if not region:
-                raise ParamValidationError(
-                    report="AWS region must be configured for Bedrock"
-                )
-                
-            self.client = get_aws_client('bedrock-runtime', region_name=region)
+            _, provider = clients.resolve(self.model_id)
+            self.client = clients.bedrock_runtime_client(provider)
         except Exception as e:
             raise ClientError(
                 error_response={
@@ -396,6 +389,10 @@ class BedrockConverse(LLMAPIProvider):
         # Add additional parameters if specified
         if additional_fields:
             request_params["additionalModelRequestFields"] = additional_fields
+
+        model = model_manager.get_model_by_id(self.model_id)
+        if model and model.service_tier:
+            request_params["serviceTier"] = {"type": model.service_tier}
 
         # Add system param if system prompt is provided
         if system_prompt and system_prompt.strip():

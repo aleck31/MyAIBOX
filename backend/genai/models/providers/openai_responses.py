@@ -5,9 +5,7 @@ from typing import Dict, List, Optional, Iterator
 import openai
 from openai import OpenAI
 from backend.common.errors import ModelUnavailableError
-from backend.core.config import env_config
-from backend.utils.aws import get_secret
-from backend.genai.models.model_manager import model_manager
+from backend.genai.models import clients
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from . import LLMAPIProvider, LLMParameters, LLMMessage, LLMResponse, LLMProviderError
 from .. import logger
@@ -16,11 +14,9 @@ _MAX_TOOL_ROUNDS = 8  # safety cap on the tool-use loop
 
 
 class OpenAIResponsesProvider(LLMAPIProvider):
-    """OpenAI-compatible models on the Responses API (e.g. GPT-5 via Bedrock Mantle).
+    """Models on the OpenAI Responses API (e.g. GPT-6), at the endpoint of the model's provider.
 
-    Same wire protocol as OpenAIProvider but uses the Responses API and a per-model
-    base_url + Bedrock API key, since GPT-5 rejects /chat/completions. Supports a
-    tool-use loop (legacy tools) for modules like Asking.
+    Supports a tool-use loop (legacy tools) for modules like Asking.
     """
 
     def __init__(self, model_id: str, llm_params: LLMParameters, tools=None):
@@ -33,15 +29,8 @@ class OpenAIResponsesProvider(LLMAPIProvider):
 
     def _initialize_client(self) -> None:
         try:
-            model = model_manager.get_model_by_id(self.model_id)
-            if not model:
-                raise ModelUnavailableError(self.model_id)
-            base_url = getattr(model, 'base_url', '') or env_config.mantle_base_url
-            secret_id = env_config.bedrock_config.get('secret_id')
-            api_key = get_secret(secret_id).get('api_key') if secret_id else None
-            if not api_key:
-                raise ValueError("Bedrock API key not configured (Secrets Manager)")
-            self.client = OpenAI(base_url=base_url, api_key=api_key)
+            _, provider = clients.resolve(self.model_id)
+            self.client = OpenAI(**clients.openai_client_args(provider))
             self._tool_defs = self._build_tool_defs()
         except ModelUnavailableError:
             raise  # already user-facing; don't bury it in a generic init failure
@@ -81,7 +70,7 @@ class OpenAIResponsesProvider(LLMAPIProvider):
         if isinstance(error, openai.RateLimitError):
             message = "Rate limit exceeded. Please try again later."
         elif isinstance(error, openai.AuthenticationError):
-            message = "Authentication failed. Please check the Bedrock API key."
+            message = "Authentication failed. Please check the provider's API key."
         elif isinstance(error, openai.BadRequestError):
             message = "Invalid request format. Please try again with different input."
         elif isinstance(error, openai.APITimeoutError):

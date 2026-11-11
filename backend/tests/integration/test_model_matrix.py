@@ -85,7 +85,7 @@ CASES = [
 def _provider_chain(model: LLMModel, think: bool) -> Result:
     # Text-module style settings: sampling params present, thinking per module config.
     params = LLMParameters(max_tokens=4096, temperature=0.6, top_p=0.9, top_k=100, thinking=THINKING_ON if think else None)
-    provider = create_model_provider(model.api_provider, model.model_id, params)
+    provider = create_model_provider(model.api, model.model_id, params)
     text = ""
     for chunk in provider.generate_stream([LLMMessage(role="user", content="What is 17*23? Answer with just the number.")],
                                           system_prompt="Be concise."):

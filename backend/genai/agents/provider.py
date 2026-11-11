@@ -3,17 +3,17 @@
 import asyncio
 import threading
 from typing import Dict, AsyncIterator, Optional, List
-from backend.common.errors import ModelUnavailableError, blocked_reply_notice
+from backend.common.errors import blocked_reply_notice
 from backend.common.logger import logger
-from backend.core.config import env_config
 from strands import Agent
 from strands.models import BedrockModel
 from strands.models.openai import OpenAIModel
 from strands.models.openai_responses import OpenAIResponsesModel
 from strands.models.gemini import GeminiModel
 from strands.agent.conversation_manager import SlidingWindowConversationManager
-from backend.utils.aws import get_aws_session, get_secret
-from backend.genai.models.model_manager import model_manager
+from backend.genai.models import (
+    clients, API_BEDROCK_CONVERSE, API_GEMINI, API_OPENAI_CHAT, API_OPENAI_RESPONSES,
+)
 from backend.genai.agents.limits import CycleLimit, max_cycles_from_env
 from backend.genai.models.thinking import (
     build_thinking_fields, rejects_sampling_params, rejects_stop_sequences, top_k_fields, DEFAULT_INTENT,
@@ -58,23 +58,18 @@ class AgentProvider:
         self._idle = asyncio.Event()
         self._idle.set()
         self._mcp_clients: list = []
-        # HTTP clients shared across model swaps so update_model() does not
-        # leak sockets. Bedrock reuses a module-level boto3 session already.
-        self._openai_client = None
-        self._gemini_client = None
+        self._clients_generation = clients.generation()
 
     def _get_strands_model(self, model_id: Optional[str] = None):
-        """Get Strands model based on API provider"""
+        """Strands model for the model's API, at its provider's endpoint."""
         mid = model_id or self.model_id
-        model = model_manager.get_model_by_id(mid)
-        if not model:
-            raise ModelUnavailableError(mid)
+        model, provider = clients.resolve(mid)
+        self._clients_generation = clients.generation()
 
-        api_provider = model.api_provider.upper()
-
-        if api_provider == 'BEDROCK':
-            session = get_aws_session(region_name=env_config.bedrock_config['region_name'])
-            kwargs = {"model_id": mid, "boto_session": session}
+        if model.api == API_BEDROCK_CONVERSE:
+            kwargs = {"model_id": mid, **clients.bedrock_kwargs(provider)}
+            if model.service_tier:
+                kwargs["service_tier"] = model.service_tier
             additional_fields: Dict = {}
             # Default on@high for reasoning models; disable via Agents page.
             thinking_fields = {}
@@ -103,28 +98,13 @@ class AgentProvider:
                 kwargs["additional_request_fields"] = additional_fields
             return BedrockModel(**kwargs)
 
-        elif api_provider == 'OPENAI':
-            if self._openai_client is None:
-                from openai import OpenAI
-                openai_secret_id = env_config.openai_config.get('secret_id')
-                api_key = get_secret(openai_secret_id).get('api_key') if openai_secret_id else None
-                self._openai_client = OpenAI(api_key=api_key)
-            return OpenAIModel(
-                client=self._openai_client,
-                model_id=mid,
-                params={"max_tokens": 1000, "temperature": 0.7},
-            )
+        if model.api == API_OPENAI_CHAT:
+            params = {k: self.parameters[k] for k in ("max_tokens", "temperature", "top_p")
+                      if self.parameters.get(k) is not None and not (k != "max_tokens" and rejects_sampling_params(mid))}
+            return OpenAIModel(client_args=clients.openai_client_args(provider), model_id=mid, params=params or None)
 
-        elif api_provider == 'OPENAIRESPONSES':
-            # GPT-5/Grok etc. via Bedrock Mantle — Responses API only; key from Secrets Manager.
-            # base_url defaults to the BEDROCK_REGION Mantle endpoint; a model sets its own only
-            # when it lives elsewhere (e.g. GPT-5 in us-east-2).
-            base_url = model.base_url or env_config.mantle_base_url
-            bedrock_secret_id = env_config.bedrock_config.get('secret_id')
-            api_key = get_secret(bedrock_secret_id).get('api_key') if bedrock_secret_id else None
-            if not api_key:
-                raise ValueError("Bedrock API key not configured (Secrets Manager)")
-            params: Dict = {}
+        if model.api == API_OPENAI_RESPONSES:
+            params = {}
             reasoning_on = False
             if model.capabilities.reasoning:
                 intent = self.parameters.get("thinking") or DEFAULT_INTENT
@@ -146,19 +126,12 @@ class AgentProvider:
             if 'grok' in mid.lower():
                 params["parallel_tool_calls"] = False
             return OpenAIResponsesModel(
-                client_args={"base_url": base_url, "api_key": api_key},
+                client_args=clients.openai_client_args(provider),
                 model_id=mid,
                 params={k: v for k, v in params.items() if v is not None} or None,
             )
 
-        elif api_provider == 'GEMINI':
-            if self._gemini_client is None:
-                from google import genai as google_genai
-                gemini_secret_id = env_config.gemini_config.get('secret_id')
-                api_key = get_secret(gemini_secret_id).get('api_key') if gemini_secret_id else None
-                if not api_key:
-                    raise ValueError("Gemini API key not configured")
-                self._gemini_client = google_genai.Client(api_key=api_key)
+        if model.api == API_GEMINI:
             # `params` is passed to google-genai's GenerateContentConfig, which rejects unknown
             # fields: the output cap is `max_output_tokens`, not `max_tokens`.
             gen_params = {
@@ -167,9 +140,9 @@ class AgentProvider:
             }
             if self.parameters.get("top_p") is not None:
                 gen_params["top_p"] = self.parameters["top_p"]
-            return GeminiModel(client=self._gemini_client, model_id=mid, params=gen_params)
+            return GeminiModel(client_args=clients.gemini_client_args(provider), model_id=mid, params=gen_params)
 
-        raise ValueError(f"Unsupported provider: {model.api_provider}")
+        raise ValueError(f"Chat does not support the {model.api} API (model {mid})")
 
     def _load_tools(self) -> list:
         """Load tools and start MCP clients. Returns tool list."""
@@ -238,6 +211,11 @@ class AgentProvider:
         )
         return self._agent
 
+    @property
+    def model_outdated(self) -> bool:
+        """True when a provider changed (key, URL…) after this agent's model client was built."""
+        return self._clients_generation != clients.generation()
+
     def update_model(self, model_id: str):
         """Switch model without rebuilding Agent."""
         if self._agent is None:
@@ -290,7 +268,7 @@ class AgentProvider:
             logger.info(f"[AgentProvider] Tools reloaded: {len(tools)}")
 
     def destroy(self):
-        """Cleanup Agent, MCP connections, and shared HTTP clients."""
+        """Cleanup Agent and MCP connections."""
         self._stop_mcp_clients()
         if self._agent is not None:
             try:
@@ -298,14 +276,6 @@ class AgentProvider:
             except Exception as e:
                 logger.warning(f"Agent cleanup error: {e}")
             self._agent = None
-        if self._openai_client is not None:
-            try:
-                self._openai_client.close()
-            except Exception as e:
-                logger.warning(f"OpenAI client close error: {e}")
-            self._openai_client = None
-        # google-genai Client exposes no close(); drop the reference and let GC handle it.
-        self._gemini_client = None
         logger.debug("[AgentProvider] Destroyed")
 
     def _stop_mcp_clients(self):

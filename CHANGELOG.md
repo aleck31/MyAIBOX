@@ -5,6 +5,15 @@ frontend and lockfiles). The README only highlights the latest release.
 
 ## Unreleased
 
+### Added
+- **LLM providers** (Settings → Providers): a provider holds an API base URL (empty for the official endpoint), its credentials (AWS SigV4, or an API key inline or by Secrets Manager secret name), a region and the APIs it serves; only `ADMIN_SUBS` can change them and an inline key is never sent back to the browser. A model names its provider and its API: Bedrock Converse, Bedrock InvokeModel, Bedrock Bidirectional Stream, OpenAI Responses, OpenAI Chat Completions or Gemini. Bedrock Converse models also take a service tier (flex).
+- **agentgateway (agw)**: Claude, GPT-6, Grok 4.7, GLM 5.3, Kimi K3.1, Nova 2 Lite and the Stability image models go through agw; GLM and Kimi on flex.
+
+### Changed
+- **Models**: Kimi K3 is replaced by Kimi K3.1.
+- **Models**: GPT-6 models use the Bedrock runtime IDs (`gpt-6-astra`, `gpt-6-luna`, `gpt-6.1-sol`) through agw, so their calls reach Bedrock invocation logs.
+- **Config**: `BEDROCK_REGION`, `BEDROCK_SECRET_ID`, `GEMINI_SECRET_ID` and `OPENAI_SECRET_ID` are gone; their values are provider settings.
+
 ### Fixed
 - Editing a disabled model in Settings → Models no longer enables it.
 

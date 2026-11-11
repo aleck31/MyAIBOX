@@ -1,8 +1,7 @@
 import json
 from typing import Dict, List, Optional, Iterator, Union
 from botocore import exceptions as boto_exceptions
-from backend.core.config import env_config
-from backend.utils.aws import get_aws_client
+from backend.genai.models import API_BEDROCK_INVOKE, clients
 from . import LLMAPIProvider, LLMParameters, GenImageParameters, LLMMessage, LLMResponse, LLMProviderError
 from .. import logger
 
@@ -10,9 +9,7 @@ from .. import logger
 class BedrockInvoke(LLMAPIProvider):
     """Amazon Bedrock LLM provider powered by the invoke model API for single-turn generation."""
     
-    def __init__(self, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools=None, region: str = None):
-        """Initialize provider with model ID, parameters, optional tools and region"""
-        self._region_override = region
+    def __init__(self, model_id: str, llm_params: Union[LLMParameters, GenImageParameters], tools=None):
         super().__init__(model_id, llm_params, tools)
 
     def _validate_config(self) -> None:
@@ -25,13 +22,8 @@ class BedrockInvoke(LLMAPIProvider):
     def _initialize_client(self) -> None:
         """Initialize Bedrock client"""
         try:
-            region = self._region_override or env_config.bedrock_config['region_name']
-            if not region:
-                raise boto_exceptions.ParamValidationError(
-                    report="AWS region must be configured for Bedrock"
-                )
-                
-            self.client = get_aws_client('bedrock-runtime', region_name=region)
+            _, provider = clients.resolve(self.model_id)
+            self.client = clients.bedrock_runtime_client(provider)
         except Exception as e:
             raise boto_exceptions.ClientError(
                 error_response={
@@ -193,13 +185,8 @@ class BedrockInvoke(LLMAPIProvider):
         )
 
 
-def create_creative_provider(provider_name: str, model_id: str, image_params: GenImageParameters, region: str = None) -> 'BedrockInvoke':
-    """Factory function to create creative content generation provider instance"""
-    from backend.genai.models.providers.bedrock_invoke import BedrockInvoke
-
-    # Only BedrockInvoke supports creative content generation
-    if provider_name.upper() != 'BEDROCKINVOKE':
-        raise ValueError(f"Creative content generation is only supported by BedrockInvoke provider, got: {provider_name}")
-
-    # Create BedrockInvoke provider instance for creative content generation (no tools needed)
-    return BedrockInvoke(model_id, image_params, [], region=region)
+def create_creative_provider(api: str, model_id: str, image_params: GenImageParameters) -> 'BedrockInvoke':
+    """Provider for image/video generation, which only Bedrock InvokeModel serves."""
+    if api != API_BEDROCK_INVOKE:
+        raise ValueError(f"Creative content generation needs {API_BEDROCK_INVOKE}, got: {api}")
+    return BedrockInvoke(model_id, image_params, [])

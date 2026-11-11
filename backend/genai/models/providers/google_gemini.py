@@ -1,8 +1,7 @@
 from typing import Dict, List, Optional, Iterator
 from google import genai
 from google.genai import types
-from backend.core.config import env_config
-from backend.utils.aws import get_secret
+from backend.genai.models import clients
 from . import LLMAPIProvider, LLMParameters, LLMMessage, LLMResponse, LLMProviderError
 from .. import logger
 
@@ -34,13 +33,8 @@ class GeminiProvider(LLMAPIProvider):
     def _initialize_client(self) -> None:
         """Initialize Gemini client"""
         try:
-            gemini_secret_key = env_config.gemini_config['secret_id']
-            api_key = get_secret(gemini_secret_key).get('api_key')
-            if not api_key:
-                raise ValueError("Gemini API key not configured")
-
-            # Initialize client with API key
-            self.client = genai.Client(api_key=api_key)
+            _, provider = clients.resolve(self.model_id)
+            self.client = genai.Client(**clients.gemini_client_args(provider))
 
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Gemini client: {str(e)}")

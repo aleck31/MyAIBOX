@@ -109,7 +109,7 @@ async def get_config(sub: str = Depends(get_auth_user)):
     """Realtime models + module default + voice options (for the section bar)."""
     models = model_manager.get_models(filter=module_config.get_model_filter('talk'))
     return {
-        "models": [{"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"} for m in (models or [])],
+        "models": [{"model_id": m.model_id, "name": f"{m.name}, {m.provider}"} for m in (models or [])],
         "default_model": module_config.get_default_model('talk'),
         "voices": [
             {"id": "matthew", "name": "Matthew (US, male)"},
@@ -131,7 +131,7 @@ async def list_agents(sub: str = Depends(get_auth_user)):
 async def list_agent_models(sub: str = Depends(get_auth_user)):
     """Realtime models eligible for talk agents (same filter as the config endpoint)."""
     models = model_manager.get_models(filter=module_config.get_model_filter('talk')) or []
-    return {"models": [{"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"} for m in models]}
+    return {"models": [{"model_id": m.model_id, "name": f"{m.name}, {m.provider}"} for m in models]}
 
 
 @router.get("/agents/{agent_id}")

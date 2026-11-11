@@ -62,7 +62,7 @@ async def get_config(sub: str = Depends(get_auth_user)):
         "languages": LANGS,
         "styles": STYLE_KEYS,
         "models": [
-            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            {"model_id": m.model_id, "name": f"{m.name}, {m.provider}"}
             for m in (models or [])
         ],
         "default_model": module_config.get_default_model('text'),

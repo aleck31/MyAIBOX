@@ -55,6 +55,8 @@ class FakeProvider:
     def update_model(self, model_id: str):
         self.model_id = model_id
 
+    model_outdated = False
+
     def mcp_healthy(self) -> bool:
         return True
 

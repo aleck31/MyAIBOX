@@ -1,9 +1,8 @@
-"""OpenAIResponsesProvider end-to-end against real GPT-5 via Bedrock Mantle.
+"""OpenAIResponsesProvider end-to-end against a real GPT model at its registry provider.
 
 Verifies the GenService-stack tool loop (used by Asking/Text): the model invokes a
 legacy tool (get_weather), the provider executes it and feeds the result back, and
-the final answer reflects the tool output. Requires the Bedrock API key in Secrets
-Manager (BEDROCK_SECRET_ID) and GPT-5 in the registry; skips otherwise.
+the final answer reflects the tool output. Skips when the model is not in the registry.
 """
 from __future__ import annotations
 
@@ -15,7 +14,7 @@ from backend.genai.models.providers import create_model_provider
 
 pytestmark = pytest.mark.integration
 
-GPT5 = "openai.gpt-6.1-sol"
+GPT5 = "gpt-6.1-sol"
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -26,13 +25,13 @@ def _init_models():
 def test_openai_responses_tool_loop_weather():
     """GPT-5 via the self-built provider calls get_weather and answers from the result."""
     model = model_manager.get_model_by_id(GPT5)
-    if not model or not getattr(model, "base_url", ""):
-        pytest.skip("GPT-5 (with base_url) not in the registry for this environment")
+    if not model:
+        pytest.skip(f"{GPT5} not in the registry for this environment")
 
     # GenService auto-enables thinking for reasoning models, so mirror that here —
     # GPT-5's Responses tool loop only reliably produces a final answer with reasoning on.
     provider = create_model_provider(
-        "OpenAIResponses", GPT5,
+        model.api, GPT5,
         LLMParameters(max_tokens=8000, thinking={"enabled": True, "effort": "high"}),
         tools=["search_internet", "search_wikipedia", "get_weather"],
     )

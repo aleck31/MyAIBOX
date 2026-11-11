@@ -7,7 +7,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from backend.core.session.store import SessionStore
 from backend.core.module_config import module_config
+from backend.genai.models import LLMModel, LLMProvider, LLM_CAPABILITIES, VALID_APIS
 from backend.genai.models.model_manager import model_manager
+from backend.genai.models.provider_manager import provider_manager
 from backend.genai.tools.legacy.tool_registry import legacy_tool_registry
 from backend.api.auth import get_auth_user, is_admin
 from backend.common.logger import setup_logger
@@ -75,7 +77,7 @@ async def get_modules(sub: str = Depends(get_auth_user)):
     """Return all module configs + available models and tools."""
     def _choice(m):
         # `reasoning` lets the UI show the Thinking controls only for capable models.
-        return {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}",
+        return {"model_id": m.model_id, "name": f"{m.name}, {m.provider}",
                 "reasoning": bool(m.capabilities.reasoning)}
 
     model_choices = [_choice(m) for m in (model_manager.get_models() or [])]
@@ -142,13 +144,13 @@ async def list_models(refresh: bool = False, sub: str = Depends(get_auth_user)):
     # Models are cached in-process; DDB changes outside the app won't show up until the cache is flushed.
     if refresh:
         model_manager.flush_cache()
+        provider_manager.flush_cache()
     models = model_manager.get_models(include_disabled=True)
     return [
         {
-            "name": m.name, "model_id": m.model_id, "api_provider": m.api_provider,
+            "name": m.name, "model_id": m.model_id, "provider": m.provider, "api": m.api,
             "vendor": m.vendor, "category": m.category, "description": m.description or "",
-            "region": m.region or "", "base_url": getattr(m, 'base_url', '') or "",
-            "enabled": getattr(m, 'enabled', True),
+            "enabled": m.enabled, "service_tier": m.service_tier or "",
             "capabilities": {
                 "input_modality": m.capabilities.input_modality,
                 "output_modality": m.capabilities.output_modality,
@@ -165,12 +167,12 @@ async def list_models(refresh: bool = False, sub: str = Depends(get_auth_user)):
 class ModelRequest(BaseModel):
     name: str
     model_id: str
-    api_provider: str = "Bedrock"
+    provider: str
+    api: str
     vendor: str = ""
     category: str = "text"
     description: str = ""
-    region: str = ""
-    base_url: str = ""    # custom endpoint, e.g. Bedrock Mantle for OpenAIResponses
+    service_tier: str = ""
     input_modality: List[str] = ["text"]
     output_modality: List[str] = ["text"]
     streaming: bool = True
@@ -180,21 +182,28 @@ class ModelRequest(BaseModel):
     enabled: bool = True
 
 
+def _model_from_request(body: ModelRequest) -> LLMModel:
+    provider = provider_manager.get_provider(body.provider)
+    if not provider:
+        raise ValueError(f"Provider '{body.provider}' does not exist")
+    if body.api not in provider.apis:
+        raise ValueError(f"Provider '{provider.name}' does not serve the {body.api} API")
+    caps = LLM_CAPABILITIES(
+        input_modality=body.input_modality, output_modality=body.output_modality,
+        streaming=body.streaming, tool_use=body.tool_use,
+        reasoning=body.reasoning, context_window=body.context_window,
+    )
+    return LLMModel(
+        name=body.name, model_id=body.model_id, provider=body.provider, api=body.api,
+        vendor=body.vendor, category=body.category, description=body.description,
+        enabled=body.enabled, service_tier=body.service_tier, capabilities=caps,
+    )
+
+
 @router.post("/models/add")
 async def add_model(body: ModelRequest, sub: str = Depends(get_auth_user)):
-    from backend.genai.models import LLMModel, LLM_CAPABILITIES
     try:
-        caps = LLM_CAPABILITIES(
-            input_modality=body.input_modality, output_modality=body.output_modality,
-            streaming=body.streaming, tool_use=body.tool_use,
-            reasoning=body.reasoning, context_window=body.context_window,
-        )
-        model = LLMModel(
-            name=body.name, model_id=body.model_id, api_provider=body.api_provider,
-            vendor=body.vendor, category=body.category, description=body.description,
-            region=body.region, base_url=body.base_url, enabled=body.enabled, capabilities=caps,
-        )
-        model_manager.add_model(model)
+        model_manager.add_model(_model_from_request(body))
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -202,19 +211,8 @@ async def add_model(body: ModelRequest, sub: str = Depends(get_auth_user)):
 
 @router.post("/models/update")
 async def update_model(body: ModelRequest, sub: str = Depends(get_auth_user)):
-    from backend.genai.models import LLMModel, LLM_CAPABILITIES
     try:
-        caps = LLM_CAPABILITIES(
-            input_modality=body.input_modality, output_modality=body.output_modality,
-            streaming=body.streaming, tool_use=body.tool_use,
-            reasoning=body.reasoning, context_window=body.context_window,
-        )
-        model = LLMModel(
-            name=body.name, model_id=body.model_id, api_provider=body.api_provider,
-            vendor=body.vendor, category=body.category, description=body.description,
-            region=body.region, base_url=body.base_url, enabled=body.enabled, capabilities=caps,
-        )
-        model_manager.update_model(model)
+        model_manager.update_model(_model_from_request(body))
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -237,6 +235,94 @@ class ToggleModelRequest(BaseModel):
 async def toggle_model(model_id: str, body: ToggleModelRequest, sub: str = Depends(get_auth_user)):
     try:
         model_manager.toggle_model_by_id(model_id, body.enabled)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+# ─── LLM Providers ───────────────────────────────────────────────────────────
+
+def _provider_view(p: LLMProvider) -> Dict[str, Any]:
+    # An inline key never leaves the server; the UI only learns whether one is set.
+    return {"name": p.name, "auth": p.auth, "apis": p.apis, "base_url": p.base_url, "region": p.region,
+            "secret_name": p.secret_name, "has_api_key": bool(p.api_key),
+            "models": [m.model_id for m in model_manager.get_models(include_disabled=True) if m.provider == p.name]}
+
+
+@router.get("/providers")
+async def list_providers(refresh: bool = False, sub: str = Depends(get_auth_user)):
+    if refresh:
+        provider_manager.flush_cache()
+    return {"providers": [_provider_view(p) for p in provider_manager.get_providers()],
+            "apis": list(VALID_APIS), "can_edit": is_admin(sub)}
+
+
+class ProviderRequest(BaseModel):
+    name: str
+    auth: str
+    apis: List[str]
+    base_url: str = ""
+    region: str = ""
+    secret_name: str = ""
+    # None keeps the stored key; "" clears it.
+    api_key: Optional[str] = None
+
+
+def _provider_write_denied(sub: str) -> Optional[JSONResponse]:
+    """Providers hold credentials for every user's model calls: admins only, and closed when ADMIN_SUBS is unset."""
+    if is_admin(sub):
+        return None
+    logger.warning(f"[settings] provider write denied for sub [{sub}]")
+    return JSONResponse({"ok": False, "error": "Admin only (ADMIN_SUBS)"}, status_code=403)
+
+
+def _provider_from_request(body: ProviderRequest, existing: Optional[LLMProvider]) -> LLMProvider:
+    api_key = (existing.api_key if existing else "") if body.api_key is None else body.api_key.strip()
+    if body.secret_name.strip():
+        api_key = ""
+    return LLMProvider(name=body.name.strip(), auth=body.auth, apis=body.apis, base_url=body.base_url.strip(),
+                       region=body.region.strip(), secret_name=body.secret_name.strip(), api_key=api_key)
+
+
+def _apis_still_used(provider: LLMProvider) -> List[str]:
+    """Models that would lose their API if the provider stopped serving it."""
+    return [m.model_id for m in model_manager.get_models(include_disabled=True)
+            if m.provider == provider.name and m.api not in provider.apis]
+
+
+@router.post("/providers/add")
+async def add_provider(body: ProviderRequest, sub: str = Depends(get_auth_user)):
+    if denied := _provider_write_denied(sub):
+        return denied
+    try:
+        provider_manager.add_provider(_provider_from_request(body, None))
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@router.post("/providers/update")
+async def update_provider(body: ProviderRequest, sub: str = Depends(get_auth_user)):
+    if denied := _provider_write_denied(sub):
+        return denied
+    try:
+        provider = _provider_from_request(body, provider_manager.get_provider(body.name))
+        if orphans := _apis_still_used(provider):
+            raise ValueError(f"Models still use the APIs being removed: {', '.join(orphans)}")
+        provider_manager.update_provider(provider)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@router.delete("/providers/{name}")
+async def delete_provider(name: str, sub: str = Depends(get_auth_user)):
+    if denied := _provider_write_denied(sub):
+        return denied
+    try:
+        if used := [m.model_id for m in model_manager.get_models(include_disabled=True) if m.provider == name]:
+            raise ValueError(f"Models still use this provider: {', '.join(used)}")
+        provider_manager.delete_provider(name)
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}

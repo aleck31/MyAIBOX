@@ -78,11 +78,11 @@ async def get_config(sub: str = Depends(get_auth_user)):
     models = model_manager.get_models(filter=module_config.get_model_filter('draw')) or []
     return {
         "models": [
-            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            {"model_id": m.model_id, "name": f"{m.name}, {m.provider}"}
             for m in models
         ],
         "edit_models": [
-            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            {"model_id": m.model_id, "name": f"{m.name}, {m.provider}"}
             for m in models if m.supports_input('image')
         ],
         "styles": IMAGE_STYLES,
@@ -112,7 +112,7 @@ async def optimize_prompt(
         if body.model_id:
             model = model_manager.get_model_by_id(body.model_id)
             if model:
-                model_name = f"{model.name} ({model.api_provider})"
+                model_name = f"{model.name} ({model.provider})"
 
         gen_service = get_gen_service()
         system_prompt = PROMPT_OPTIMIZER_TEMPLATE.format(style=style_name, model=model_name)

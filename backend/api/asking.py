@@ -9,6 +9,7 @@ from ag_ui.core import (
 )
 from ag_ui.encoder import EventEncoder
 from backend.core.module_config import module_config
+from backend.genai.models import clients
 from backend.genai.models.model_manager import model_manager
 from backend.genai.models.providers import LLMMessage, LLMParameters, create_model_provider
 from backend.genai.models.thinking import DEFAULT_INTENT
@@ -38,6 +39,7 @@ _SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 def _run_error_event(message: str) -> str:
     return _enc.encode(RunErrorEvent(message=message))
 _provider_cache = ProviderCache()
+clients.on_change(_provider_cache.clear)  # rebuild after a provider/model edit (key, URL)
 
 
 def _get_provider(model_id: str):
@@ -56,7 +58,7 @@ def _get_provider(model_id: str):
     return _provider_cache.get_or_create(
         model_id, fingerprint,
         lambda: create_model_provider(
-            model.api_provider, model_id,
+            model.api, model_id,
             LLMParameters(**params) if params else LLMParameters(),
             tools=tools,
         ),
@@ -69,7 +71,7 @@ async def get_config(sub: str = Depends(get_auth_user)):
     models = model_manager.get_models(filter=module_config.get_model_filter('asking'))
     return {
         "models": [
-            {"model_id": m.model_id, "name": f"{m.name}, {m.api_provider}"}
+            {"model_id": m.model_id, "name": f"{m.name}, {m.provider}"}
             for m in (models or [])
         ],
         "default_model": module_config.get_default_model('asking'),

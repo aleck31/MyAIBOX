@@ -339,6 +339,21 @@ export async function toggleModel(modelId: string, enabled: boolean) {
   return res.json()
 }
 
+export async function getProviders({ refresh = false }: { refresh?: boolean } = {}) {
+  const res = await apiFetch(refresh ? `${SETTINGS}/providers?refresh=true` : `${SETTINGS}/providers`)
+  return res.json()
+}
+
+export async function saveProvider(data: Record<string, unknown>, isNew: boolean) {
+  const res = await apiFetch(`${SETTINGS}/providers/${isNew ? 'add' : 'update'}`, { method: 'POST', body: JSON.stringify(data) })
+  return res.json()
+}
+
+export async function deleteProvider(name: string) {
+  const res = await apiFetch(`${SETTINGS}/providers/${encodeURIComponent(name)}`, { method: 'DELETE' })
+  return res.json()
+}
+
 export async function getMcpServers() {
   const res = await apiFetch(`${SETTINGS}/mcp-servers`)
   return res.json()

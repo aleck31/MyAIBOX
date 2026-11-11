@@ -1,8 +1,7 @@
 from typing import Dict, List, Optional, Iterator
 import openai
 from openai import OpenAI
-from backend.core.config import env_config
-from backend.utils.aws import get_secret
+from backend.genai.models import clients
 from . import LLMAPIProvider, LLMParameters, LLMMessage, LLMResponse, LLMProviderError
 from .. import logger
 
@@ -32,13 +31,8 @@ class OpenAIProvider(LLMAPIProvider):
     def _initialize_client(self) -> None:
         """Initialize OpenAI client"""
         try:
-            openai_secret_key = env_config.openai_config['secret_id']
-            api_key = get_secret(openai_secret_key).get('api_key')
-            if not api_key:
-                raise ValueError("OpenAI API key not configured")
-            
-            # Initialize sync client only
-            self.client = OpenAI(api_key=api_key)
+            _, provider = clients.resolve(self.model_id)
+            self.client = OpenAI(**clients.openai_client_args(provider))
             
         except Exception as e:
             raise ValueError(f"Failed to initialize OpenAI client: {str(e)}")
