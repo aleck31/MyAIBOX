@@ -68,7 +68,7 @@ class AgentProvider:
         self._clients_generation = clients.generation()
 
         if model.api == API_BEDROCK_CONVERSE:
-            kwargs = {"model_id": mid, **clients.bedrock_kwargs(provider)}
+            kwargs = {"model_id": mid, **clients.bedrock_kwargs(provider, flex=model.service_tier == 'flex')}
             if model.service_tier:
                 kwargs["service_tier"] = model.service_tier
             additional_fields: Dict = {}

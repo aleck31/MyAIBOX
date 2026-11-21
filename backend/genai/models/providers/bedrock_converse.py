@@ -84,8 +84,8 @@ class BedrockConverse(LLMAPIProvider):
 
     def _initialize_client(self) -> None:
         try:
-            _, provider = clients.resolve(self.model_id)
-            self.client = clients.bedrock_runtime_client(provider)
+            model, provider = clients.resolve(self.model_id)
+            self.client = clients.bedrock_runtime_client(provider, flex=model.service_tier == 'flex')
         except Exception as e:
             raise ClientError(
                 error_response={

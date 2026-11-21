@@ -3,10 +3,11 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
-## Unreleased
+## [3.10.1] - 2026-11-21
 
 ### Fixed
 - A slow model call in Text, Summary, the non-agent Chat path or Draw no longer freezes the whole app: those calls run off the event loop, as Asking, Vision and agent Chat already did.
+- A stalled Bedrock call now fails within about 3 minutes (60s read timeout, 3 attempts); only flex-tier models keep a 300s read timeout. It could hang for over 50 minutes (300s × 11 attempts).
 
 ## [3.10.0] - 2026-11-11
 

@@ -252,3 +252,12 @@ def test_image_filtered_by_the_model_says_so():
     assert first_image_b64({"images": ["b64"]}) == "b64"
     with pytest.raises(ValueError, match="content filter"):
         first_image_b64({"finish_reasons": ["Filter reason: prompt"]})
+
+
+def test_only_flex_models_wait_long_for_the_first_token(registry):
+    """300s x 10 attempts let one stalled call hang for many minutes; only flex needs the long read timeout."""
+    gw = provider_manager.get_provider("gw")
+    normal, flex = clients.bedrock_kwargs(gw)["boto_client_config"], clients.bedrock_kwargs(gw, flex=True)["boto_client_config"]
+    assert (normal.read_timeout, flex.read_timeout) == (60, 300)
+    client = clients.bedrock_runtime_client(gw)
+    assert client.meta.config.retries["total_max_attempts"] == 3

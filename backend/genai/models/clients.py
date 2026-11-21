@@ -14,8 +14,10 @@ from . import AUTH_AWS, LLMModel, LLMProvider
 from .model_manager import model_manager
 from .provider_manager import provider_manager
 
-# Flex-tier requests can queue before the first token, longer than boto's default 60s read timeout.
-_BOTO_TIMEOUTS = dict(read_timeout=300, retries={"max_attempts": 10, "mode": "standard"})
+# A stalled model call should fail within minutes, so few attempts; flex-tier requests can queue for minutes
+# before the first token, so only they get the long read timeout.
+_TOTAL_ATTEMPTS = 3  # first try + 2 retries
+_READ_TIMEOUT, _FLEX_READ_TIMEOUT = 60, 300
 _keys: Dict[str, str] = {}
 _bearer_sessions: Dict[str, boto3.Session] = {}
 # Bumped on every provider or model change; holders of long-lived clients compare it to rebuild them.
@@ -93,21 +95,24 @@ def _bearer_session(provider: LLMProvider) -> boto3.Session:
     return _bearer_sessions[provider.name]
 
 
-def bedrock_kwargs(provider: LLMProvider) -> Dict:
+def bedrock_kwargs(provider: LLMProvider, flex: bool = False) -> Dict:
     """boto_session / boto_client_config / endpoint_url, as Strands' BedrockModel takes them."""
+    # A fresh retries dict each time: botocore rewrites the one it is given in place.
+    timeouts = dict(read_timeout=_FLEX_READ_TIMEOUT if flex else _READ_TIMEOUT,
+                    retries={"total_max_attempts": _TOTAL_ATTEMPTS, "mode": "standard"})
     if provider.auth == AUTH_AWS:
         kwargs: Dict = {"boto_session": get_aws_session(region_name=provider.region),
-                        "boto_client_config": Config(**_BOTO_TIMEOUTS)}
+                        "boto_client_config": Config(**timeouts)}
     else:
         kwargs = {"boto_session": _bearer_session(provider),
-                  "boto_client_config": Config(signature_version=UNSIGNED, **_BOTO_TIMEOUTS)}
+                  "boto_client_config": Config(signature_version=UNSIGNED, **timeouts)}
     if provider.base_url:
         kwargs["endpoint_url"] = provider.base_url.rstrip('/')
     return kwargs
 
 
-def bedrock_runtime_client(provider: LLMProvider):
-    kw = bedrock_kwargs(provider)
+def bedrock_runtime_client(provider: LLMProvider, flex: bool = False):
+    kw = bedrock_kwargs(provider, flex)
     return kw["boto_session"].client('bedrock-runtime', config=kw["boto_client_config"],
                                      endpoint_url=kw.get("endpoint_url"))
 
