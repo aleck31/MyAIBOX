@@ -4,6 +4,8 @@ from backend.core.module_config import module_config
 from backend.genai.models.providers import LLMMessage, LLMProviderError
 from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
+import asyncio
+from backend.common.async_stream import aiter_sync
 
 
 class GenService(BaseService):
@@ -84,7 +86,7 @@ class GenService(BaseService):
             messages = [self._prepare_message(content, model_id)]
 
             # Generate response
-            response = provider.generate_content(
+            response = await asyncio.to_thread(provider.generate_content,
                 messages=messages,
                 system_prompt=system_prompt,
                 **(option_params or {})
@@ -130,7 +132,7 @@ class GenService(BaseService):
             message = self._prepare_message(content, model_id)
 
             # Generate response
-            response = provider.generate_content(
+            response = await asyncio.to_thread(provider.generate_content,
                 messages=[message],
                 system_prompt=session.context.get('system_prompt', ''),
                 **(option_params or {})
@@ -196,11 +198,11 @@ class GenService(BaseService):
             response_metadata = {}
 
             try:
-                for chunk in provider.generate_stream(
+                async for chunk in aiter_sync(provider.generate_stream(
                     messages=[message],
                     system_prompt=session.context.get('system_prompt', ''),
                     **(option_params or {})
-                ):
+                )):
                     if not isinstance(chunk, dict):
                         logger.warning(f"Unexpected chunk type: {type(chunk)}")
                         continue

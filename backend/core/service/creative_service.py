@@ -3,6 +3,7 @@ from typing import Dict, Optional
 from backend.core.session import Session
 from backend.genai.models.providers import LLMMessage, LLMProviderError
 from . import BaseService, logger
+import asyncio
 
 
 class CreativeService(BaseService):
@@ -54,7 +55,7 @@ class CreativeService(BaseService):
             messages = [self._prepare_message(content)]
 
             # Generate response
-            response = provider.generate_content(
+            response = await asyncio.to_thread(provider.generate_content,
                 messages=messages,
                 system_prompt=system_prompt,
                 **(option_params or {})
@@ -99,7 +100,7 @@ class CreativeService(BaseService):
             message = self._prepare_message(content)
 
             # Generate response
-            response = provider.generate_content(
+            response = await asyncio.to_thread(provider.generate_content,
                 messages=[message],
                 system_prompt=session.context.get('system_prompt', ''),
                 **(option_params or {})

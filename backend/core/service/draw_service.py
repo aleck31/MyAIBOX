@@ -12,6 +12,7 @@ from backend.genai.models.providers.bedrock_invoke import first_image_b64
 from backend.genai.models import API_BEDROCK_INVOKE, API_GEMINI
 from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
+import asyncio
 
 
 class DrawService(BaseService):
@@ -123,7 +124,7 @@ class DrawService(BaseService):
             request_body.update(option_params)
 
         logger.debug(f"[DrawService] Bedrock request: {json.dumps(request_body, indent=2)}")
-        response = provider.invoke_model_sync(
+        response = await asyncio.to_thread(provider.invoke_model_sync,
             request_body, accept="application/json", content_type="application/json"
         )
         if not response:
@@ -182,7 +183,7 @@ class DrawService(BaseService):
         last_err = None
         for attempt in range(3):
             try:
-                response = gemini.client.models.generate_content(
+                response = await asyncio.to_thread(gemini.client.models.generate_content,
                     model=model_id, contents=full_prompt, config=config
                 )
                 return self._extract_image(response)
@@ -223,7 +224,7 @@ class DrawService(BaseService):
                 request_body["mode"] = "image-to-image"
 
         logger.debug(f"[DrawService] Bedrock edit request: model={model_id}")
-        response = provider.invoke_model_sync(
+        response = await asyncio.to_thread(provider.invoke_model_sync,
             request_body, accept="application/json", content_type="application/json"
         )
         if not response:
@@ -244,7 +245,7 @@ class DrawService(BaseService):
         last_err = None
         for attempt in range(3):
             try:
-                response = gemini.client.models.generate_content(
+                response = await asyncio.to_thread(gemini.client.models.generate_content,
                     model=model_id, contents=[image_part, edit_prompt], config=config
                 )
                 return self._extract_image(response)

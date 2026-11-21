@@ -3,6 +3,11 @@
 All notable changes to MyAIBOX. The version lives in `pyproject.toml` (`my-aibox build` syncs it to the
 frontend and lockfiles). The README only highlights the latest release.
 
+## Unreleased
+
+### Fixed
+- A slow model call in Text, Summary, the non-agent Chat path or Draw no longer freezes the whole app: those calls run off the event loop, as Asking, Vision and agent Chat already did.
+
 ## [3.10.0] - 2026-11-11
 
 ### Added

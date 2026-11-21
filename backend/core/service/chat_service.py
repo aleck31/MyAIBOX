@@ -5,6 +5,7 @@ from backend.core.session import Session
 from backend.genai.models.providers import LLMMessage, LLMProviderError
 from backend.genai.models.model_manager import model_manager
 from . import BaseService, logger
+from backend.common.async_stream import aiter_sync
 
 
 class ChatService(BaseService):
@@ -269,12 +270,12 @@ class ChatService(BaseService):
             # Stream from LLM
             logger.debug(f"Streaming with model {model_id} and params: {style_params}")
             try:
-                for chunk in provider.multi_turn_generate(
+                async for chunk in aiter_sync(provider.multi_turn_generate(
                     message=user_message,
                     history=history_messages,
                     system_prompt=session.context.get('system_prompt'),
                     **(style_params or {})
-                ):
+                )):
                     if not isinstance(chunk, dict):
                         logger.warning(f"Unexpected chunk type: {type(chunk)}")
                         continue

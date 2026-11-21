@@ -47,3 +47,27 @@ async def test_does_not_block_event_loop():
     # If the loop were blocked for the full ~150ms, the ticker couldn't
     # have incremented. At 10ms cadence it should reach its cap.
     assert ticks >= 5
+
+
+async def test_slow_text_call_does_not_freeze_other_requests(monkeypatch):
+    """A Text request whose model call stalled ran on the event loop and hung every page for ~10 minutes."""
+    import asyncio
+    import time
+    import types
+    from backend.core.service.gen_service import GenService
+
+    class SlowProvider:
+        def generate_content(self, **_):
+            time.sleep(0.5)
+            return types.SimpleNamespace(content={"text": "ok"})
+
+    svc = object.__new__(GenService)
+    svc.module_name = "text"
+    monkeypatch.setattr(svc, "_get_model_provider", lambda _mid: SlowProvider(), raising=False)
+    monkeypatch.setattr(svc, "_prepare_message", lambda content, _mid: content, raising=False)
+
+    slow = asyncio.create_task(svc.gen_text_stateless({"text": "hi"}, model_id="m"))
+    start = time.monotonic()
+    await asyncio.sleep(0.05)  # another request's work
+    assert time.monotonic() - start < 0.3
+    assert await slow == "ok"
